@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Лаба · Архитектура K8S</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="a.css">
+<style>
+.lab{min-height:100vh;display:flex;flex-direction:column;gap:12px;padding:12px}
+.bar-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:var(--side);border-radius:var(--r);padding:10px 12px 10px 16px}
+.task{display:flex;gap:12px;padding:12px;border-radius:12px;font-size:15px;line-height:1.5}
+.task .box{width:22px;height:22px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.task.done .box{background:var(--green);color:#fff}
+.task.done span{color:var(--muted);text-decoration:line-through}
+.task.now{background:var(--green-tint)}
+.task.now .box{border:2px solid var(--green)}
+.task .box.todo{border:2px solid #D3D8D2}
+.tabs{display:flex;gap:4px;padding:6px;background:#0A110D;border-radius:12px 12px 0 0}
+.tabs button{height:34px;padding:0 14px;border:0;border-radius:8px;background:none;color:#8DA595;font-size:13px}
+.tabs button.on{background:#1B2A21;color:#E6EFE8}
+</style>
+</head>
+<body>
+<div class="lab">
+  <header class="bar-top">
+    <a href="a-course.html" class="iconbtn" aria-label="Назад к курсу" style="width:40px;height:40px"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#left"></use></svg></a>
+    <div style="display:flex;flex-direction:column">
+      <span class="small muted">Kubernetes · Раздел 1 · лабораторная</span>
+      <b style="font-weight:600;font-size:16px">Архитектура K8S</b>
+    </div>
+    <div class="row" style="margin-left:auto">
+      <span class="tag"><span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>Кластер готов</span>
+      <span class="pill" style="background:#fff;border:1px solid var(--line)"><svg class="ic" style="width:16px;height:16px;color:var(--muted)"><use href="icons.svg#clock"></use></svg><span class="mono" style="font-weight:500">1:56:12</span></span>
+      <button class="btn"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#reset"></use></svg>Сбросить среду</button>
+      <button class="btn pri"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#check"></use></svg>Проверить решение</button>
+    </div>
+  </header>
+
+  <div style="flex:1;display:flex;flex-wrap:wrap;gap:12px;align-items:stretch">
+    <section class="card" style="flex:1 1 320px;max-width:440px;gap:8px">
+      <div class="card-h"><h2>Задания</h2><span class="small muted">1 из 4 · +120 XP</span></div>
+      <div class="bar" style="margin-bottom:8px"><i style="width:25%"></i></div>
+      <div class="task done"><span class="box"><svg class="ic" style="width:14px;height:14px;stroke-width:2.6"><use href="icons.svg#check"></use></svg></span><span>Проверьте, что все три узла в статусе Ready</span></div>
+      <div class="task now"><span class="box"></span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <b style="font-weight:600">Найдите coredns</b>
+          <span style="color:var(--ink2)">Выведите системные Pod'ы из namespace <code class="mono" style="font-size:13px;background:#fff;padding:1px 6px;border-radius:6px">kube-system</code> и выясните, на каком узле работает coredns.</span>
+          <details style="font-size:14px"><summary style="cursor:pointer;color:var(--green);font-weight:500">Подсказка</summary><p style="margin:8px 0 0;color:var(--ink2)">Флаг <code class="mono">-o wide</code> добавляет колонку NODE.</p></details>
+        </div>
+      </div>
+      <div class="task"><span class="box todo"></span><span>Масштабируйте deployment coredns до 2 реплик</span></div>
+      <div class="task"><span class="box todo"></span><span>Удалите один Pod и проследите, как кластер его восстановит</span></div>
+    </section>
+
+    <section style="flex:999 1 480px;min-width:0;display:flex;flex-direction:column;background:var(--dark2);border-radius:var(--r);overflow:hidden;min-height:520px">
+      <div class="tabs" role="tablist">
+        <button class="on" role="tab" aria-selected="true">Терминал</button>
+        <button role="tab" aria-selected="false">server</button>
+        <button role="tab" aria-selected="false">+ вкладка</button>
+        <button aria-label="На весь экран" style="margin-left:auto;padding:0 10px"><svg class="ic" style="width:16px;height:16px"><use href="icons.svg#expand"></use></svg></button>
+      </div>
+      <div class="term mono" style="flex:1;border-radius:0;padding:18px 20px;font-size:14px">
+        <div><span class="p">student@lab:~$</span> kubectl get nodes</div>
+        <div>NAME&#160;&#160;&#160;&#160;&#160;&#160;&#160;STATUS&#160;&#160;&#160;ROLES&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;AGE&#160;&#160;&#160;VERSION</div>
+        <div>server&#160;&#160;&#160;&#160;&#160;<span class="ok">Ready</span>&#160;&#160;&#160;&#160;control-plane,master&#160;&#160;&#160;4m&#160;&#160;&#160;&#160;v1.30.4+k3s1</div>
+        <div>worker-1&#160;&#160;&#160;<span class="ok">Ready</span>&#160;&#160;&#160;&#160;&lt;none&gt;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;4m&#160;&#160;&#160;&#160;v1.30.4+k3s1</div>
+        <div>worker-2&#160;&#160;&#160;<span class="ok">Ready</span>&#160;&#160;&#160;&#160;&lt;none&gt;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;4m&#160;&#160;&#160;&#160;v1.30.4+k3s1</div>
+        <div style="margin-top:10px;color:#9FD3AE">✓ Задание 1 выполнено · +30 XP</div>
+        <div style="margin-top:10px"><span class="p">student@lab:~$</span> kubectl get pods -n kube-system <span class="cur"></span></div>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

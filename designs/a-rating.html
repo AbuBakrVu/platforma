@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Рейтинг</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="a.css">
+<style>
+.seg{display:inline-flex;gap:4px;padding:4px;background:#fff;border-radius:16px}
+.seg button{height:36px;padding:0 14px;border:0;border-radius:12px;background:none;font-size:14px;color:var(--ink2)}
+.seg button.on{background:var(--green-soft);color:var(--green);font-weight:600}
+.podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:16px}
+.pod{background:#fff;border-radius:var(--r);padding:20px;display:flex;align-items:center;gap:14px}
+.pod .pl{font-size:40px;font-weight:700;letter-spacing:-.04em;width:40px;color:#C4CAC3}
+.pod.first{background:var(--dark);color:#fff}.pod.first .pl{color:#9FD3AE}.pod.first .muted{color:#A9BBAE}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none;background:#E6E9E5;color:var(--ink2)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;font-weight:500;font-size:13px;color:var(--muted);padding:0 12px 10px}
+td{padding:12px;border-top:1px solid var(--line2)}
+td.n{width:48px;font-weight:600;color:var(--muted)}
+tr.mine td{background:var(--green-tint)}tr.mine td:first-child{border-radius:12px 0 0 12px}tr.mine td:last-child{border-radius:0 12px 12px 0}
+tr.mine+tr td{border-top-color:transparent}
+.who{display:flex;align-items:center;gap:12px}
+.up{color:var(--green);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:2px}
+.dn{color:var(--warn);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Меню">
+    <div class="me"><div class="ava">АК</div><div><b>Айгерим К.</b><small>Студент · DevOps</small></div></div>
+    <div class="nav">
+      <a href="a-crm.html"><svg class="ic"><use href="icons.svg#home"></use></svg>Обзор</a>
+      <a href="a-course.html"><svg class="ic"><use href="icons.svg#skills"></use></svg>Навыки</a>
+      <a href="#"><svg class="ic"><use href="icons.svg#cal"></use></svg>Расписание</a>
+      <a href="a-lab.html"><svg class="ic"><use href="icons.svg#term"></use></svg>Лаборатории</a>
+      <a href="a-exam.html"><svg class="ic"><use href="icons.svg#exam"></use></svg>Пробные экзамены</a>
+      <a href="a-rating.html" class="on"><svg class="ic"><use href="icons.svg#cup"></use></svg>Рейтинг</a>
+    </div>
+    <div class="sep"></div>
+    <div class="nav">
+      <a href="a-certificate.html"><svg class="ic"><use href="icons.svg#cert"></use></svg>Сертификаты</a>
+      <a href="#"><svg class="ic"><use href="icons.svg#shop"></use></svg>Магазин</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="top">
+      <div class="title"><h1>Рейтинг</h1><p>Поток DevOps-24 · 64 студента. XP начисляются за уроки, лабы и экзамены.</p></div>
+      <div class="seg" role="tablist"><button class="on" role="tab" aria-selected="true">Неделя</button><button role="tab" aria-selected="false">Месяц</button><button role="tab" aria-selected="false">Всё время</button></div>
+    </div>
+
+    <div class="podium">
+      <div class="pod first"><span class="pl">1</span><span class="av" style="background:#2E4A39;color:#fff">ДС</span><div><b style="font-weight:600">Данияр С.</b><div class="small muted">2 140 XP</div></div></div>
+      <div class="pod"><span class="pl">2</span><span class="av">МА</span><div><b style="font-weight:600">Мадина А.</b><div class="small muted">1 980 XP</div></div></div>
+      <div class="pod"><span class="pl">3</span><span class="av">ТЖ</span><div><b style="font-weight:600">Тимур Ж.</b><div class="small muted">1 905 XP</div></div></div>
+    </div>
+
+    <section class="card">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>#</th><th>Студент</th><th>XP</th><th>Лабы</th><th>Посещаемость</th><th>За неделю</th></tr></thead>
+          <tbody>
+            <tr><td class="n">4</td><td><div class="who"><span class="av">ЕБ</span>Ерлан Б.</div></td><td>1 720</td><td>14</td><td>100%</td><td><span class="up"><svg class="ic" style="width:14px;height:14px"><use href="icons.svg#up"></use></svg>2</span></td></tr>
+            <tr><td class="n">5</td><td><div class="who"><span class="av">АН</span>Алия Н.</div></td><td>1 610</td><td>13</td><td>92%</td><td class="muted">—</td></tr>
+            <tr><td class="n">6</td><td><div class="who"><span class="av">РК</span>Руслан К.</div></td><td>1 540</td><td>12</td><td>100%</td><td><span class="dn"><svg class="ic" style="width:14px;height:14px"><use href="icons.svg#down"></use></svg>1</span></td></tr>
+            <tr><td class="n">7</td><td><div class="who"><span class="av">ЖМ</span>Жанна М.</div></td><td>1 470</td><td>12</td><td>83%</td><td class="muted">—</td></tr>
+            <tr><td class="n">8</td><td><div class="who"><span class="av">БТ</span>Бахыт Т.</div></td><td>1 390</td><td>11</td><td>92%</td><td><span class="dn"><svg class="ic" style="width:14px;height:14px"><use href="icons.svg#down"></use></svg>2</span></td></tr>
+            <tr class="mine"><td class="n" style="color:var(--green)">9</td><td><div class="who"><span class="av" style="background:var(--green);color:#fff">АК</span><b style="font-weight:600">Вы</b><span class="small muted">до 8-го места 40 XP</span></div></td><td><b style="font-weight:600">1 350</b></td><td>11</td><td>92%</td><td><span class="up"><svg class="ic" style="width:14px;height:14px"><use href="icons.svg#up"></use></svg>3</span></td></tr>
+            <tr><td class="n">10</td><td><div class="who"><span class="av">ОИ</span>Олжас И.</div></td><td>1 300</td><td>10</td><td>75%</td><td class="muted">—</td></tr>
+            <tr><td class="n">11</td><td><div class="who"><span class="av">СА</span>Сабина А.</div></td><td>1 255</td><td>10</td><td>100%</td><td><span class="up"><svg class="ic" style="width:14px;height:14px"><use href="icons.svg#up"></use></svg>1</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

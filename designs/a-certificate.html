@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сертификаты</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap">
+<link rel="stylesheet" href="a.css">
+<style>
+.paper{background:#fff;border-radius:var(--r);padding:clamp(24px,4vw,48px);display:flex;flex-direction:column;gap:28px;box-shadow:0 1px 2px rgba(20,30,20,.06);position:relative;overflow:hidden}
+.paper::before{content:"";position:absolute;inset:14px;border:1px solid var(--line);border-radius:14px;pointer-events:none}
+.qr{width:120px;height:120px;border-radius:12px;border:1px dashed #BFC6BE;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--muted);flex:none;background:var(--green-tint)}
+.list a{display:flex;align-items:center;gap:14px;padding:14px;border-radius:var(--r-s);color:var(--ink)}
+.list a:hover{background:var(--green-tint);color:var(--ink)}
+.list a.on{background:var(--green-soft)}
+.seal{width:44px;height:44px;border-radius:12px;background:var(--green-soft);color:var(--green);display:flex;align-items:center;justify-content:center;flex:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Меню">
+    <div class="me"><div class="ava">АК</div><div><b>Айгерим К.</b><small>Студент · DevOps</small></div></div>
+    <div class="nav">
+      <a href="a-crm.html"><svg class="ic"><use href="icons.svg#home"></use></svg>Обзор</a>
+      <a href="a-course.html"><svg class="ic"><use href="icons.svg#skills"></use></svg>Навыки</a>
+      <a href="#"><svg class="ic"><use href="icons.svg#cal"></use></svg>Расписание</a>
+      <a href="a-lab.html"><svg class="ic"><use href="icons.svg#term"></use></svg>Лаборатории</a>
+      <a href="a-exam.html"><svg class="ic"><use href="icons.svg#exam"></use></svg>Пробные экзамены</a>
+      <a href="a-rating.html"><svg class="ic"><use href="icons.svg#cup"></use></svg>Рейтинг</a>
+    </div>
+    <div class="sep"></div>
+    <div class="nav">
+      <a href="a-certificate.html" class="on"><svg class="ic"><use href="icons.svg#cert"></use></svg>Сертификаты</a>
+      <a href="#"><svg class="ic"><use href="icons.svg#shop"></use></svg>Магазин</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="top">
+      <div class="title"><h1>Сертификаты</h1><p>Каждый можно проверить по QR-коду или ссылке.</p></div>
+      <div class="row">
+        <button class="btn"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#share"></use></svg>Поделиться</button>
+        <button class="btn pri"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#dl"></use></svg>Скачать PDF</button>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+      <section class="card list" style="flex:1 1 280px;max-width:340px;padding:10px;gap:2px">
+        <a href="#" class="on"><span class="seal"><svg class="ic"><use href="icons.svg#cert"></use></svg></span><div><b style="font-weight:600;display:block">DevOps Engineer</b><span class="small muted">27 сен 2026</span></div></a>
+        <a href="#"><span class="seal"><svg class="ic"><use href="icons.svg#cert"></use></svg></span><div><b style="font-weight:600;display:block">Linux. Основы</b><span class="small muted">14 июн 2026</span></div></a>
+        <a href="#" style="color:var(--muted)"><span class="seal" style="background:#F0F1EF;color:var(--muted)"><svg class="ic"><use href="icons.svg#lock"></use></svg></span><div><b style="font-weight:600;display:block">Kubernetes</b><span class="small">42% · откроется после экзамена</span></div></a>
+      </section>
+
+      <article class="paper" style="flex:999 1 520px;min-width:0" aria-label="Сертификат DevOps Engineer">
+        <div class="row" style="justify-content:space-between;position:relative">
+          <b style="font-weight:700;font-size:18px;color:var(--green)">[ЛОГОТИП]</b>
+          <span class="small muted mono">№ 36A8-46A6-41F9</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;position:relative">
+          <span class="small muted" style="letter-spacing:.12em;text-transform:uppercase">Сертификат об окончании курса</span>
+          <h2 style="font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.03em;line-height:1.05">DevOps Engineer</h2>
+          <span class="muted">Подтверждает, что</span>
+          <span style="font-size:clamp(24px,3vw,32px);font-weight:600;letter-spacing:-.02em">Айгерим Касымова</span>
+          <span style="color:var(--ink2);line-height:1.55;max-width:560px">прошла программу из 96 академических часов: Linux, Docker, Kubernetes, CI/CD и AWS, выполнила 18 лабораторных работ и сдала итоговый экзамен.</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px;position:relative">
+          <div style="display:flex;flex-wrap:wrap;gap:32px">
+            <div><span class="small muted">Дата</span><div style="font-weight:600;margin-top:4px">27 сентября 2026</div></div>
+            <div><span class="small muted">Форма</span><div style="font-weight:600;margin-top:4px">Очное обучение</div></div>
+            <div><span class="small muted">Директор</span><div style="font-weight:600;margin-top:4px">[ФИО ДИРЕКТОРА]</div></div>
+          </div>
+          <div class="qr">QR-код<br>проверки</div>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Пробный экзамен · CCNA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
+<link rel="stylesheet" href="a.css">
+<style>
+.wrap{min-height:100vh;display:flex;flex-direction:column;gap:12px;padding:12px}
+.qgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.qgrid button{height:44px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:14px;font-weight:500;color:var(--ink2)}
+.qgrid button.a{background:var(--green-soft);border-color:var(--green-soft);color:var(--green)}
+.qgrid button.f{background:var(--warn-soft);border-color:var(--warn-soft);color:var(--warn)}
+.qgrid button.cur{background:var(--green);border-color:var(--green);color:#fff}
+.opt{display:flex;align-items:center;gap:14px;min-height:56px;padding:12px 16px;border:1px solid var(--line);border-radius:var(--r-s);cursor:pointer;font-size:16px}
+.opt:hover{border-color:#C9CFC8}
+.opt input{position:absolute;opacity:0}
+.opt .k{width:30px;height:30px;border-radius:9px;background:#F0F2EF;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none}
+.opt.sel{border-color:var(--green);background:var(--green-tint)}
+.opt.sel .k{background:var(--green);color:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:var(--side);border-radius:var(--r);padding:10px 12px 10px 20px">
+    <div style="display:flex;flex-direction:column">
+      <span class="small muted">Пробный экзамен</span>
+      <b style="font-weight:600;font-size:16px">Cisco CCNA 200-301</b>
+    </div>
+    <div class="row" style="margin-left:auto">
+      <span class="pill" style="border:1px solid var(--line)"><svg class="ic" style="width:16px;height:16px;color:var(--muted)"><use href="icons.svg#clock"></use></svg><span class="mono">31:08</span></span>
+      <button class="btn dark">Завершить экзамен</button>
+    </div>
+  </header>
+
+  <div style="flex:1;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
+    <aside class="card" style="flex:1 1 260px;max-width:320px">
+      <div class="card-h"><h2>Вопросы</h2><span class="small muted">12 / 30</span></div>
+      <div class="qgrid" aria-label="Навигация по вопросам">
+        <button class="a">1</button><button class="a">2</button><button class="a">3</button><button class="f">4</button><button class="a">5</button>
+        <button class="a">6</button><button class="a">7</button><button class="a">8</button><button class="a">9</button><button class="a">10</button>
+        <button class="f">11</button><button class="a">12</button><button class="cur" aria-current="step">13</button><button>14</button><button>15</button>
+        <button>16</button><button>17</button><button>18</button><button>19</button><button>20</button>
+        <button>21</button><button>22</button><button>23</button><button>24</button><button>25</button>
+        <button>26</button><button>27</button><button>28</button><button>29</button><button>30</button>
+      </div>
+      <div class="legend"><span><i style="background:var(--green-soft)"></i>Отвечен</span><span><i style="background:var(--warn-soft)"></i>Отложен</span><span><i style="border:1px solid var(--line)"></i>Нет ответа</span></div>
+      <p class="small muted" style="margin:0;line-height:1.5">К любому вопросу можно вернуться до отправки. Ответы сохраняются автоматически.</p>
+    </aside>
+
+    <section class="card" style="flex:999 1 480px;min-width:0;padding:28px 32px;gap:20px">
+      <div class="row" style="justify-content:space-between">
+        <span class="small muted">Вопрос 13 из 30 · один ответ</span>
+        <button class="btn" style="height:38px"><svg class="ic" style="width:16px;height:16px"><use href="icons.svg#flag"></use></svg>Отложить</button>
+      </div>
+      <h1 style="font-size:24px;font-weight:600;line-height:1.35;letter-spacing:-.01em;max-width:760px">Какое сетевое устройство проверяет состояние пакета, чтобы определить, легитимен ли он?</h1>
+      <fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;max-width:760px">
+        <legend class="small muted" style="margin-bottom:10px">Выберите ответ</legend>
+        <label class="opt"><input type="radio" name="q"><span class="k">A</span>Коммутатор уровня 2</label>
+        <label class="opt"><input type="radio" name="q"><span class="k">B</span>Балансировщик нагрузки</label>
+        <label class="opt sel"><input type="radio" name="q" checked><span class="k">C</span>Межсетевой экран (firewall)</label>
+        <label class="opt"><input type="radio" name="q"><span class="k">D</span>Контроллер беспроводной сети</label>
+      </fieldset>
+      <div class="row" style="justify-content:space-between;padding-top:20px;border-top:1px solid var(--line2)">
+        <button class="btn"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#left"></use></svg>Назад</button>
+        <button class="btn pri">Следующий<svg class="ic" style="width:18px;height:18px"><use href="icons.svg#right"></use></svg></button>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>
