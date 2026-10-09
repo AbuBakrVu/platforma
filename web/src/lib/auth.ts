@@ -1,29 +1,16 @@
 import "server-only";
-import { randomBytes, scrypt as scryptCb, timingSafeEqual, createHash } from "node:crypto";
-import { promisify } from "node:util";
+import { randomBytes, createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { eq, and, gt } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { hashPassword, verifyPassword } from "@/db/password";
 
-const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
+export { hashPassword, verifyPassword };
+
 const COOKIE = "session";
 const SESSION_DAYS = 30;
-
-export async function hashPassword(password: string) {
-  const salt = randomBytes(16);
-  const key = await scrypt(password.normalize("NFKC"), salt, 64);
-  return `scrypt$${salt.toString("base64")}$${key.toString("base64")}`;
-}
-
-export async function verifyPassword(password: string, stored: string) {
-  const [algo, saltB64, keyB64] = stored.split("$");
-  if (algo !== "scrypt" || !saltB64 || !keyB64) return false;
-  const key = Buffer.from(keyB64, "base64");
-  const test = await scrypt(password.normalize("NFKC"), Buffer.from(saltB64, "base64"), key.length);
-  return timingSafeEqual(key, test);
-}
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 

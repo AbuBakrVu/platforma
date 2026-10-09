@@ -2,7 +2,10 @@
 # Рассчитано на сервер, где уже работают другие CRM:
 #   — свой project name (platforma) и своя сеть, имена контейнеров не пересекаются;
 #   — база наружу не открыта, доступна только внутри сети проекта;
-#   — приложение слушает только 127.0.0.1:${APP_PORT}, наружу его отдаёт ваш nginx/traefik.
+#   — приложение слушает только 127.0.0.1:${APP_PORT}, наружу его отдаёт ваш nginx/traefik;
+#   — если своего прокси нет, профиль caddy сам получит HTTPS-сертификат для APP_DOMAIN
+#     (COMPOSE_PROFILES=caddy в .env, нужны свободные порты 80 и 443).
+# Проще всего ставить через ./install.sh — он спросит домен и администратора и всё настроит.
 name: platforma
 
 services:
@@ -50,5 +53,21 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["caddy"]
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${APP_DOMAIN:-localhost} --to web:3000
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

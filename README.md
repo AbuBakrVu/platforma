@@ -16,33 +16,37 @@ docker-compose.yml   запуск на сервере
 - Рейтинг потока за неделю / месяц / всё время
 - Заглушки: расписание, лаборатории, экзамены, сертификаты, магазин (схема БД для экзаменов и сертификатов уже есть)
 
-## Запуск на сервере (Docker)
+## Установка на сервер
 
-Рассчитано на сервер, где уже работают другие CRM: у проекта своё имя (`platforma`) и сеть, база наружу не открыта, приложение слушает только `127.0.0.1:${APP_PORT}`.
+Нужен Linux-сервер с доступом в интернет и домен, A-запись которого указывает на сервер.
 
 ```bash
-cp .env.example .env   # задайте POSTGRES_PASSWORD, APP_PORT, при желании SEED_DEMO=1
+git clone https://github.com/AbuBakrVu/platforma.git && cd platforma && sudo ./install.sh
+```
+
+Установщик спросит **домен**, **логин (email)** и **пароль администратора**, затем сам:
+
+- поставит Docker, если его нет (с вашего согласия);
+- сгенерирует пароль базы и найдёт свободный порт (с 3100), запишет `.env` с доступом только для root;
+- соберёт и запустит контейнеры, создаст администратора;
+- настроит HTTPS: если на сервере работает nginx — добавит сайт в `/etc/nginx/conf.d/` и выпустит сертификат через certbot;
+  если порты 80/443 свободны — включит встроенный Caddy; если их занимает другой прокси (traefik и т.п.) — подскажет, куда проксировать.
+
+Сервис уживается с другими проектами на сервере: своё имя `platforma` и сеть, база наружу не открыта, приложение слушает только `127.0.0.1`.
+
+**Обновление:** `git pull && docker compose up -d --build` — миграции применятся автоматически.
+**Сменить пароль администратора:** `sudo ./install.sh` ещё раз (пароль базы и порт сохранятся).
+**Резервная копия базы:** `docker compose exec db pg_dump -U platforma platforma > backup.sql`
+
+### Вручную, без установщика
+
+```bash
+cp .env.example .env   # домен, POSTGRES_PASSWORD (openssl rand -hex 24), порт
 docker compose up -d --build
+echo -n 'пароль' | docker compose run --rm -T migrate npm run -s db:admin -- admin@example.kz "Имя"
 ```
 
-Порядок старта: `db` → `migrate` (применяет миграции, при `SEED_DEMO=1` заполняет пустую базу демо-данными и завершается) → `web`.
 Проверка: `curl http://127.0.0.1:3100/api/health` → `{"ok":true}`.
-
-Пример блока nginx:
-
-```nginx
-server {
-  server_name learn.example.kz;
-  location / {
-    proxy_pass http://127.0.0.1:3100;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-```
-
-Обновление: `git pull && docker compose up -d --build` — новые миграции применятся автоматически.
 
 ## Локальная разработка
 

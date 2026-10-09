@@ -3,18 +3,12 @@
  * если поток DevOps-24 уже есть, скрипт выходит). npm run db:seed -- --reset — очистить базу и заполнить заново.
  * Вход демо-студента: demo@platforma.local / пароль из SEED_DEMO_PASSWORD (по умолчанию в .env.example).
  */
-import { randomBytes, scrypt as scryptCb } from "node:crypto";
-import { promisify } from "node:util";
+import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as t from "./schema";
-
-const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
-async function hash(pw: string) {
-  const salt = randomBytes(16);
-  return `scrypt$${salt.toString("base64")}$${(await scrypt(pw.normalize("NFKC"), salt, 64)).toString("base64")}`;
-}
+import { hashPassword as hash } from "./password";
 
 const client = postgres(process.env.DATABASE_URL!, { max: 1 });
 const db = drizzle(client);
