@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B9D3C3"/><stop offset=".55" stop-color="#E4EBDD"/><stop offset="1" stop-color="#F4EEDD"/>
+    </linearGradient>
+    <linearGradient id="fog" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4F1E6" stop-opacity="0"/><stop offset="1" stop-color="#F4F1E6" stop-opacity=".85"/>
+    </linearGradient>
+    <linearGradient id="snow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE6DF"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="900" fill="url(#sky)"/>
+  <circle cx="430" cy="300" r="46" fill="#FBF6E6"/>
+  <circle cx="430" cy="300" r="90" fill="#FBF6E6" opacity=".25"/>
+  <!-- дальний хребет со снежными шапками -->
+  <path d="M0 520 L70 450 L120 480 L190 380 L240 430 L300 330 L360 420 L410 390 L470 450 L530 400 L600 460 V900 H0Z" fill="#9DB9A7"/>
+  <path d="M190 380 L215 405 L205 410 L225 420 L240 430 L230 412 Z M300 330 L330 375 L315 372 L322 392 L300 370 L285 360 Z M530 400 L548 418 L538 418 L545 428 Z" fill="url(#snow)" opacity=".9"/>
+  <rect y="430" width="600" height="160" fill="url(#fog)"/>
+  <!-- средний -->
+  <path d="M0 600 L60 560 L110 585 L170 520 L230 575 L290 540 L340 580 L400 510 L460 565 L520 535 L600 580 V900 H0Z" fill="#6F977F"/>
+  <rect y="560" width="600" height="120" fill="url(#fog)" opacity=".6"/>
+  <!-- ближний -->
+  <path d="M0 690 L80 640 L150 680 L220 620 L300 690 L360 660 L430 700 L500 650 L600 700 V900 H0Z" fill="#3D6B52"/>
+  <!-- ели на переднем плане -->
+  <path d="M0 900 V760 L40 740 L90 770 L150 735 L230 775 L300 750 L380 785 L460 745 L540 770 L600 750 V900Z" fill="#1F3A2B"/>
+  <g fill="#17241C">
+    <path d="M60 790 l14 -50 l14 50z M80 800 l12 -40 l12 40z M470 780 l16 -60 l16 60z M495 795 l12 -42 l12 42z M300 800 l10 -34 l10 34z"/>
+  </g>
+</svg>
