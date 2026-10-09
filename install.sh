@@ -86,12 +86,15 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -hex 24)}
 PROXY=manual
 if command -v nginx >/dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
   PROXY=nginx
+elif command -v caddy >/dev/null && systemctl is-active --quiet caddy 2>/dev/null; then
+  PROXY=hostcaddy
 elif ! port_busy 80 && ! port_busy 443; then
   PROXY=caddy
 fi
 echo
 case $PROXY in
   nginx) say "Найден nginx — добавлю в него сайт $APP_DOMAIN и выпущу сертификат." ;;
+  hostcaddy) say "Найден Caddy на сервере — добавлю в его Caddyfile сайт $APP_DOMAIN (HTTPS он выпустит сам)." ;;
   caddy) say "Порты 80/443 свободны — встроенный Caddy сам получит HTTPS-сертификат." ;;
   manual) warn "Порты 80/443 заняты не nginx (traefik/другой прокси?). Сайт будет на 127.0.0.1:$APP_PORT — направьте на него домен в своём прокси." ;;
 esac
@@ -183,6 +186,33 @@ EOF
     fi
   else
     warn "Без certbot сайт работает по http. Вход не сработает, пока нет HTTPS (cookie только для https)."
+  fi
+fi
+
+# ——— Caddy на сервере ———
+if [ "$PROXY" = hostcaddy ]; then
+  # Путь к Caddyfile берём из unit-файла службы, по умолчанию /etc/caddy/Caddyfile
+  cf=$(systemctl cat caddy 2>/dev/null | grep -oE -- '--config[= ]+[^ ]+' | head -1 | sed -E 's/--config[= ]+//')
+  cf=${cf:-/etc/caddy/Caddyfile}
+  [ -f "$cf" ] || die "Не найден Caddyfile ($cf). Добавьте вручную: $APP_DOMAIN { reverse_proxy 127.0.0.1:$APP_PORT }"
+  backup="$cf.bak-platforma-$(date +%Y%m%d%H%M%S)"
+  cp -p "$cf" "$backup"
+  begin="# >>> platforma $APP_DOMAIN"; end="# <<< platforma $APP_DOMAIN"
+  # Убираем свой прежний блок (повторная установка), чужие сайты не трогаем
+  awk -v b="$begin" -v e="$end" '$0==b{skip=1;next} $0==e{skip=0;next} !skip' "$backup" > "$cf"
+  if grep -Eq "^[[:space:]]*(https?://)?$APP_DOMAIN([[:space:]:,{]|$)" "$cf"; then
+    cp -p "$backup" "$cf"
+    warn "В $cf уже есть сайт $APP_DOMAIN, настроенный не установщиком — не трогаю. Укажите в нём: reverse_proxy 127.0.0.1:$APP_PORT"
+  else
+    [ -z "$(tail -c1 "$cf")" ] || echo >> "$cf"   # файл должен заканчиваться переводом строки
+    printf '%s\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n%s\n' "$begin" "$APP_DOMAIN" "$APP_PORT" "$end" >> "$cf"
+    if caddy validate --config "$cf" --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy; then
+      ok "Caddy: сайт $APP_DOMAIN добавлен в $cf (копия: $backup)"
+    else
+      cp -p "$backup" "$cf"
+      caddy validate --config "$cf" --adapter caddyfile || true
+      die "Caddy не принял конфиг — восстановлен прежний $cf, другие сайты не затронуты."
+    fi
   fi
 fi
 
