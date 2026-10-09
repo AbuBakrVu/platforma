@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Курс · Kubernetes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="a.css">
+<style>
+.sec{border-radius:var(--r-s)}
+.sec-h{display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:0;background:none;text-align:left;border-radius:var(--r-s)}
+.sec-h:hover{background:var(--green-tint)}
+.sec-h .n{font-size:12px;color:var(--muted)}
+.sec-h b{display:block;font-weight:600;font-size:15px;margin-top:2px}
+.ring{width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;margin-left:auto}
+.ring.done{background:var(--green);color:#fff}
+.ring.part{background:conic-gradient(var(--green) 0 33%, #E3E7E2 0)}
+.ring.part::after{content:"";width:20px;height:20px;border-radius:50%;background:#fff}
+.ring.none{border:2px solid #DADED9}
+.ls{display:flex;flex-direction:column;gap:2px;padding:0 6px 10px}
+.l{display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:12px;color:var(--ink2);font-size:14px}
+.l:hover{background:var(--green-tint);color:var(--ink2)}
+.l.on{background:var(--green-soft);color:var(--green);font-weight:600}
+.l .ic{width:18px;height:18px;color:var(--muted)}
+.l.on .ic{color:var(--green)}
+.l .st{margin-left:auto;width:18px;height:18px}
+.l .st.ok{color:var(--green)}
+.prose{max-width:720px;line-height:1.65;font-size:16px;color:var(--ink2)}
+.prose h2{font-size:20px;font-weight:600;margin:28px 0 10px;color:var(--ink)}
+.prose p{margin:0 0 14px}
+.prose code{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:14px;background:#F0F2EF;padding:2px 6px;border-radius:6px}
+.note{display:flex;gap:14px;background:var(--green-tint);border-radius:var(--r-s);padding:16px 18px;font-size:15px;line-height:1.55;margin:18px 0}
+.steps{display:flex;gap:6px}.steps i{width:28px;height:4px;border-radius:2px;background:#DDE1DC}.steps i.on{background:var(--green)}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Меню">
+    <div class="me"><div class="ava">АК</div><div><b>Айгерим К.</b><small>Студент · DevOps</small></div></div>
+    <div class="nav">
+      <a href="a-crm.html"><svg class="ic"><use href="icons.svg#home"></use></svg>Обзор</a>
+      <a href="a-course.html" class="on"><svg class="ic"><use href="icons.svg#skills"></use></svg>Навыки</a>
+      <a href="#"><svg class="ic"><use href="icons.svg#cal"></use></svg>Расписание</a>
+      <a href="a-lab.html"><svg class="ic"><use href="icons.svg#term"></use></svg>Лаборатории</a>
+      <a href="a-exam.html"><svg class="ic"><use href="icons.svg#exam"></use></svg>Пробные экзамены</a>
+      <a href="a-rating.html"><svg class="ic"><use href="icons.svg#cup"></use></svg>Рейтинг</a>
+    </div>
+    <div class="sep"></div>
+    <div class="nav">
+      <a href="a-certificate.html"><svg class="ic"><use href="icons.svg#cert"></use></svg>Сертификаты</a>
+      <a href="#"><svg class="ic"><use href="icons.svg#shop"></use></svg>Магазин</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <div class="crumbs"><a href="#">Навыки</a><span>/</span><a href="#">Kubernetes</a><span>/</span><b>Введение в Kubernetes</b></div>
+      <div class="row">
+        <span class="pill"><svg class="ic" style="width:16px;height:16px;color:var(--warn)"><use href="icons.svg#bolt"></use></svg>1 350 XP</span>
+        <button class="iconbtn" aria-label="Уведомления"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#bell"></use></svg></button>
+      </div>
+    </header>
+
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+      <section class="card" style="flex:1 1 300px;max-width:360px;padding:14px 10px;gap:4px">
+        <div style="padding:8px 14px 12px;display:flex;flex-direction:column;gap:10px">
+          <h2 style="font-size:20px;font-weight:700">Kubernetes</h2>
+          <div class="bar"><i style="width:42%"></i></div>
+          <span class="small muted">10 из 24 уроков · 42%</span>
+        </div>
+
+        <div class="sec">
+          <button class="sec-h" aria-expanded="true"><div><span class="n">Раздел 01</span><b>Введение в Kubernetes</b></div><span class="ring part" aria-label="2 из 5"></span></button>
+          <div class="ls">
+            <a href="#" class="l"><svg class="ic"><use href="icons.svg#doc"></use></svg>Архитектура K8S<svg class="ic st ok"><use href="icons.svg#check"></use></svg></a>
+            <a href="#" class="l on" aria-current="page"><svg class="ic"><use href="icons.svg#flask"></use></svg>Архитектура K8S: практика</a>
+            <a href="a-lab.html" class="l"><svg class="ic"><use href="icons.svg#term"></use></svg>Архитектура K8S: лабораторная</a>
+            <a href="#" class="l"><svg class="ic"><use href="icons.svg#doc"></use></svg>Установка и настройка: теория</a>
+            <a href="#" class="l"><svg class="ic"><use href="icons.svg#term"></use></svg>Установка и настройка: лаба</a>
+          </div>
+        </div>
+        <div class="sec"><button class="sec-h" aria-expanded="false"><div><span class="n">Раздел 02</span><b>Основы Pod</b></div><span class="ring done"><svg class="ic" style="width:16px;height:16px"><use href="icons.svg#check"></use></svg></span></button></div>
+        <div class="sec"><button class="sec-h" aria-expanded="false"><div><span class="n">Раздел 03</span><b>Namespaces</b></div><span class="ring none"></span></button></div>
+        <div class="sec"><button class="sec-h" aria-expanded="false" style="color:var(--muted)"><div><span class="n">Раздел 04 · откроется 24 окт</span><b style="color:var(--muted)">Deployments</b></div><svg class="ic" style="margin-left:auto;width:18px;height:18px"><use href="icons.svg#lock"></use></svg></button></div>
+      </section>
+
+      <article class="card" style="flex:999 1 480px;min-width:0;padding:28px 32px;gap:0">
+        <div class="row" style="justify-content:space-between;margin-bottom:18px">
+          <div class="row"><span class="tag">Практика</span><span class="small muted">~20 мин · +50 XP</span></div>
+          <div class="row"><span class="small muted">Шаг 1 из 2</span><div class="steps"><i class="on"></i><i></i></div></div>
+        </div>
+        <h1 style="font-size:30px;font-weight:700;letter-spacing:-.02em;margin-bottom:18px">Архитектура K8S: практика</h1>
+        <div class="prose">
+          <p>В этой практике вы познакомитесь с уже работающим Kubernetes-кластером: проверите состояние компонентов, изучите узлы и системные Pod'ы, попрактикуетесь в базовых командах <code>kubectl</code>.</p>
+          <div class="note"><svg class="ic" style="color:var(--green);margin-top:2px"><use href="icons.svg#term"></use></svg><span>Кластер состоит из 3 узлов: 1 control plane (server) и 2 worker nodes. Дистрибутив — k3s. Терминал откроется справа, ничего устанавливать не нужно.</span></div>
+          <h2>1. Проверьте узлы</h2>
+          <p>Выполните команду и убедитесь, что все три узла в статусе <code>Ready</code>:</p>
+          <div class="term mono" style="margin:0 0 14px"><span class="p">$</span> kubectl get nodes -o wide</div>
+          <p>Обратите внимание на колонку <code>ROLES</code>: только один узел управляет кластером, остальные выполняют нагрузку.</p>
+        </div>
+        <div class="row" style="justify-content:space-between;margin-top:28px;padding-top:20px;border-top:1px solid var(--line2)">
+          <a href="#" class="btn"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#left"></use></svg>Архитектура K8S</a>
+          <div class="row">
+            <a href="a-lab.html" class="btn dark"><svg class="ic" style="width:18px;height:18px"><use href="icons.svg#term"></use></svg>Открыть терминал</a>
+            <a href="#" class="btn pri">Дальше<svg class="ic" style="width:18px;height:18px"><use href="icons.svg#right"></use></svg></a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+</body>
+</html>

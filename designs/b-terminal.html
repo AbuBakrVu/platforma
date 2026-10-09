@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>B · Инженерный</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#101211}
+a{color:#C8F169;text-decoration:none}a:hover{color:#E2FF9E}
+.mono{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<div style="min-height: 960px; background: #101211; color: #D9DDD8; font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif; display: flex; flex-direction: column">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 0 24px; min-height: 56px; border-bottom: 1px solid #262A27">
+    <span class="mono" style="font-weight: 600; color: #fff; font-size: 15px">academy<span style="color: #C8F169">_</span></span>
+    <nav aria-label="Меню" class="mono" style="display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px">
+      <a href="#" style="padding: 8px 12px; color: #101211; background: #C8F169; border-radius: 4px">обзор</a>
+      <a href="#" style="padding: 8px 12px; color: #A9AFA9">навыки</a>
+      <a href="#" style="padding: 8px 12px; color: #A9AFA9">лабы</a>
+      <a href="#" style="padding: 8px 12px; color: #A9AFA9">расписание</a>
+      <a href="#" style="padding: 8px 12px; color: #A9AFA9">экзамены</a>
+      <a href="#" style="padding: 8px 12px; color: #A9AFA9">рейтинг</a>
+      <a href="#" style="padding: 8px 12px; color: #A9AFA9">сертификаты</a>
+    </nav>
+    <div class="mono" style="margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px">
+      <span style="color: #F2B84B">1350 xp</span>
+      <span style="color: #A9AFA9">#9 / 64</span>
+      <span style="width: 32px; height: 32px; border-radius: 4px; background: #262A27; color: #fff; display: flex; align-items: center; justify-content: center">АК</span>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <main style="flex: 999 1 560px; min-width: 0; padding: 28px 24px; display: flex; flex-direction: column; gap: 28px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span class="mono" style="font-size: 13px; color: #7E857F">чт, 17 окт · поток DevOps-24</span>
+        <h1 style="margin: 0; font-size: 30px; font-weight: 600; color: #fff; letter-spacing: -0.01em">Лаба ждёт. Кластер поднят 4 минуты назад.</h1>
+      </div>
+
+      <section style="border: 1px solid #2E332F; border-radius: 6px; overflow: hidden">
+        <div class="mono" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 14px; background: #181B19; border-bottom: 1px solid #2E332F; font-size: 12px; color: #A9AFA9">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #C8F169"></span>
+          <span style="color: #fff">k8s / архитектура / лабораторная</span>
+          <span>3 узла · k3s · осталось 1:56:12</span>
+          <span style="margin-left: auto; display: flex; gap: 8px">
+            <button class="mono" style="height: 32px; padding: 0 12px; border: 1px solid #3A403B; background: transparent; color: #D9DDD8; border-radius: 4px; font-size: 12px; cursor: pointer">сбросить среду</button>
+            <button class="mono" style="height: 32px; padding: 0 12px; border: 0; background: #C8F169; color: #101211; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer">проверить решение</button>
+          </span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap">
+          <div style="flex: 1 1 280px; padding: 18px; border-right: 1px solid #2E332F; display: flex; flex-direction: column; gap: 14px; font-size: 14px; line-height: 1.55">
+            <span class="mono" style="font-size: 12px; color: #7E857F">задание 2 из 4</span>
+            <span style="color: #fff; font-weight: 500">Найдите все системные Pod'ы и выясните, на каком узле работает coredns.</span>
+            <div class="mono" style="display: flex; flex-direction: column; gap: 6px; font-size: 13px">
+              <span style="color: #C8F169">[x] проверить состояние узлов</span>
+              <span style="color: #fff">[ ] найти coredns</span>
+              <span style="color: #7E857F">[ ] масштабировать deployment</span>
+              <span style="color: #7E857F">[ ] удалить pod и проследить</span>
+            </div>
+          </div>
+          <div class="mono" style="flex: 2 1 420px; background: #0A0C0B; padding: 18px; font-size: 13px; line-height: 1.75; color: #B9C2BA; min-height: 240px">
+            <div><span style="color: #6C766E">student@lab:~$</span> kubectl get nodes</div>
+            <div>NAME&#160;&#160;&#160;&#160;&#160;&#160;STATUS&#160;&#160;ROLES&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;AGE</div>
+            <div>server&#160;&#160;&#160;&#160;<span style="color: #C8F169">Ready</span>&#160;&#160;&#160;control-plane&#160;&#160;&#160;4m</div>
+            <div>worker-1&#160;&#160;<span style="color: #C8F169">Ready</span>&#160;&#160;&#160;&lt;none&gt;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;4m</div>
+            <div>worker-2&#160;&#160;<span style="color: #C8F169">Ready</span>&#160;&#160;&#160;&lt;none&gt;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;4m</div>
+            <div><span style="color: #6C766E">student@lab:~$</span> kubectl get pods -n kube-system -o wide<span style="display: inline-block; width: 8px; height: 15px; background: #C8F169; vertical-align: middle; margin-left: 2px"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 class="mono" style="margin: 0; font-size: 13px; font-weight: 500; color: #7E857F">// курс kubernetes · 42%</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 1px; background: #262A27; border: 1px solid #262A27; border-radius: 6px; overflow: hidden">
+          <div style="background: #141715; padding: 16px; display: flex; flex-direction: column; gap: 8px"><span class="mono" style="font-size: 12px; color: #C8F169">01 · готово</span><span style="color: #fff">Введение в Kubernetes</span><span class="mono" style="font-size: 12px; color: #7E857F">5/5</span></div>
+          <div style="background: #141715; padding: 16px; display: flex; flex-direction: column; gap: 8px"><span class="mono" style="font-size: 12px; color: #C8F169">02 · готово</span><span style="color: #fff">Основы Pod</span><span class="mono" style="font-size: 12px; color: #7E857F">5/5</span></div>
+          <div style="background: #1B1F1C; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 2px 0 #F2B84B"><span class="mono" style="font-size: 12px; color: #F2B84B">03 · в работе</span><span style="color: #fff">Namespaces</span><span class="mono" style="font-size: 12px; color: #7E857F">0/3</span></div>
+          <div style="background: #141715; padding: 16px; display: flex; flex-direction: column; gap: 8px"><span class="mono" style="font-size: 12px; color: #6C766E">04 · закрыто</span><span style="color: #A9AFA9">Deployments</span><span class="mono" style="font-size: 12px; color: #6C766E">0/4</span></div>
+        </div>
+      </section>
+    </main>
+
+    <aside style="flex: 1 1 300px; max-width: 380px; border-left: 1px solid #262A27; padding: 28px 24px; display: flex; flex-direction: column; gap: 28px; box-sizing: border-box">
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 class="mono" style="margin: 0; font-size: 13px; font-weight: 500; color: #7E857F">// расписание</h2>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 6px; background: #1B1F1C">
+          <span class="mono" style="font-size: 12px; color: #F2B84B">сегодня 16:30–18:00</span>
+          <span style="color: #fff">Практика 3. Docker &amp; Kubernetes</span>
+          <a href="#" class="mono" style="font-size: 13px; margin-top: 6px">&gt; подключиться к лекции</a>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px">
+          <span class="mono" style="font-size: 12px; color: #7E857F">пт 14:40–16:10</span>
+          <span>Практика 4. AWS &amp; Git</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px">
+          <span class="mono" style="font-size: 12px; color: #F28B6B">дедлайн пт 23:59</span>
+          <span>Лабораторная по Pod'ам</span>
+        </div>
+      </section>
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 class="mono" style="margin: 0; font-size: 13px; font-weight: 500; color: #7E857F">// пробный экзамен</h2>
+        <span style="color: #fff">Cisco CCNA · 30 вопросов · 45 мин</span>
+        <div class="mono" style="display: flex; gap: 3px">
+          <span style="flex: 1; height: 24px; background: #C8F169"></span><span style="flex: 1; height: 24px; background: #C8F169"></span><span style="flex: 1; height: 24px; background: #F28B6B"></span><span style="flex: 1; height: 24px; background: #C8F169"></span><span style="flex: 1; height: 24px; background: #2E332F"></span><span style="flex: 1; height: 24px; background: #2E332F"></span>
+        </div>
+        <span class="mono" style="font-size: 12px; color: #7E857F">последняя попытка: 78% · порог 82%</span>
+        <a href="#" class="mono" style="font-size: 13px">&gt; начать новую попытку</a>
+      </section>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
