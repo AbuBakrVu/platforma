@@ -15,6 +15,20 @@
       "when": 1791589490454,
       "tag": "0001_invites_demo_exams",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791662833883,
+      "tag": "0002_lesson_steps",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791662839945,
+      "tag": "0003_drop_lesson_body",
+      "breakpoints": true
     }
   ]
 }

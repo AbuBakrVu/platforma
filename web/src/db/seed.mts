@@ -15,7 +15,7 @@ const db = drizzle(client);
 
 if (process.argv.includes("--reset")) {
   await client.unsafe(`truncate ${["certificates", "exam_attempts", "exam_questions", "exams", "attendance", "schedule_events",
-    "xp_events", "lesson_progress", "lessons", "sections", "group_courses", "courses", "invites", "sessions", "users", "groups"].join(", ")} cascade`);
+    "xp_events", "card_reviews", "step_progress", "lesson_steps", "lesson_progress", "lessons", "sections", "group_courses", "courses", "invites", "sessions", "users", "groups"].join(", ")} cascade`);
   console.log("База очищена");
 }
 
@@ -118,8 +118,11 @@ async function addCourse(slug: string, title: string, description: string, secti
       opensAt: s.opensInDays ? new Date(Date.now() + s.opensInDays * 864e5) : null,
     }).returning();
     const rows = await db.insert(t.lessons).values(s.lessons.map((l, j) => ({
-      sectionId: sec.id, position: j + 1, title: l.title, kind: l.kind, durationMin: l.min, xp: l.xp, body: l.body,
+      sectionId: sec.id, position: j + 1, title: l.title, kind: l.kind, durationMin: l.min, xp: l.xp,
     }))).returning({ id: t.lessons.id });
+    await db.insert(t.lessonSteps).values(rows.map((r, j) => ({
+      lessonId: r.id, position: 1, kind: "text" as const, content: { md: s.lessons[j].body },
+    })));
     lessonIds.push(...rows.map((r) => r.id));
   }
   return { course, lessonIds };
@@ -127,6 +130,32 @@ async function addCourse(slug: string, title: string, description: string, secti
 
 const k8s = await addCourse("kubernetes", "Kubernetes", "Оркестрация контейнеров на практике", K8S);
 const docker = await addCourse("docker", "Docker", "Контейнеры с нуля", DOCKER);
+
+// Первый урок — с примерами интерактивных шагов: вопрос и карточки
+await db.insert(t.lessonSteps).values([
+  {
+    lessonId: k8s.lessonIds[0], position: 2, kind: "quiz", title: "Проверьте себя",
+    content: {
+      kind: "single", prompt: "Какой компонент решает, на каком узле запустить Pod?",
+      options: [{ id: "a", text: "kube-apiserver" }, { id: "b", text: "scheduler" }, { id: "c", text: "kubelet" }, { id: "d", text: "etcd" }],
+      answer: ["b"], accepted: [], required: true,
+      explanation: "**scheduler** выбирает узел, а **kubelet** на этом узле уже запускает контейнеры.",
+    },
+  },
+  {
+    lessonId: k8s.lessonIds[0], position: 3, kind: "cards", title: "Запомните компоненты",
+    content: {
+      cards: [
+        { id: "c1", front: "kube-apiserver", back: "Единая точка входа: все команды `kubectl` идут через него" },
+        { id: "c2", front: "etcd", back: "Хранилище состояния кластера" },
+        { id: "c3", front: "scheduler", back: "Выбирает узел для запуска Pod" },
+        { id: "c4", front: "controller-manager", back: "Приводит реальное состояние к желаемому" },
+        { id: "c5", front: "kubelet", back: "Запускает контейнеры на узле" },
+      ],
+    },
+  },
+]);
+
 const allLessons = await db.select().from(t.lessons);
 const byId = new Map(allLessons.map((l) => [l.id, l]));
 
