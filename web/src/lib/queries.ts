@@ -58,10 +58,20 @@ export async function getMyCourses(user: CurrentUser) {
     .where(eq(t.courses.published, true));
 }
 
-/** Структура курса: разделы → уроки, с отметкой пройденных */
-export async function getCourseOutline(slug: string, userId: string) {
+/** Студенту доступны только опубликованные курсы его потока; персоналу — все */
+export async function canAccessCourse(user: CurrentUser, course: { id: string; published: boolean }) {
+  if (user.role !== "student") return true;
+  if (!course.published || !user.groupId) return false;
+  const [link] = await db.select().from(t.groupCourses)
+    .where(and(eq(t.groupCourses.courseId, course.id), eq(t.groupCourses.groupId, user.groupId)));
+  return !!link;
+}
+
+/** Структура курса: разделы → уроки, с отметкой пройденных. null — нет курса или нет доступа. */
+export async function getCourseOutline(slug: string, user: CurrentUser) {
+  const userId = user.id;
   const [course] = await db.select().from(t.courses).where(eq(t.courses.slug, slug));
-  if (!course) return null;
+  if (!course || !(await canAccessCourse(user, course))) return null;
   const rows = await db
     .select({
       sectionId: t.sections.id,

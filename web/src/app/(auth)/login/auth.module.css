@@ -102,7 +102,7 @@
 .slide p { margin: 4px 0 0; font-size: 14px; opacity: 0.8; }
 
 /* ——— Формы ——— */
-.formWrap { position: relative; overflow: hidden; height: 440px; }
+.formWrap { position: relative; overflow: hidden; height: 520px; }
 .forms {
   position: absolute; top: 0; left: 0;
   display: flex;
@@ -114,7 +114,7 @@
   flex: 1 1 0;
   min-width: 0;
   padding: 22px 18px;
-  display: flex; flex-direction: column; gap: 14px;
+  display: flex; flex-direction: column; gap: 12px;
 }
 .switch { margin: 0; font-size: 14px; color: var(--muted); }
 .switch button { border: 0; background: none; padding: 0; color: var(--green); font-weight: 600; }
@@ -132,7 +132,7 @@
 @media (min-width: 690px) {
   .card {
     width: 760px;
-    height: 440px;
+    height: 500px;
     padding: 0;
     display: flex;
     align-items: stretch;
@@ -168,6 +168,6 @@
   .slide h2 { font-size: 28px; }
   .formWrap { flex: 1 1 auto; height: auto; }
   .forms { flex-direction: column; width: 100%; height: 200%; transform: translateY(var(--forms)); }
-  .forms form { padding: 30px 32px; }
+  .forms form { padding: 28px 32px; }
   .submit { margin-top: auto; }
 }

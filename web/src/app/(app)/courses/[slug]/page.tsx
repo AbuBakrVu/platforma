@@ -6,7 +6,7 @@ import { getCourseOutline } from "@/lib/queries";
 export default async function CoursePage({ params }: PageProps<"/courses/[slug]">) {
   const { slug } = await params;
   const user = await requireUser();
-  const outline = await getCourseOutline(slug, user.id);
+  const outline = await getCourseOutline(slug, user);
   if (!outline) notFound();
   const target = outline.next ?? outline.flat[0];
   if (!target) notFound();

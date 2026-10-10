@@ -14,6 +14,8 @@ const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull(
 export const groups = pgTable("groups", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  /** Создано демо-сидом — удаляется командой «Удалить демо-данные» */
+  demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 });
 
@@ -24,8 +26,24 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: roleEnum("role").notNull().default("student"),
   groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
+  demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("users_email_idx").on(t.email)]);
+
+/** Коды приглашений: без кода зарегистрироваться нельзя */
+export const invites = pgTable("invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull(),
+  role: roleEnum("role").notNull().default("student"),
+  groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+  /** null — без ограничения */
+  maxUses: integer("max_uses"),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  note: text("note").notNull().default(""),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex("invites_code_idx").on(t.code)]);
 
 /** Сессии: в cookie лежит токен, в базе — только его SHA-256 */
 export const sessions = pgTable("sessions", {
@@ -40,6 +58,7 @@ export const courses = pgTable("courses", {
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   published: boolean("published").notNull().default(true),
+  demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("courses_slug_idx").on(t.slug)]);
 
@@ -112,8 +131,13 @@ export const exams = pgTable("exams", {
   id: uuid("id").primaryKey().defaultRandom(),
   courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
   title: text("title").notNull(),
+  description: text("description").notNull().default(""),
   durationMin: integer("duration_min").notNull(),
   passPercent: integer("pass_percent").notNull(),
+  /** XP за первую успешную сдачу */
+  xp: integer("xp").notNull().default(200),
+  published: boolean("published").notNull().default(false),
+  demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 });
 

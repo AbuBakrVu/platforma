@@ -11,7 +11,7 @@ export async function completeLesson(slug: string, lessonId: string) {
   const user = await requireUser();
   const row = await getLesson(lessonId);
   if (!row) return;
-  const outline = await getCourseOutline(slug, user.id);
+  const outline = await getCourseOutline(slug, user);
   const item = outline?.flat.find((l) => l.id === lessonId);
   if (!outline || !item) return; // урок не из этого курса или раздел закрыт
 

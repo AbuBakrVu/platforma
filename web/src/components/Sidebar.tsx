@@ -45,7 +45,10 @@ export function Sidebar({ name, role, group }: { name: string; role: keyof typeo
       </div>
       <div className="nav">{MAIN.map(item)}</div>
       <div className="sep" />
-      <div className="nav">{EXTRA.map(item)}</div>
+      <div className="nav">
+        {EXTRA.map(item)}
+        {role !== "student" && item({ href: "/admin", label: "Управление", icon: "settings" })}
+      </div>
       <form action={signOut} style={{ marginTop: "auto" }}>
         <button className="btn" style={{ width: "100%" }}>
           <Icon name="logout" size={18} />

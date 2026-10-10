@@ -27,3 +27,28 @@ export function plural(n: number, one: string, few: string, many: string) {
 }
 
 export const KIND_LABEL = { theory: "Теория", practice: "Практика", lab: "Лаба" } as const;
+
+function tzOffsetMs(at: Date) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(at).map((x) => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - at.getTime();
+}
+
+/** Значение <input type="datetime-local"> (время платформы) → Date */
+export function fromZonedInput(v: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return null;
+  const wall = new Date(`${v}:00Z`);
+  return new Date(wall.getTime() - tzOffsetMs(wall));
+}
+
+/** Date → значение для <input type="datetime-local"> во времени платформы */
+export function toZonedInput(d: Date | null | undefined) {
+  if (!d) return "";
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  }).formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+export const fmtDateTime = (d: Date) => `${fmtDate(d)}, ${fmtTime(d)}`;

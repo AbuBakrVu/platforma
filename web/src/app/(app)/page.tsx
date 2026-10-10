@@ -20,7 +20,7 @@ export default async function Dashboard() {
   const open = courses.filter((c) => c.done < c.total)
     .sort((a, b) => (b.lastAt ? +new Date(b.lastAt) : 0) - (a.lastAt ? +new Date(a.lastAt) : 0));
   const current = open[0] ?? courses[0];
-  const outline = current ? await getCourseOutline(current.slug, user.id) : null;
+  const outline = current ? await getCourseOutline(current.slug, user) : null;
   const next = outline?.next ?? null;
   const pct = outline && outline.total ? Math.round((outline.done / outline.total) * 100) : 0;
 

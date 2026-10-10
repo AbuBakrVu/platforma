@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/courses/[slug]/[l
 export default async function LessonPage({ params }: PageProps<"/courses/[slug]/[lessonId]">) {
   const { slug, lessonId } = await params;
   const user = await requireUser();
-  const [outline, row, xp] = await Promise.all([getCourseOutline(slug, user.id), getLesson(lessonId), getXp(user.id)]);
+  const [outline, row, xp] = await Promise.all([getCourseOutline(slug, user), getLesson(lessonId), getXp(user.id)]);
   if (!outline || !row || row.section.courseId !== outline.course.id) notFound();
 
   const i = outline.flat.findIndex((l) => l.id === lessonId);

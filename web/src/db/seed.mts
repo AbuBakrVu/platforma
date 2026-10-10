@@ -15,7 +15,7 @@ const db = drizzle(client);
 
 if (process.argv.includes("--reset")) {
   await client.unsafe(`truncate ${["certificates", "exam_attempts", "exam_questions", "exams", "attendance", "schedule_events",
-    "xp_events", "lesson_progress", "lessons", "sections", "group_courses", "courses", "sessions", "users", "groups"].join(", ")} cascade`);
+    "xp_events", "lesson_progress", "lessons", "sections", "group_courses", "courses", "invites", "sessions", "users", "groups"].join(", ")} cascade`);
   console.log("База очищена");
 }
 
@@ -29,7 +29,7 @@ if (exists) {
 const demoPassword = process.env.SEED_DEMO_PASSWORD;
 if (!demoPassword) throw new Error("Задайте SEED_DEMO_PASSWORD");
 
-const [group] = await db.insert(t.groups).values({ name: "DevOps-24" }).returning();
+const [group] = await db.insert(t.groups).values({ name: "DevOps-24", demo: true }).returning();
 
 type L = { title: string; kind: "theory" | "practice" | "lab"; min: number; xp: number; body: string };
 type S = { title: string; opensInDays?: number; lessons: L[] };
@@ -109,7 +109,7 @@ const DOCKER: S[] = [
 ];
 
 async function addCourse(slug: string, title: string, description: string, sections: S[]) {
-  const [course] = await db.insert(t.courses).values({ slug, title, description }).returning();
+  const [course] = await db.insert(t.courses).values({ slug, title, description, demo: true }).returning();
   await db.insert(t.groupCourses).values({ groupId: group.id, courseId: course.id });
   const lessonIds: string[] = [];
   for (const [i, s] of sections.entries()) {
@@ -136,13 +136,13 @@ const NAMES = [
   "Руслан Кенжебаев", "Жанна Мусина", "Бахыт Токтаров", "Олжас Ибраев", "Сабина Алиева", "Арман Серикбаев",
 ];
 const others = await db.insert(t.users).values(await Promise.all(NAMES.map(async (name, i) => ({
-  name, email: `student${i + 1}@platforma.local`, passwordHash: await hash(randomBytes(12).toString("base64url")), groupId: group.id,
+  name, email: `student${i + 1}@platforma.local`, passwordHash: await hash(randomBytes(12).toString("base64url")), groupId: group.id, demo: true,
 })))).returning();
 const [demo] = await db.insert(t.users).values({
-  name: "Айгерим Касымова", email: "demo@platforma.local", passwordHash: await hash(demoPassword), groupId: group.id,
+  name: "Айгерим Касымова", email: "demo@platforma.local", passwordHash: await hash(demoPassword), groupId: group.id, demo: true,
 }).returning();
 await db.insert(t.users).values({
-  name: "Преподаватель", email: "teacher@platforma.local", passwordHash: await hash(demoPassword), role: "teacher", groupId: group.id,
+  name: "Преподаватель", email: "teacher@platforma.local", passwordHash: await hash(demoPassword), role: "teacher", groupId: group.id, demo: true,
 });
 
 /** Отметить первые n уроков курса пройденными, XP раскидать по последним дням */
@@ -195,6 +195,29 @@ const everyone = [demo, ...others];
 await db.insert(t.attendance).values(past.flatMap((e, i) => everyone.map((u, j) => ({
   eventId: e.id, userId: u.id, status: (u.id === demo.id ? i === 7 : (i + j) % 9 === 0) ? "absent" as const : "present" as const,
 }))));
+
+// Демо-экзамен: вопросы в формате редактора (* — правильный вариант, для order — правильный порядок)
+const EXAM: { kind: "single" | "multiple" | "order"; prompt: string; lines: string[] }[] = [
+  { kind: "single", prompt: "Какой компонент control plane хранит состояние кластера?", lines: ["kube-apiserver", "* etcd", "kube-scheduler", "kubelet"] },
+  { kind: "single", prompt: "Что решает, на каком узле запустить новый Pod?", lines: ["kubelet", "kube-proxy", "* kube-scheduler", "controller-manager"] },
+  { kind: "multiple", prompt: "Какие компоненты работают на каждом рабочем узле?", lines: ["* kubelet", "* kube-proxy", "etcd", "* среда выполнения контейнеров"] },
+  { kind: "single", prompt: "Минимальная единица запуска в Kubernetes:", lines: ["Контейнер", "* Pod", "Deployment", "Node"] },
+  { kind: "order", prompt: "Расставьте шаги в порядке, в котором Kubernetes обрабатывает kubectl apply для нового Pod:", lines: [
+    "kube-apiserver принимает манифест", "Состояние записывается в etcd", "kube-scheduler выбирает узел", "kubelet на узле запускает контейнеры"] },
+  { kind: "single", prompt: "Какая команда покажет Pod'ы во всех namespaces?", lines: ["kubectl get pods", "* kubectl get pods -A", "kubectl get ns", "kubectl describe pods"] },
+  { kind: "multiple", prompt: "Чем ResourceQuota ограничивает namespace?", lines: ["* Суммарным CPU", "* Суммарной памятью", "Скоростью сети", "* Количеством объектов"] },
+  { kind: "single", prompt: "Что произойдёт, если удалить Pod, которым управляет Deployment?", lines: [
+    "Deployment тоже удалится", "* Будет создан новый Pod", "Кластер перейдёт в ошибку", "Ничего, Pod просто пропадёт"] },
+];
+const [exam] = await db.insert(t.exams).values({
+  title: "Kubernetes. Пробный экзамен", description: "8 вопросов по архитектуре кластера и Pod'ам. Формат как на настоящем экзамене.",
+  courseId: k8s.course.id, durationMin: 20, passPercent: 75, xp: 200, published: true, demo: true,
+}).returning();
+await db.insert(t.examQuestions).values(EXAM.map((q, i) => {
+  const options = q.lines.map((l, j) => ({ id: "abcdefghijklmnopqrstuvwxyz"[j], text: l.replace(/^\*\s*/, "") }));
+  const answer = q.kind === "order" ? options.map((o) => o.id) : q.lines.flatMap((l, j) => (l.startsWith("*") ? [options[j].id] : []));
+  return { examId: exam.id, position: i + 1, kind: q.kind, prompt: q.prompt, options, answer };
+}));
 
 console.log(`Готово: поток ${group.name}, ${everyone.length} студентов, курсы ${k8s.course.title} и ${docker.course.title}`);
 await client.end();

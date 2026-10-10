@@ -60,3 +60,17 @@ export async function requireUser() {
   if (!user) redirect("/login");
   return user;
 }
+
+/** Администратор или преподаватель: управление курсами, расписанием, экзаменами */
+export async function requireStaff() {
+  const user = await requireUser();
+  if (user.role === "student") redirect("/");
+  return user;
+}
+
+/** Только администратор: потоки, пользователи, приглашения, демо-данные */
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "admin") redirect("/admin");
+  return user;
+}

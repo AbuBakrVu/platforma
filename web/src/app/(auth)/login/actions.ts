@@ -1,11 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, TransactionRollbackError } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { createSession, destroySession, hashPassword, verifyPassword } from "@/lib/auth";
+import { consumeInvite } from "@/lib/invites";
 
-export type AuthState = { error?: string; email?: string; name?: string };
+export type AuthState = { error?: string; email?: string; name?: string; code?: string };
 
 const normEmail = (v: FormDataEntryValue | null) => String(v ?? "").trim().toLowerCase();
 
@@ -26,8 +27,10 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const name = String(form.get("name") ?? "").trim();
   const email = normEmail(form.get("email"));
   const password = String(form.get("password") ?? "");
-  const back = { email, name };
+  const code = String(form.get("code") ?? "").trim();
+  const back = { email, name, code };
 
+  if (!code) return { ...back, error: "Нужен код приглашения — его выдаёт администратор" };
   if (name.length < 2) return { ...back, error: "Укажите имя" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ...back, error: "Проверьте email" };
   if (password.length < 8) return { ...back, error: "Пароль — минимум 8 символов" };
@@ -36,10 +39,24 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
     .where(eq(schema.users.email, email)).limit(1);
   if (exists) return { ...back, error: "Этот email уже зарегистрирован" };
 
-  const [user] = await db.insert(schema.users)
-    .values({ name, email, passwordHash: await hashPassword(password) })
-    .returning({ id: schema.users.id });
-  await createSession(user.id);
+  const passwordHash = await hashPassword(password);
+  const userId = await db.transaction(async (tx) => {
+    const invite = await consumeInvite(tx, code);
+    if (!invite) return null; // транзакция ничего не изменила
+    const [user] = await tx.insert(schema.users)
+      .values({ name, email, passwordHash, role: invite.role, groupId: invite.groupId })
+      .onConflictDoNothing()
+      .returning({ id: schema.users.id });
+    if (!user) tx.rollback(); // email заняли параллельно — возвращаем использование кода
+    return user.id;
+  }).catch((e) => {
+    if (e instanceof TransactionRollbackError) return undefined;
+    throw e;
+  });
+
+  if (userId === null) return { ...back, error: "Код недействителен, истёк или уже использован" };
+  if (!userId) return { ...back, error: "Этот email уже зарегистрирован" };
+  await createSession(userId);
   redirect("/");
 }
 

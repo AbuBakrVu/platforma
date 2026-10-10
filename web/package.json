@@ -11,7 +11,8 @@
     "db:migrate": "tsx src/db/migrate.mts",
     "db:seed": "tsx src/db/seed.mts",
     "typecheck": "tsc --noEmit",
-    "db:admin": "tsx src/db/create-admin.mts"
+    "db:admin": "tsx src/db/create-admin.mts",
+    "db:remove-demo": "tsx src/db/remove-demo.mts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",

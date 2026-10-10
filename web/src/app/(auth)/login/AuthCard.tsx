@@ -12,11 +12,11 @@ const POS: Record<View, CSSProperties> = {
   signup: { "--nav": "calc(100% / 3)", "--hero": "-100%", "--forms": "-50%" } as CSSProperties,
 };
 
-export function AuthCard({ initial = "signin" }: { initial?: View }) {
+export function AuthCard({ initial = "signin", code = "" }: { initial?: View; code?: string }) {
   const [view, setView] = useState<View>(initial);
   const [resizing, setResizing] = useState(false);
   const [inState, inAction, inPending] = useActionState<AuthState, FormData>(signIn, {});
-  const [upState, upAction, upPending] = useActionState<AuthState, FormData>(signUp, {});
+  const [upState, upAction, upPending] = useActionState<AuthState, FormData>(signUp, { code });
   const firstField = useRef<Record<View, HTMLInputElement | null>>({ signin: null, signup: null });
 
   // При смене размера окна панели не должны анимироваться
@@ -111,10 +111,19 @@ export function AuthCard({ initial = "signin" }: { initial?: View }) {
           <form id="signup" action={upAction} inert={view !== "signup"} noValidate>
             <p className={s.switch}>Уже есть аккаунт? <button type="button" onClick={() => select("signin")}>Войти</button></p>
             <div className="field">
+              <label htmlFor="up-code">Код приглашения</label>
+              <div className="input">
+                <input id="up-code" name="code" autoComplete="off" autoCapitalize="characters" spellCheck={false}
+                  placeholder="XXXX-XXXX" defaultValue={upState.code} className="mono" required
+                  ref={(el) => { if (!code) firstField.current.signup = el; }} />
+                <Icon name="lock" size={18} />
+              </div>
+            </div>
+            <div className="field">
               <label htmlFor="up-name">Имя и фамилия</label>
               <div className="input">
                 <input id="up-name" name="name" autoComplete="name" defaultValue={upState.name}
-                  ref={(el) => { firstField.current.signup = el; }} required />
+                  ref={(el) => { if (code) firstField.current.signup = el; }} required />
                 <Icon name="person" size={18} />
               </div>
             </div>
@@ -130,7 +139,7 @@ export function AuthCard({ initial = "signin" }: { initial?: View }) {
               <label htmlFor="up-password">Пароль</label>
               <div className="input">
                 <input id="up-password" name="password" type="password" autoComplete="new-password" minLength={8} required />
-                <Icon name="lock" size={18} />
+                <Icon name="key" size={18} />
               </div>
             </div>
             {upState.error && <p className="err" role="alert">{upState.error}</p>}
