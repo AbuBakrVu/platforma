@@ -3,5 +3,7 @@
 .item:first-child { border-top: 0; }
 .itemTitle { flex: 1; min-width: 0; color: var(--ink); font-weight: 500; }
 .itemTitle:hover { color: var(--green); }
-.editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; align-items: start; }
-.preview { border: 1px solid var(--line); border-radius: var(--r-s); padding: 16px 18px; min-height: 360px; overflow: auto; }
+.handle { display: grid; place-items: center; width: 28px; height: 36px; flex: none; color: var(--muted); cursor: grab; border-radius: 8px; }
+.handle:hover { background: var(--green-tint); color: var(--ink2); }
+.handle:active { cursor: grabbing; }
+.dragging { opacity: .45; }

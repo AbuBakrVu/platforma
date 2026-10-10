@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, asc, desc, eq, gt, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requireStaff } from "@/lib/auth";
 import { bool, dateTime, int, slugify, str } from "@/lib/form";
+import { parseStep, STEP_KINDS, type StepKind } from "@/lib/steps";
 
 const KINDS = ["theory", "practice", "lab"] as const;
 const asKind = (v: string) => (KINDS.includes(v as (typeof KINDS)[number]) ? (v as (typeof KINDS)[number]) : "theory");
@@ -133,7 +134,7 @@ export async function updateLesson(courseId: string, id: string, form: FormData)
     kind: asKind(str(form, "kind")),
     durationMin: int(form, "durationMin", 1, 600, 15),
     xp: int(form, "xp", 0, 10000, 20),
-    body: String(form.get("body") ?? ""),
+    layout: str(form, "layout") === "longread" ? "longread" : "steps",
   }).where(eq(t.lessons.id, id));
   touch(courseId);
   redirect(`/admin/courses/${courseId}/lessons/${id}?saved=1`);
@@ -144,4 +145,95 @@ export async function deleteLesson(courseId: string, id: string) {
   await db.delete(t.lessons).where(eq(t.lessons.id, id));
   touch(courseId);
   redirect(`/admin/courses/${courseId}`);
+}
+
+/** Новый порядок разделов и уроков после перетаскивания. Уроки можно переносить между разделами. */
+export async function reorderCourse(courseId: string, order: { id: string; lessons: string[] }[]) {
+  await requireStaff();
+  await db.transaction(async (tx) => {
+    const own = await tx.select({ id: t.sections.id }).from(t.sections).where(eq(t.sections.courseId, courseId));
+    const ownIds = new Set(own.map((x) => x.id));
+    if (order.length !== ownIds.size || order.some((x) => !ownIds.has(x.id))) return;
+    const lessonIds = order.flatMap((x) => x.lessons);
+    if (lessonIds.length) {
+      const ls = await tx.select({ id: t.lessons.id }).from(t.lessons).where(and(inArray(t.lessons.id, lessonIds), inArray(t.lessons.sectionId, [...ownIds])));
+      if (ls.length !== lessonIds.length) return;
+    }
+    for (const [i, sec] of order.entries()) {
+      await tx.update(t.sections).set({ position: i + 1 }).where(eq(t.sections.id, sec.id));
+      for (const [j, lid] of sec.lessons.entries()) {
+        await tx.update(t.lessons).set({ sectionId: sec.id, position: j + 1 }).where(eq(t.lessons.id, lid));
+      }
+    }
+  });
+  touch(courseId);
+}
+
+/** Урок принадлежит курсу — защита от подмены id в запросе */
+async function lessonInCourse(courseId: string, lessonId: string) {
+  const [row] = await db.select({ id: t.lessons.id }).from(t.lessons)
+    .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
+    .where(and(eq(t.lessons.id, lessonId), eq(t.sections.courseId, courseId)));
+  return !!row;
+}
+
+async function stepInCourse(courseId: string, stepId: string) {
+  const [row] = await db.select({ lessonId: t.lessonSteps.lessonId }).from(t.lessonSteps)
+    .innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
+    .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
+    .where(and(eq(t.lessonSteps.id, stepId), eq(t.sections.courseId, courseId)));
+  return row?.lessonId ?? null;
+}
+
+const lessonPath = (courseId: string, lessonId: string) => `/admin/courses/${courseId}/lessons/${lessonId}`;
+
+export async function addStep(courseId: string, lessonId: string, kind: StepKind) {
+  await requireStaff();
+  if (!STEP_KINDS.includes(kind) || !(await lessonInCourse(courseId, lessonId))) return;
+  const [m] = await db.select({ p: sql<number>`coalesce(max(${t.lessonSteps.position}), 0)::int` }).from(t.lessonSteps)
+    .where(eq(t.lessonSteps.lessonId, lessonId));
+  const [st] = await db.insert(t.lessonSteps).values({ lessonId, kind, position: m.p + 1, content: parseStep(kind, {}) })
+    .returning({ id: t.lessonSteps.id });
+  revalidatePath(lessonPath(courseId, lessonId));
+  redirect(`${lessonPath(courseId, lessonId)}?step=${st.id}`);
+}
+
+/** Сохранить шаг. content приходит из клиентского редактора и нормализуется по типу шага. */
+export async function saveStep(courseId: string, stepId: string, title: string, content: unknown) {
+  await requireStaff();
+  const lessonId = await stepInCourse(courseId, stepId);
+  if (!lessonId) return { error: "Шаг не найден" };
+  const [st] = await db.select({ kind: t.lessonSteps.kind }).from(t.lessonSteps).where(eq(t.lessonSteps.id, stepId));
+  const c = parseStep(st.kind, content);
+  if (st.kind === "quiz") {
+    const q = c as ReturnType<typeof parseStep<"quiz">>;
+    if (!q.prompt.trim()) return { error: "Напишите вопрос" };
+    if (q.kind === "text" && q.accepted.length === 0) return { error: "Добавьте хотя бы один правильный ответ" };
+    if (q.kind !== "text" && q.options.length < 2) return { error: "Нужно минимум два варианта" };
+    if (q.kind !== "text" && q.answer.length === 0) return { error: "Отметьте правильный вариант" };
+    if (q.kind === "single" && q.answer.length > 1) return { error: "В вопросе с одним ответом отмечено несколько правильных" };
+  }
+  await db.update(t.lessonSteps).set({ title: title.trim().slice(0, 200), content: c }).where(eq(t.lessonSteps.id, stepId));
+  revalidatePath(lessonPath(courseId, lessonId));
+  return { ok: true };
+}
+
+export async function deleteStep(courseId: string, stepId: string) {
+  await requireStaff();
+  const lessonId = await stepInCourse(courseId, stepId);
+  if (!lessonId) return;
+  await db.delete(t.lessonSteps).where(eq(t.lessonSteps.id, stepId));
+  revalidatePath(lessonPath(courseId, lessonId));
+  redirect(lessonPath(courseId, lessonId));
+}
+
+export async function reorderSteps(courseId: string, lessonId: string, ids: string[]) {
+  await requireStaff();
+  if (!(await lessonInCourse(courseId, lessonId))) return;
+  await db.transaction(async (tx) => {
+    const own = await tx.select({ id: t.lessonSteps.id }).from(t.lessonSteps).where(eq(t.lessonSteps.lessonId, lessonId));
+    if (own.length !== ids.length || !own.every((x) => ids.includes(x.id))) return;
+    for (const [i, id] of ids.entries()) await tx.update(t.lessonSteps).set({ position: i + 1 }).where(eq(t.lessonSteps.id, id));
+  });
+  revalidatePath(lessonPath(courseId, lessonId));
 }

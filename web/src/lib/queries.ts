@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "./auth";
 
@@ -65,6 +65,14 @@ export async function canAccessCourse(user: CurrentUser, course: { id: string; p
   const [link] = await db.select().from(t.groupCourses)
     .where(and(eq(t.groupCourses.courseId, course.id), eq(t.groupCourses.groupId, user.groupId)));
   return !!link;
+}
+
+/** Доступ к курсу по id (для файлов и пакетов). courseId = null — только персоналу. */
+export async function canAccessCourseId(user: CurrentUser, courseId: string | null) {
+  if (user.role !== "student") return true;
+  if (!courseId) return false;
+  const [course] = await db.select({ id: t.courses.id, published: t.courses.published }).from(t.courses).where(eq(t.courses.id, courseId));
+  return !!course && canAccessCourse(user, course);
 }
 
 /** Структура курса: разделы → уроки, с отметкой пройденных. null — нет курса или нет доступа. */
@@ -144,3 +152,56 @@ export async function getAttendanceStats(userId: string) {
   return { total, present: by.present ?? 0, absent: by.absent ?? 0 };
 }
 
+
+/** Шаги урока с отметкой прохождения для пользователя */
+export async function getLessonSteps(lessonId: string, userId: string) {
+  return db
+    .select({
+      id: t.lessonSteps.id, kind: t.lessonSteps.kind, title: t.lessonSteps.title, content: t.lessonSteps.content,
+      done: sql<boolean>`coalesce(${t.stepProgress.done}, false)`,
+      data: t.stepProgress.data,
+    })
+    .from(t.lessonSteps)
+    .leftJoin(t.stepProgress, and(eq(t.stepProgress.stepId, t.lessonSteps.id), eq(t.stepProgress.userId, userId)))
+    .where(eq(t.lessonSteps.lessonId, lessonId))
+    .orderBy(asc(t.lessonSteps.position));
+}
+
+/** Шаг, доступный пользователю: курс открыт ему и раздел не закрыт по дате. null — нет доступа. */
+export async function getStepForUser(stepId: string, user: CurrentUser) {
+  const [row] = await db
+    .select({ step: t.lessonSteps, lesson: t.lessons, section: t.sections, course: t.courses })
+    .from(t.lessonSteps)
+    .innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
+    .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
+    .innerJoin(t.courses, eq(t.courses.id, t.sections.courseId))
+    .where(eq(t.lessonSteps.id, stepId));
+  if (!row || !(await canAccessCourse(user, row.course))) return null;
+  if (user.role === "student" && row.section.opensAt && row.section.opensAt > new Date()) return null;
+  return row;
+}
+
+/** Сколько карточек ждут повторения сейчас */
+export async function getDueCount(userId: string) {
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(t.cardReviews)
+    .where(and(eq(t.cardReviews.userId, userId), lte(t.cardReviews.dueAt, new Date())));
+  return r.n;
+}
+
+/** Карточки к повторению: просроченные, по одной колоде на шаг */
+export async function getDueCards(userId: string, limit = 50) {
+  const due = await db.select().from(t.cardReviews)
+    .where(and(eq(t.cardReviews.userId, userId), lte(t.cardReviews.dueAt, new Date())))
+    .orderBy(asc(t.cardReviews.dueAt)).limit(limit);
+  if (!due.length) return [];
+  const steps = await db.select({ id: t.lessonSteps.id, content: t.lessonSteps.content, lessonTitle: t.lessons.title })
+    .from(t.lessonSteps).innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
+    .where(inArray(t.lessonSteps.id, [...new Set(due.map((d) => d.stepId))]));
+  const byStep = new Map(steps.map((s) => [s.id, s]));
+  return due.flatMap((d) => {
+    const st = byStep.get(d.stepId);
+    const cards = (st?.content.cards ?? []) as { id: string; front: string; back: string }[];
+    const card = cards.find((c) => c.id === d.cardId);
+    return st && card ? [{ ...card, stepId: d.stepId, lessonTitle: st.lessonTitle, ease: d.ease, intervalDays: d.intervalDays, reps: d.reps }] : [];
+  });
+}

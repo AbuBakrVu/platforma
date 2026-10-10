@@ -7,6 +7,9 @@ export const lessonKindEnum = pgEnum("lesson_kind", ["theory", "practice", "lab"
 export const eventKindEnum = pgEnum("event_kind", ["lecture", "practice", "deadline"]);
 export const attendanceEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
 export const questionKindEnum = pgEnum("question_kind", ["single", "multiple", "order"]);
+export const stepKindEnum = pgEnum("step_kind", ["text", "video", "file", "quiz", "cards", "package"]);
+export const lessonLayoutEnum = pgEnum("lesson_layout", ["steps", "longread"]);
+export const packageKindEnum = pgEnum("package_kind", ["scorm12", "scorm2004", "xapi", "cmi5"]);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -83,11 +86,94 @@ export const lessons = pgTable("lessons", {
   position: integer("position").notNull(),
   title: text("title").notNull(),
   kind: lessonKindEnum("kind").notNull().default("theory"),
-  /** Текст урока в Markdown */
-  body: text("body").notNull().default(""),
+  /** steps — по одному шагу на экране, longread — все шаги одной страницей */
+  layout: lessonLayoutEnum("layout").notNull().default("steps"),
   durationMin: integer("duration_min").notNull().default(15),
   xp: integer("xp").notNull().default(20),
 }, (t) => [index("lessons_section_idx").on(t.sectionId, t.position)]);
+
+/** Шаг урока. Содержимое зависит от kind — см. StepContent в lib/steps.ts */
+export const lessonSteps = pgTable("lesson_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  kind: stepKindEnum("kind").notNull(),
+  title: text("title").notNull().default(""),
+  content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+}, (t) => [index("lesson_steps_idx").on(t.lessonId, t.position)]);
+
+/** Прохождение шага: решённый вопрос, досмотренное видео, завершённый SCORM */
+export const stepProgress = pgTable("step_progress", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stepId: uuid("step_id").notNull().references(() => lessonSteps.id, { onDelete: "cascade" }),
+  done: boolean("done").notNull().default(false),
+  /** Последний ответ, позиция видео и т.п. */
+  data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.stepId] })]);
+
+/** Загруженные файлы. Сами файлы лежат в UPLOAD_DIR, доступ — через /api/files/<id> */
+export const uploads = pgTable("uploads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Курс, к которому относится файл: студент видит файл, только если у него есть доступ к курсу */
+  courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  mime: text("mime").notNull(),
+  size: integer("size").notNull(),
+  /** PDF-копия офисного документа для просмотра в браузере */
+  pdfId: uuid("pdf_id"),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
+/** Импортированный пакет SCORM / xAPI / cmi5, распакован в UPLOAD_DIR/pkg/<id>/ */
+export const packages = pgTable("packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
+  kind: packageKindEnum("kind").notNull(),
+  title: text("title").notNull(),
+  /** Путь стартовой страницы внутри пакета, с параметрами */
+  launch: text("launch").notNull(),
+  /** IRI активности (xAPI, cmi5) */
+  activityId: text("activity_id"),
+  /** Для cmi5: OwnWindow — открывать в новой вкладке */
+  launchMethod: text("launch_method"),
+  createdAt: createdAt(),
+});
+
+/** Состояние пакета у студента: данные cmi.* (SCORM) или документы state API (xAPI) */
+export const packageState = pgTable("package_state", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  packageId: uuid("package_id").notNull().references(() => packages.id, { onDelete: "cascade" }),
+  /** Ключ для Basic-авторизации xAPI/cmi5: <packageId>:<token> */
+  token: text("token").notNull(),
+  registration: uuid("registration").notNull().defaultRandom(),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+  completed: boolean("completed").notNull().default(false),
+  scorePercent: integer("score_percent"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.packageId] }), uniqueIndex("package_state_token_idx").on(t.token)]);
+
+export const xapiStatements = pgTable("xapi_statements", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  packageId: uuid("package_id").notNull().references(() => packages.id, { onDelete: "cascade" }),
+  verb: text("verb").notNull(),
+  statement: jsonb("statement").notNull(),
+  storedAt: timestamp("stored_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("xapi_user_pkg_idx").on(t.userId, t.packageId)]);
+
+/** Интервальное повторение карточек (SM-2) */
+export const cardReviews = pgTable("card_reviews", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stepId: uuid("step_id").notNull().references(() => lessonSteps.id, { onDelete: "cascade" }),
+  cardId: text("card_id").notNull(),
+  /** Лёгкость карточки, 1.3…3 */
+  ease: integer("ease_x100").notNull().default(250),
+  intervalDays: integer("interval_days").notNull().default(0),
+  reps: integer("reps").notNull().default(0),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.stepId, t.cardId] }), index("card_reviews_due_idx").on(t.userId, t.dueAt)]);
 
 export const lessonProgress = pgTable("lesson_progress", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -10,6 +10,7 @@ const MAIN: { href: string; label: string; icon: IconName }[] = [
   { href: "/courses", label: "Навыки", icon: "skills" },
   { href: "/schedule", label: "Расписание", icon: "cal" },
   { href: "/labs", label: "Лаборатории", icon: "term" },
+  { href: "/review", label: "Повторение", icon: "cards" },
   { href: "/exams", label: "Пробные экзамены", icon: "exam" },
   { href: "/rating", label: "Рейтинг", icon: "cup" },
 ];
@@ -24,13 +25,14 @@ function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-export function Sidebar({ name, role, group }: { name: string; role: keyof typeof ROLE; group?: string | null }) {
+export function Sidebar({ name, role, group, due = 0 }: { name: string; role: keyof typeof ROLE; group?: string | null; due?: number }) {
   const path = usePathname();
   const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const item = (l: (typeof MAIN)[number]) => (
     <Link key={l.href} href={l.href} className={isOn(l.href) ? "on" : undefined} aria-current={isOn(l.href) ? "page" : undefined}>
       <Icon name={l.icon} />
       {l.label}
+      {l.href === "/review" && due > 0 && <span className="badge" aria-label={`${due} к повторению`}>{due}</span>}
     </Link>
   );
 

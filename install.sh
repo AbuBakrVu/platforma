@@ -73,6 +73,14 @@ if [ -z "${POSTGRES_PASSWORD:-}" ] && ask_yn "Заполнить демо-кур
   SEED_DEMO_PASSWORD=$(openssl rand -hex 8)
 fi
 
+OFFICE=0
+case ",${COMPOSE_PROFILES:-}," in *,office,*) OFFICE=1 ;; esac
+if ask_yn "Показывать Word/PowerPoint/Excel прямо в браузере? (ещё один контейнер, ~1,5 ГБ)" "$([ $OFFICE = 1 ] && echo Y || echo N)"; then
+  OFFICE=1
+else
+  OFFICE=0
+fi
+
 # ——— Порт и пароль базы ———
 port_busy() { ss -Htln 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"; }
 if [ -z "${APP_PORT:-}" ]; then
@@ -119,7 +127,9 @@ APP_BIND=127.0.0.1
 APP_PORT=$APP_PORT
 APP_TZ=${APP_TZ:-Asia/Almaty}
 COOKIE_SECURE=true
-COMPOSE_PROFILES=$([ "$PROXY" = caddy ] && echo caddy)
+COMPOSE_PROFILES=$( { [ "$PROXY" = caddy ] && echo caddy; [ "$OFFICE" = 1 ] && echo office; } | paste -sd, -)
+CONVERTER_URL=$([ "$OFFICE" = 1 ] && echo http://gotenberg:3000)
+MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-4096}
 SEED_DEMO=$SEED_DEMO
 SEED_DEMO_PASSWORD=${SEED_DEMO_PASSWORD:-}
 EOF
@@ -152,7 +162,10 @@ if [ "$PROXY" = nginx ]; then
 server {
     listen 80;
     server_name $APP_DOMAIN;
-    client_max_body_size 20m;
+    # Видео и SCORM-пакеты бывают большими; тело запроса сразу передаётся приложению
+    client_max_body_size ${MAX_UPLOAD_MB:-4096}m;
+    proxy_request_buffering off;
+    proxy_read_timeout 600s;
 
     location / {
         proxy_pass http://127.0.0.1:$APP_PORT;

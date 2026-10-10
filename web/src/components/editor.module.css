@@ -1,0 +1,7 @@
+.label { font-size: 13px; font-weight: 500; color: var(--ink2); }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr)); gap: 16px; align-items: start; }
+.preview { border: 1px solid var(--line); border-radius: var(--r-s); padding: 16px 18px; overflow: auto; max-width: none; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 4px; }
+.tool { min-width: 34px; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink2); font-size: 13px; font-weight: 600; }
+.tool:hover { background: var(--green-tint); border-color: #CDD2CB; }

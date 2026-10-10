@@ -4,7 +4,9 @@
 #   — база наружу не открыта, доступна только внутри сети проекта;
 #   — приложение слушает только 127.0.0.1:${APP_PORT}, наружу его отдаёт ваш nginx/traefik;
 #   — если своего прокси нет, профиль caddy сам получит HTTPS-сертификат для APP_DOMAIN
-#     (COMPOSE_PROFILES=caddy в .env, нужны свободные порты 80 и 443).
+#     (COMPOSE_PROFILES=caddy в .env, нужны свободные порты 80 и 443);
+#   — профиль office добавляет Gotenberg (LibreOffice): Word/PowerPoint/Excel открываются в браузере как PDF
+#     (COMPOSE_PROFILES=office и CONVERTER_URL=http://gotenberg:3000; профили перечисляются через запятую).
 # Проще всего ставить через ./install.sh — он спросит домен и администратора и всё настроит.
 name: platforma
 
@@ -47,11 +49,23 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-platforma}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-platforma}
       APP_TZ: ${APP_TZ:-Asia/Almaty}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      UPLOAD_DIR: /data/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-4096}
+      CONVERTER_URL: ${CONVERTER_URL:-}
+    volumes:
+      # Видео, документы, SCORM-пакеты. Делайте резервную копию вместе с базой.
+      - uploads:/data/uploads
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3100}:3000"
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    profiles: ["office"]
+    restart: unless-stopped
+    # Наружу не открыт: доступен приложению внутри сети проекта
 
   caddy:
     image: caddy:2-alpine
@@ -69,5 +83,6 @@ services:
 
 volumes:
   pgdata:
+  uploads:
   caddy_data:
   caddy_config:

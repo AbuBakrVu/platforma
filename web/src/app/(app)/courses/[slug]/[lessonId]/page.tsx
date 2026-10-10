@@ -1,25 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { marked } from "marked";
 import { requireUser } from "@/lib/auth";
-import { getCourseOutline, getLesson, getXp } from "@/lib/queries";
+import { getCourseOutline, getLesson, getLessonSteps, getXp } from "@/lib/queries";
+import { isRequired, STEP_LABEL, type StepKind } from "@/lib/steps";
 import { fmtDate, KIND_LABEL, plural } from "@/lib/format";
 import { TopBar } from "@/components/TopBar";
 import { Icon, type IconName } from "@/components/Icon";
-import { completeLesson } from "./actions";
+import { CompleteButton } from "./CompleteButton";
+import { StepView } from "./StepView";
 import s from "./lesson.module.css";
 
 const KIND_ICON: Record<keyof typeof KIND_LABEL, IconName> = { theory: "doc", practice: "flask", lab: "term" };
+const STEP_ICON: Record<StepKind, IconName> = { text: "doc", video: "play", file: "doc", quiz: "exam", cards: "cards", package: "skills" };
 
 export async function generateMetadata({ params }: PageProps<"/courses/[slug]/[lessonId]">) {
   const row = await getLesson((await params).lessonId).catch(() => null);
   return { title: row?.lesson.title ?? "Урок" };
 }
 
-export default async function LessonPage({ params }: PageProps<"/courses/[slug]/[lessonId]">) {
+export default async function LessonPage({ params, searchParams }: PageProps<"/courses/[slug]/[lessonId]">) {
   const { slug, lessonId } = await params;
   const user = await requireUser();
-  const [outline, row, xp] = await Promise.all([getCourseOutline(slug, user), getLesson(lessonId), getXp(user.id)]);
+  const [outline, row, xp, steps] = await Promise.all([
+    getCourseOutline(slug, user), getLesson(lessonId), getXp(user.id), getLessonSteps(lessonId, user.id),
+  ]);
   if (!outline || !row || row.section.courseId !== outline.course.id) notFound();
 
   const i = outline.flat.findIndex((l) => l.id === lessonId);
@@ -28,7 +32,11 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
   const prev = outline.flat[i - 1];
   const next = outline.flat[i + 1];
   const pct = outline.total ? Math.round((outline.done / outline.total) * 100) : 0;
-  const html = await marked.parse(row.lesson.body);
+  const longread = row.lesson.layout === "longread";
+  const n = Math.min(Math.max(1, Number((await searchParams).step) || 1), Math.max(1, steps.length));
+  const shown = longread ? steps : steps.slice(n - 1, n);
+  const lastStep = longread || n >= steps.length;
+  const finishLabel = cur.done ? (next ? "Следующий урок" : "К курсам") : next ? "Завершить урок" : "Завершить курс";
 
   return (
     <>
@@ -94,21 +102,44 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
             {cur.done && <span className="tag grey"><Icon name="check" size={14} />Пройден</span>}
           </div>
           <h1 className={s.h1}>{row.lesson.title}</h1>
-          <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />
+
+          {!longread && steps.length > 1 && (
+            <nav className={s.steps} aria-label="Шаги урока">
+              {steps.map((x, i) => (
+                <Link key={x.id} href={`?step=${i + 1}`} scroll={false} title={`${i + 1}. ${x.title || STEP_LABEL[x.kind]}`}
+                  className={`${s.stepDot} ${x.done ? s.stepDone : ""} ${i + 1 === n ? s.stepOn : ""}`}
+                  aria-current={i + 1 === n ? "step" : undefined}
+                  aria-label={`Шаг ${i + 1}: ${x.title || STEP_LABEL[x.kind]}${x.done ? ", пройден" : isRequired(x.kind, x.content) ? ", обязательный" : ""}`}>
+                  <Icon name={STEP_ICON[x.kind]} size={16} />
+                  {!x.done && isRequired(x.kind, x.content) && <i className={s.req} />}
+                </Link>
+              ))}
+            </nav>
+          )}
+
+          {steps.length === 0 && <p className="empty">В уроке пока нет материалов.</p>}
+          <div className={s.flow}>
+            {shown.map((x) => (
+              <section key={x.id} className={s.stepBody} aria-label={x.title || STEP_LABEL[x.kind]}>
+                {x.title && <h2 className={s.stepTitle}>{x.title}</h2>}
+                <StepView step={x} user={user} />
+              </section>
+            ))}
+          </div>
+
           <div className={s.foot}>
-            {prev ? (
+            {!longread && n > 1 ? (
+              <Link href={`?step=${n - 1}`} scroll={false} className="btn"><Icon name="left" size={18} />Назад</Link>
+            ) : prev ? (
               <Link href={`/courses/${slug}/${prev.id}`} className="btn"><Icon name="left" size={18} />{prev.title}</Link>
             ) : <span />}
             <div className="row">
               {row.lesson.kind === "lab" && (
                 <Link href="/labs" className="btn dark"><Icon name="term" size={18} />Открыть терминал</Link>
               )}
-              <form action={completeLesson.bind(null, slug, lessonId)}>
-                <button className="btn pri">
-                  {cur.done ? (next ? "Дальше" : "К курсам") : next ? "Пройдено, дальше" : "Завершить курс"}
-                  <Icon name="right" size={18} />
-                </button>
-              </form>
+              {lastStep
+                ? <CompleteButton slug={slug} lessonId={lessonId} label={finishLabel} />
+                : <Link href={`?step=${n + 1}`} scroll={false} className="btn pri">Дальше<Icon name="right" size={18} /></Link>}
             </div>
           </div>
         </article>
