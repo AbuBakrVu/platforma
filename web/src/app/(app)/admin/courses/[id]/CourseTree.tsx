@@ -8,7 +8,7 @@ import { KIND_LABEL } from "@/lib/format";
 import { addLesson, deleteSection, moveLesson, moveSection, reorderCourse, updateSection } from "../actions";
 import s from "../../admin.module.css";
 
-type Lesson = { id: string; title: string; kind: keyof typeof KIND_LABEL; steps: number };
+type Lesson = { id: string; title: string; kind: keyof typeof KIND_LABEL; steps: number; draft: string | null };
 type Section = { id: string; title: string; opensAt: string; lessons: Lesson[] };
 type Drag = { type: "section" | "lesson"; id: string } | null;
 
@@ -128,6 +128,7 @@ export function CourseTree({ courseId, sections: initial }: { courseId: string; 
                 </span>
                 <span className="tag grey">{KIND_LABEL[l.kind]}</span>
                 <Link href={`/admin/courses/${courseId}/lessons/${l.id}`} className={s.itemTitle}>{l.title}</Link>
+                {l.draft && <span className="tag warn">{l.draft}</span>}
                 <span className="small muted">{l.steps} {l.steps === 1 ? "шаг" : l.steps >= 2 && l.steps <= 4 ? "шага" : "шагов"}</span>
                 <form action={moveLesson.bind(null, courseId, l.id, -1)}><button className="btn sm" aria-label="Урок выше" disabled={j === 0}><Icon name="up" size={16} /></button></form>
                 <form action={moveLesson.bind(null, courseId, l.id, 1)}><button className="btn sm" aria-label="Урок ниже" disabled={j === sec.lessons.length - 1}><Icon name="down" size={16} /></button></form>

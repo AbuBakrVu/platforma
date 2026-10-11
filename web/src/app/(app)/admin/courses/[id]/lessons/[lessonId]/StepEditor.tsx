@@ -5,18 +5,24 @@ import { Icon } from "@/components/Icon";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import {
   embedUrl, newId, parseChapters, QUIZ_LABEL, STEP_LABEL,
-  type CardsContent, type FileContent, type PackageContent, type QuizContent, type StepContent, type StepKind, type TextContent, type VideoContent,
+  type CardsContent, type FileContent, type LabContent, type PackageContent, type QuizContent, type StepContent, type StepKind, type TextContent, type VideoContent,
 } from "@/lib/steps";
 import { fmtSize, upload, type Uploaded, type UploadedPackage } from "@/lib/upload-client";
-import { saveStep } from "../../../actions";
 import s from "./steps.module.css";
 
 export type FileInfo = { id: string; name: string; size: number; mime: string; pdfId: string | null };
 type Step = { id: string; kind: StepKind; title: string; content: StepContent[StepKind] };
-type Props = { courseId: string; step: Step; files: Record<string, FileInfo>; packages: UploadedPackage[] };
+export type SaveFn = (title: string, content: unknown) => Promise<{ error?: string; ok?: boolean }>;
+type Props = {
+  /** Курс для загрузок; пусто — файл библиотеки, не привязан к курсу */
+  courseId: string; step: Step; files: Record<string, FileInfo>; packages: UploadedPackage[];
+  save: SaveFn;
+  /** Над формой: связь с библиотекой и т.п. */
+  banner?: React.ReactNode;
+};
 
 /** Редактор одного шага. Содержимое собирается в состоянии и сохраняется одной кнопкой. */
-export function StepEditor({ courseId, step, files: initialFiles, packages: initialPkgs }: Props) {
+export function StepEditor({ courseId, step, files: initialFiles, packages: initialPkgs, save: persist, banner }: Props) {
   const [title, setTitle] = useState(step.title);
   const [content, setContent] = useState(step.content);
   const [files, setFiles] = useState(initialFiles);
@@ -40,7 +46,7 @@ export function StepEditor({ courseId, step, files: initialFiles, packages: init
   const addFile = (f: Uploaded) => setFiles((m) => ({ ...m, [f.id]: f }));
 
   const save = () => start(async () => {
-    const r = await saveStep(courseId, step.id, title, content);
+    const r = await persist(title, content);
     if (r?.error) setMsg({ text: r.error });
     else { setMsg({ ok: true, text: "Шаг сохранён" }); setDirty(false); }
   });
@@ -52,6 +58,7 @@ export function StepEditor({ courseId, step, files: initialFiles, packages: init
         <span className="tag">{STEP_LABEL[step.kind]}</span>
         {dirty && <span className="small muted">Есть несохранённые изменения</span>}
       </div>
+      {banner}
       <div className="field">
         <label htmlFor="st-title">Заголовок шага <span className="muted">(необязательно)</span></label>
         <input id="st-title" className="ctl" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
@@ -63,6 +70,7 @@ export function StepEditor({ courseId, step, files: initialFiles, packages: init
       {step.kind === "file" && <FileEditor c={content as FileContent} {...ctx} />}
       {step.kind === "quiz" && <QuizEditor c={content as QuizContent} {...ctx} />}
       {step.kind === "cards" && <CardsEditor c={content as CardsContent} {...ctx} />}
+      {step.kind === "lab" && <LabEditor c={content as LabContent} {...ctx} />}
       {step.kind === "package" && <PackageEditor c={content as PackageContent} {...ctx} pkgs={pkgs}
         onPackage={(p) => setPkgs((x) => [p, ...x])} />}
 
@@ -334,6 +342,118 @@ function PackageEditor({ c, set, courseId, pkgs, onPackage }: Ctx & { c: Package
       </div>
       <label className="check"><input type="checkbox" checked={c.required} onChange={(e) => set<"package">({ required: e.target.checked })} />
         Обязательный — урок не засчитается, пока пакет не завершён</label>
+    </>
+  );
+}
+
+/** Готовые среды: подставляют образ, ресурсы и скрипт подготовки */
+const LAB_PRESETS: { name: string; c: Partial<LabContent> }[] = [
+  { name: "Linux (Debian, без сети)", c: { image: "debian:12-slim", privileged: false, network: false, memoryMb: 512, cpus: 1, setup: "" } },
+  {
+    name: "Ubuntu с утилитами", c: {
+      image: "ubuntu:24.04", privileged: false, network: true, memoryMb: 1024, cpus: 1,
+      setup: "export DEBIAN_FRONTEND=noninteractive\napt-get update -qq && apt-get install -y -qq curl vim nano less procps iproute2 >/dev/null",
+    },
+  },
+  { name: "Python 3.12", c: { image: "python:3.12-slim", privileged: false, network: false, memoryMb: 1024, cpus: 1, setup: "" } },
+  {
+    name: "Kubernetes (k3s, нужен privileged)", c: {
+      image: "rancher/k3s:v1.30.4-k3s1", privileged: true, network: true, memoryMb: 2048, cpus: 2,
+      setup: "(k3s server --disable traefik --write-kubeconfig-mode 644 > /var/log/k3s.log 2>&1 &)\n"
+        + "for i in $(seq 1 90); do kubectl get nodes 2>/dev/null | grep -q ' Ready' && break; sleep 2; done\n"
+        + "kubectl wait -n kube-system --for=condition=available deploy/coredns --timeout=180s",
+    },
+  },
+  {
+    name: "Docker внутри (dind, нужен privileged)", c: {
+      image: "docker:27-dind", privileged: true, network: true, memoryMb: 2048, cpus: 2,
+      setup: "(dockerd > /var/log/dockerd.log 2>&1 &)\nfor i in $(seq 1 60); do docker info >/dev/null 2>&1 && break; sleep 1; done",
+    },
+  },
+];
+
+function LabEditor({ c, set, courseId }: Ctx & { c: LabContent }) {
+  const upd = (id: string, patch: Partial<LabContent["tasks"][number]>) =>
+    set<"lab">({ tasks: c.tasks.map((x) => (x.id === id ? { ...x, ...patch } : x)) });
+  const move = (i: number, d: -1 | 1) => {
+    const next = [...c.tasks];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    set<"lab">({ tasks: next });
+  };
+  return (
+    <>
+      <p className="small muted" style={{ margin: 0 }}>
+        Каждый студент получает свой контейнер с терминалом. Скрипт подготовки выполняется при запуске среды,
+        у каждого задания — скрипт проверки: код выхода 0 значит «выполнено». Шаг засчитывается, когда выполнены все задания.
+      </p>
+      <div className="field" style={{ maxWidth: 360 }}>
+        <label htmlFor="lab-preset">Шаблон среды</label>
+        <select id="lab-preset" className="ctl" value="" onChange={(e) => {
+          const p = LAB_PRESETS[Number(e.target.value)];
+          if (p) set<"lab">(p.c);
+        }}>
+          <option value="">— выбрать и подставить —</option>
+          {LAB_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
+        </select>
+      </div>
+      <div className="form-row">
+        <div className="field"><label htmlFor="lab-img">Docker-образ</label>
+          <input id="lab-img" className="ctl mono" value={c.image} onChange={(e) => set<"lab">({ image: e.target.value })} placeholder="debian:12-slim" /></div>
+        <div className="field"><label htmlFor="lab-mem">Память, МБ</label>
+          <input id="lab-mem" type="number" min={128} max={16384} step={128} className="ctl" value={c.memoryMb}
+            onChange={(e) => set<"lab">({ memoryMb: Number(e.target.value) || 1024 })} /></div>
+        <div className="field"><label htmlFor="lab-cpu">Ядер CPU</label>
+          <input id="lab-cpu" type="number" min={0.25} max={8} step={0.25} className="ctl" value={c.cpus}
+            onChange={(e) => set<"lab">({ cpus: Number(e.target.value) || 1 })} /></div>
+        <div className="field"><label htmlFor="lab-ttl">Время жизни, мин</label>
+          <input id="lab-ttl" type="number" min={5} max={480} className="ctl" value={c.ttlMin}
+            onChange={(e) => set<"lab">({ ttlMin: Number(e.target.value) || 60 })} /></div>
+      </div>
+      <label className="check"><input type="checkbox" checked={c.network} onChange={(e) => set<"lab">({ network: e.target.checked })} />
+        Доступ в интернет из среды (нужен для apt, pip, docker pull)</label>
+      <label className="check"><input type="checkbox" checked={c.privileged} onChange={(e) => set<"lab">({ privileged: e.target.checked })} />
+        Привилегированный режим — для Kubernetes (k3s) и Docker внутри среды</label>
+      {c.privileged && (
+        <div className="notice small">
+          Привилегированный контейнер почти не отделён от сервера: студент с root-доступом в нём может добраться до хоста.
+          Включайте только если сервис лабораторий работает на отдельной машине (см. README, «Лаборатории»).
+        </div>
+      )}
+      <div className="field">
+        <label htmlFor="lab-setup">Скрипт подготовки <span className="muted">(sh, выполняется от root при запуске)</span></label>
+        <textarea id="lab-setup" className="ctl mono" style={{ minHeight: 110, fontSize: 13 }} value={c.setup}
+          onChange={(e) => set<"lab">({ setup: e.target.value })} placeholder={"apt-get update && apt-get install -y nginx\nmkdir -p /root/project"} />
+      </div>
+
+      <div className="field">
+        <span className={s.label}>Задания</span>
+        {c.tasks.map((task, i) => (
+          <div key={task.id} className={s.labTask}>
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <span className={s.num}>{i + 1}</span>
+              <input className="ctl" style={{ flex: 1 }} value={task.title} aria-label={`Задание ${i + 1}: название`}
+                placeholder="Например, Масштабируйте coredns до 2 реплик" onChange={(e) => upd(task.id, { title: e.target.value })} />
+              <button type="button" className="btn sm" aria-label="Выше" disabled={i === 0} onClick={() => move(i, -1)}><Icon name="up" size={16} /></button>
+              <button type="button" className="btn sm" aria-label="Ниже" disabled={i === c.tasks.length - 1} onClick={() => move(i, 1)}><Icon name="down" size={16} /></button>
+              <button type="button" className="btn sm danger" aria-label="Удалить задание"
+                onClick={() => set<"lab">({ tasks: c.tasks.filter((x) => x.id !== task.id) })}><Icon name="x" size={16} /></button>
+            </div>
+            <MarkdownEditor value={task.md} onChange={(md) => upd(task.id, { md })} courseId={courseId} label="Описание" minHeight={80} compact />
+            <div className="form-row">
+              <div className="field"><label htmlFor={`h-${task.id}`}>Подсказка <span className="muted">(скрыта, раскрывается по клику)</span></label>
+                <textarea id={`h-${task.id}`} className="ctl" style={{ minHeight: 70 }} value={task.hint} onChange={(e) => upd(task.id, { hint: e.target.value })} /></div>
+              <div className="field"><label htmlFor={`c-${task.id}`}>Скрипт проверки <span className="muted">(код 0 — выполнено)</span></label>
+                <textarea id={`c-${task.id}`} className="ctl mono" style={{ minHeight: 70, fontSize: 13 }} value={task.check}
+                  placeholder={"kubectl -n kube-system get deploy coredns -o jsonpath='{.spec.replicas}' | grep -qx 2"}
+                  onChange={(e) => upd(task.id, { check: e.target.value })} /></div>
+            </div>
+          </div>
+        ))}
+        <div><button type="button" className="btn sm" onClick={() => set<"lab">({ tasks: [...c.tasks, { id: newId(), title: "", md: "", hint: "", check: "" }] })}>
+          <Icon name="plus" size={16} />Задание</button></div>
+      </div>
+      <label className="check"><input type="checkbox" checked={c.required} onChange={(e) => set<"lab">({ required: e.target.checked })} />
+        Обязательная — урок не засчитается, пока не выполнены все задания</label>
     </>
   );
 }

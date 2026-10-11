@@ -5,11 +5,12 @@ import { getUser } from "@/lib/auth";
 import { officeToPdf, srtToVtt } from "@/lib/convert";
 import { uuidOrNull } from "@/lib/form";
 import { extractZip, parsePackage } from "@/lib/packages";
+import { importCourse } from "@/lib/transfer";
 import { filePath, isOffice, mimeOf, packageDir, removeFile, saveStream } from "@/lib/storage";
 
 /**
  * Загрузка файла телом запроса (без multipart — так большие видео не буферизуются в памяти).
- * POST /api/upload?courseId=…&name=…[&kind=package]
+ * POST /api/upload?courseId=…&name=…[&kind=package|course]
  */
 export async function POST(req: Request) {
   const user = await getUser();
@@ -25,6 +26,17 @@ export async function POST(req: Request) {
     size = await saveStream(id, req.body);
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 413 });
+  }
+
+  if (q.get("kind") === "course") {
+    try {
+      const courseId = await importCourse(filePath(id), user.id);
+      return Response.json({ id: courseId });
+    } catch (e) {
+      return Response.json({ error: `Не удалось импортировать курс: ${(e as Error).message}` }, { status: 400 });
+    } finally {
+      await removeFile(id);
+    }
   }
 
   if (q.get("kind") === "package") {

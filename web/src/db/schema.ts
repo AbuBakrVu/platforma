@@ -1,5 +1,5 @@
 import {
-  pgTable, pgEnum, uuid, text, integer, timestamp, boolean, jsonb, primaryKey, index, uniqueIndex,
+  type AnyPgColumn, pgTable, pgEnum, uuid, text, integer, timestamp, boolean, jsonb, primaryKey, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["student", "teacher", "admin"]);
@@ -7,7 +7,7 @@ export const lessonKindEnum = pgEnum("lesson_kind", ["theory", "practice", "lab"
 export const eventKindEnum = pgEnum("event_kind", ["lecture", "practice", "deadline"]);
 export const attendanceEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
 export const questionKindEnum = pgEnum("question_kind", ["single", "multiple", "order"]);
-export const stepKindEnum = pgEnum("step_kind", ["text", "video", "file", "quiz", "cards", "package"]);
+export const stepKindEnum = pgEnum("step_kind", ["text", "video", "file", "quiz", "cards", "package", "lab"]);
 export const lessonLayoutEnum = pgEnum("lesson_layout", ["steps", "longread"]);
 export const packageKindEnum = pgEnum("package_kind", ["scorm12", "scorm2004", "xapi", "cmi5"]);
 
@@ -61,6 +61,8 @@ export const courses = pgTable("courses", {
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   published: boolean("published").notNull().default(true),
+  /** Отложенная публикация: опубликованный курс виден студентам только с этого момента */
+  publishAt: timestamp("publish_at", { withTimezone: true }),
   demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("courses_slug_idx").on(t.slug)]);
@@ -88,6 +90,10 @@ export const lessons = pgTable("lessons", {
   kind: lessonKindEnum("kind").notNull().default("theory"),
   /** steps — по одному шагу на экране, longread — все шаги одной страницей */
   layout: lessonLayoutEnum("layout").notNull().default("steps"),
+  /** false — черновик: студенты урок не видят */
+  published: boolean("published").notNull().default(true),
+  /** Отложенная публикация урока */
+  publishAt: timestamp("publish_at", { withTimezone: true }),
   durationMin: integer("duration_min").notNull().default(15),
   xp: integer("xp").notNull().default(20),
 }, (t) => [index("lessons_section_idx").on(t.sectionId, t.position)]);
@@ -100,7 +106,69 @@ export const lessonSteps = pgTable("lesson_steps", {
   kind: stepKindEnum("kind").notNull(),
   title: text("title").notNull().default(""),
   content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
-}, (t) => [index("lesson_steps_idx").on(t.lessonId, t.position)]);
+  /** Шаг связан с элементом библиотеки: содержимое берётся оттуда и меняется во всех уроках сразу */
+  libraryId: uuid("library_id").references((): AnyPgColumn => libraryItems.id, { onDelete: "set null" }),
+}, (t) => [index("lesson_steps_idx").on(t.lessonId, t.position), index("lesson_steps_library_idx").on(t.libraryId)]);
+
+/** Библиотека: шаги, которые используются в нескольких уроках и курсах */
+export const libraryItems = pgTable("library_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: stepKindEnum("kind").notNull(),
+  title: text("title").notNull(),
+  content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+  tags: text("tags").notNull().default(""),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** История шага: каждая сохранённая версия содержимого */
+export const stepRevisions = pgTable("step_revisions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Версия шага урока или элемента библиотеки */
+  stepId: uuid("step_id").references(() => lessonSteps.id, { onDelete: "cascade" }),
+  libraryId: uuid("library_id").references(() => libraryItems.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [index("step_revisions_step_idx").on(t.stepId, t.createdAt), index("step_revisions_lib_idx").on(t.libraryId, t.createdAt)]);
+
+/** Журнал изменений курса: кто, что и когда менял */
+export const courseLog = pgTable("course_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("course_log_idx").on(t.courseId, t.createdAt)]);
+
+/** Материалы для скачивания: к курсу целиком или к уроку */
+export const courseMaterials = pgTable("course_materials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  lessonId: uuid("lesson_id").references(() => lessons.id, { onDelete: "cascade" }),
+  uploadId: uuid("upload_id").notNull().references(() => uploads.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  position: integer("position").notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index("course_materials_idx").on(t.courseId, t.position)]);
+
+/** Учебная среда студента: контейнер с терминалом для шага «Лаба» */
+export const labSessions = pgTable("lab_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stepId: uuid("step_id").notNull().references(() => lessonSteps.id, { onDelete: "cascade" }),
+  /** starting → ready → stopped | error */
+  status: text("status").notNull().default("starting"),
+  error: text("error"),
+  /** Задания, проверка которых прошла */
+  tasksDone: jsonb("tasks_done").$type<string[]>().notNull().default([]),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  stoppedAt: timestamp("stopped_at", { withTimezone: true }),
+}, (t) => [index("lab_sessions_user_idx").on(t.userId, t.stepId)]);
 
 /** Прохождение шага: решённый вопрос, досмотренное видео, завершённый SCORM */
 export const stepProgress = pgTable("step_progress", {

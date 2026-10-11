@@ -4,7 +4,8 @@ import type { CurrentUser } from "@/lib/auth";
 import { md, renderMd } from "@/lib/markdown";
 import { packageStateFor } from "@/lib/progress";
 import { embedUrl, parseChapters, parseStep, publicQuiz, type StepKind } from "@/lib/steps";
-import { fmtDateFull } from "@/lib/format";
+import { fmtDateFull, plural } from "@/lib/format";
+import { lastTasksDone } from "@/lib/labs";
 import { Icon } from "@/components/Icon";
 import { VideoPlayer } from "@/components/player/VideoPlayer";
 import { CardDeck } from "@/components/steps/CardDeck";
@@ -97,6 +98,25 @@ export async function StepView({ step, user }: { step: StepRow; user: CurrentUse
           return { id: x.id, stepId: step.id, frontHtml: renderMd(x.front), backHtml: renderMd(x.back),
             state: s ? { ease: s.ease, intervalDays: s.intervalDays, reps: s.reps } : null };
         })} />
+      );
+    }
+
+    case "lab": {
+      const lab = parseStep("lab", step.content);
+      const done = new Set(await lastTasksDone(user.id, step.id));
+      return (
+        <div className={st.labCard}>
+          <div className={st.labHead}>
+            <Icon name="term" size={22} />
+            <div><b>Лабораторная работа</b><span className="small muted">
+              Своя учебная среда с терминалом · {lab.tasks.length} {plural(lab.tasks.length, "задание", "задания", "заданий")} · до {lab.ttlMin} мин
+            </span></div>
+          </div>
+          <ol className={st.labTasks}>
+            {lab.tasks.map((x) => <li key={x.id} className={done.has(x.id) ? st.labDone : undefined}>{done.has(x.id) && <Icon name="check" size={14} />}{x.title}</li>)}
+          </ol>
+          <div><a href={`/labs/${step.id}`} className="btn pri"><Icon name="term" size={18} />{done.size ? "Продолжить лабораторную" : "Открыть лабораторную"}</a></div>
+        </div>
       );
     }
 

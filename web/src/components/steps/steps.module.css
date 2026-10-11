@@ -46,3 +46,14 @@
 .fileCard b { display: block; font-weight: 600; }
 .embed { position: relative; aspect-ratio: 16 / 9; border-radius: var(--r-s); overflow: hidden; background: #000; }
 .embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* Лаба в уроке */
+.labCard { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: var(--r-s); background: var(--dark); color: #E3ECE5; }
+.labHead { display: flex; gap: 14px; align-items: center; }
+.labHead > div { display: flex; flex-direction: column; }
+.labHead b { font-size: 17px; }
+.labHead :global(.muted) { color: #A9BDB0; }
+.labTasks { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+.labDone { color: #9FD3AE; }
+.labDone svg { margin-right: 6px; vertical-align: -2px; }
+.labCard :global(.btn.pri) { background: #2E7D52; border-color: #2E7D52; }

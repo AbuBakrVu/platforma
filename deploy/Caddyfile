@@ -1,0 +1,8 @@
+# Встроенный HTTPS (профиль caddy). Домен — из APP_DOMAIN в .env.
+{$APP_DOMAIN} {
+	# Терминал лабораторий (WebSocket) — в сервис labs, если он включён
+	handle /lab-ws/* {
+		reverse_proxy labs:3200
+	}
+	reverse_proxy web:3000
+}

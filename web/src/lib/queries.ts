@@ -1,7 +1,12 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "./auth";
+
+/** Опубликован и время публикации наступило (черновики и отложенная публикация) */
+const live = (published: typeof t.courses.published | typeof t.lessons.published, at: typeof t.courses.publishAt | typeof t.lessons.publishAt): SQL =>
+  and(eq(published, true), or(isNull(at), lte(at, sql`now()`)))!;
+export const isLive = (x: { published: boolean; publishAt: Date | null }) => x.published && (!x.publishAt || x.publishAt <= new Date());
 
 export async function getGroupName(groupId: string | null) {
   if (!groupId) return null;
@@ -46,22 +51,23 @@ export async function getMyCourses(user: CurrentUser) {
     })
     .from(t.courses)
     .leftJoin(t.sections, eq(t.sections.courseId, t.courses.id))
-    .leftJoin(t.lessons, eq(t.lessons.sectionId, t.sections.id))
+    .leftJoin(t.lessons, and(eq(t.lessons.sectionId, t.sections.id), live(t.lessons.published, t.lessons.publishAt)))
     .leftJoin(t.lessonProgress, and(eq(t.lessonProgress.lessonId, t.lessons.id), eq(t.lessonProgress.userId, user.id)))
     .groupBy(t.courses.id)
     .orderBy(asc(t.courses.title))
     .$dynamic();
 
-  if (!user.groupId) return base.where(eq(t.courses.published, true));
+  const visible = live(t.courses.published, t.courses.publishAt);
+  if (!user.groupId) return base.where(visible);
   return base
     .innerJoin(t.groupCourses, and(eq(t.groupCourses.courseId, t.courses.id), eq(t.groupCourses.groupId, user.groupId)))
-    .where(eq(t.courses.published, true));
+    .where(visible);
 }
 
 /** Студенту доступны только опубликованные курсы его потока; персоналу — все */
-export async function canAccessCourse(user: CurrentUser, course: { id: string; published: boolean }) {
+export async function canAccessCourse(user: CurrentUser, course: { id: string; published: boolean; publishAt: Date | null }) {
   if (user.role !== "student") return true;
-  if (!course.published || !user.groupId) return false;
+  if (!isLive(course) || !user.groupId) return false;
   const [link] = await db.select().from(t.groupCourses)
     .where(and(eq(t.groupCourses.courseId, course.id), eq(t.groupCourses.groupId, user.groupId)));
   return !!link;
@@ -71,7 +77,8 @@ export async function canAccessCourse(user: CurrentUser, course: { id: string; p
 export async function canAccessCourseId(user: CurrentUser, courseId: string | null) {
   if (user.role !== "student") return true;
   if (!courseId) return false;
-  const [course] = await db.select({ id: t.courses.id, published: t.courses.published }).from(t.courses).where(eq(t.courses.id, courseId));
+  const [course] = await db.select({ id: t.courses.id, published: t.courses.published, publishAt: t.courses.publishAt })
+    .from(t.courses).where(eq(t.courses.id, courseId));
   return !!course && canAccessCourse(user, course);
 }
 
@@ -90,6 +97,8 @@ export async function getCourseOutline(slug: string, user: CurrentUser) {
       lessonTitle: t.lessons.title,
       kind: t.lessons.kind,
       lessonPos: t.lessons.position,
+      lessonPublished: t.lessons.published,
+      lessonPublishAt: t.lessons.publishAt,
       done: sql<boolean>`${t.lessonProgress.lessonId} is not null`,
     })
     .from(t.sections)
@@ -101,7 +110,8 @@ export async function getCourseOutline(slug: string, user: CurrentUser) {
   const now = new Date();
   const sections: {
     id: string; title: string; position: number; locked: boolean; opensAt: Date | null;
-    lessons: { id: string; title: string; kind: "theory" | "practice" | "lab"; done: boolean }[];
+    /** draft — урок не виден студентам (показывается только персоналу) */
+    lessons: { id: string; title: string; kind: "theory" | "practice" | "lab"; done: boolean; draft: boolean }[];
   }[] = [];
   for (const r of rows) {
     let s = sections.at(-1);
@@ -110,7 +120,10 @@ export async function getCourseOutline(slug: string, user: CurrentUser) {
         locked: !!r.opensAt && r.opensAt > now, lessons: [] };
       sections.push(s);
     }
-    if (r.lessonId) s.lessons.push({ id: r.lessonId, title: r.lessonTitle!, kind: r.kind!, done: r.done });
+    if (!r.lessonId) continue;
+    const draft = !isLive({ published: r.lessonPublished!, publishAt: r.lessonPublishAt });
+    if (draft && user.role === "student") continue;
+    s.lessons.push({ id: r.lessonId, title: r.lessonTitle!, kind: r.kind!, done: r.done, draft });
   }
   const flat = sections.filter((s) => !s.locked).flatMap((s) => s.lessons.map((l) => ({ ...l, section: s })));
   const total = sections.reduce((n, s) => n + s.lessons.length, 0);
@@ -157,11 +170,14 @@ export async function getAttendanceStats(userId: string) {
 export async function getLessonSteps(lessonId: string, userId: string) {
   return db
     .select({
-      id: t.lessonSteps.id, kind: t.lessonSteps.kind, title: t.lessonSteps.title, content: t.lessonSteps.content,
+      id: t.lessonSteps.id, kind: t.lessonSteps.kind, title: t.lessonSteps.title,
+      // Связанный с библиотекой шаг показывает её содержимое
+      content: sql<Record<string, unknown>>`coalesce(${t.libraryItems.content}, ${t.lessonSteps.content})`,
       done: sql<boolean>`coalesce(${t.stepProgress.done}, false)`,
       data: t.stepProgress.data,
     })
     .from(t.lessonSteps)
+    .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
     .leftJoin(t.stepProgress, and(eq(t.stepProgress.stepId, t.lessonSteps.id), eq(t.stepProgress.userId, userId)))
     .where(eq(t.lessonSteps.lessonId, lessonId))
     .orderBy(asc(t.lessonSteps.position));
@@ -169,15 +185,17 @@ export async function getLessonSteps(lessonId: string, userId: string) {
 
 /** Шаг, доступный пользователю: курс открыт ему и раздел не закрыт по дате. null — нет доступа. */
 export async function getStepForUser(stepId: string, user: CurrentUser) {
-  const [row] = await db
-    .select({ step: t.lessonSteps, lesson: t.lessons, section: t.sections, course: t.courses })
+  const [r] = await db
+    .select({ step: t.lessonSteps, lib: t.libraryItems.content, lesson: t.lessons, section: t.sections, course: t.courses })
     .from(t.lessonSteps)
     .innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
     .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
     .innerJoin(t.courses, eq(t.courses.id, t.sections.courseId))
+    .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
     .where(eq(t.lessonSteps.id, stepId));
-  if (!row || !(await canAccessCourse(user, row.course))) return null;
-  if (user.role === "student" && row.section.opensAt && row.section.opensAt > new Date()) return null;
+  if (!r || !(await canAccessCourse(user, r.course))) return null;
+  const row = { ...r, step: { ...r.step, content: r.lib ?? r.step.content } };
+  if (user.role === "student" && ((row.section.opensAt && row.section.opensAt > new Date()) || !isLive(row.lesson))) return null;
   return row;
 }
 
@@ -194,8 +212,12 @@ export async function getDueCards(userId: string, limit = 50) {
     .where(and(eq(t.cardReviews.userId, userId), lte(t.cardReviews.dueAt, new Date())))
     .orderBy(asc(t.cardReviews.dueAt)).limit(limit);
   if (!due.length) return [];
-  const steps = await db.select({ id: t.lessonSteps.id, content: t.lessonSteps.content, lessonTitle: t.lessons.title })
+  const steps = await db.select({
+    id: t.lessonSteps.id, lessonTitle: t.lessons.title,
+    content: sql<Record<string, unknown>>`coalesce(${t.libraryItems.content}, ${t.lessonSteps.content})`,
+  })
     .from(t.lessonSteps).innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
+    .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
     .where(inArray(t.lessonSteps.id, [...new Set(due.map((d) => d.stepId))]));
   const byStep = new Map(steps.map((s) => [s.id, s]));
   return due.flatMap((d) => {
@@ -204,4 +226,56 @@ export async function getDueCards(userId: string, limit = 50) {
     const card = cards.find((c) => c.id === d.cardId);
     return st && card ? [{ ...card, stepId: d.stepId, lessonTitle: st.lessonTitle, ease: d.ease, intervalDays: d.intervalDays, reps: d.reps }] : [];
   });
+}
+
+/**
+ * Доступ к загруженному файлу или пакету: напрямую по курсу или через любой шаг доступного курса,
+ * который на него ссылается (скопированный урок, элемент библиотеки, картинка в тексте).
+ */
+export async function canAccessAsset(user: CurrentUser, courseId: string | null, assetId: string) {
+  if (await canAccessCourseId(user, courseId)) return true;
+  const pattern = `%${assetId}%`;
+  const rows = await db.selectDistinct({ id: t.courses.id, published: t.courses.published, publishAt: t.courses.publishAt })
+    .from(t.lessonSteps)
+    .innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
+    .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
+    .innerJoin(t.courses, eq(t.courses.id, t.sections.courseId))
+    .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
+    .where(or(sql`${t.lessonSteps.content}::text like ${pattern}`, sql`${t.libraryItems.content}::text like ${pattern}`))
+    .limit(20);
+  for (const c of rows) if (await canAccessCourse(user, c)) return true;
+  return false;
+}
+
+/** Материалы для скачивания: курса целиком (lessonId = null) и отдельных уроков */
+export async function getCourseMaterials(courseId: string) {
+  return db.select({
+    id: t.courseMaterials.id, title: t.courseMaterials.title, description: t.courseMaterials.description,
+    lessonId: t.courseMaterials.lessonId, uploadId: t.courseMaterials.uploadId, size: t.uploads.size,
+  }).from(t.courseMaterials).innerJoin(t.uploads, eq(t.uploads.id, t.courseMaterials.uploadId))
+    .where(eq(t.courseMaterials.courseId, courseId)).orderBy(asc(t.courseMaterials.position));
+}
+
+/** Лабораторные из курсов пользователя: шаги «Лаба» в доступных уроках */
+export async function getMyLabs(user: CurrentUser) {
+  const courses = await getMyCourses(user);
+  if (!courses.length) return [];
+  const rows = await db.select({
+    stepId: t.lessonSteps.id, title: t.lessonSteps.title,
+    content: sql<Record<string, unknown>>`coalesce(${t.libraryItems.content}, ${t.lessonSteps.content})`,
+    lessonId: t.lessons.id, lesson: t.lessons.title, lessonPublished: t.lessons.published, lessonPublishAt: t.lessons.publishAt,
+    opensAt: t.sections.opensAt, courseSlug: t.courses.slug, course: t.courses.title,
+    done: sql<boolean>`coalesce(${t.stepProgress.done}, false)`,
+  })
+    .from(t.lessonSteps)
+    .innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
+    .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
+    .innerJoin(t.courses, eq(t.courses.id, t.sections.courseId))
+    .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
+    .leftJoin(t.stepProgress, and(eq(t.stepProgress.stepId, t.lessonSteps.id), eq(t.stepProgress.userId, user.id)))
+    .where(and(eq(t.lessonSteps.kind, "lab"), inArray(t.courses.id, courses.map((c) => c.id))))
+    .orderBy(asc(t.courses.title), asc(t.sections.position), asc(t.lessons.position), asc(t.lessonSteps.position));
+  const now = new Date();
+  return rows.filter((r) => user.role !== "student"
+    || (isLive({ published: r.lessonPublished, publishAt: r.lessonPublishAt }) && !(r.opensAt && r.opensAt > now)));
 }

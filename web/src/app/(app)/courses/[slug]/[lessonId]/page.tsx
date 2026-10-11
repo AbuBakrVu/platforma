@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getCourseOutline, getLesson, getLessonSteps, getXp } from "@/lib/queries";
+import { getCourseMaterials, getCourseOutline, getLesson, getLessonSteps, getXp, isLive } from "@/lib/queries";
 import { isRequired, STEP_LABEL, type StepKind } from "@/lib/steps";
 import { fmtDate, KIND_LABEL, plural } from "@/lib/format";
 import { TopBar } from "@/components/TopBar";
@@ -11,7 +11,7 @@ import { StepView } from "./StepView";
 import s from "./lesson.module.css";
 
 const KIND_ICON: Record<keyof typeof KIND_LABEL, IconName> = { theory: "doc", practice: "flask", lab: "term" };
-const STEP_ICON: Record<StepKind, IconName> = { text: "doc", video: "play", file: "doc", quiz: "exam", cards: "cards", package: "skills" };
+const STEP_ICON: Record<StepKind, IconName> = { text: "doc", video: "play", file: "doc", quiz: "exam", cards: "cards", package: "skills", lab: "term" };
 
 export async function generateMetadata({ params }: PageProps<"/courses/[slug]/[lessonId]">) {
   const row = await getLesson((await params).lessonId).catch(() => null);
@@ -24,6 +24,9 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
   const [outline, row, xp, steps] = await Promise.all([
     getCourseOutline(slug, user), getLesson(lessonId), getXp(user.id), getLessonSteps(lessonId, user.id),
   ]);
+  const materials = outline ? await getCourseMaterials(outline.course.id) : [];
+  const courseFiles = materials.filter((m) => !m.lessonId);
+  const lessonFiles = materials.filter((m) => m.lessonId === lessonId);
   if (!outline || !row || row.section.courseId !== outline.course.id) notFound();
 
   const i = outline.flat.findIndex((l) => l.id === lessonId);
@@ -82,7 +85,7 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
                       <Link key={l.id} href={`/courses/${slug}/${l.id}`} className={`${s.l} ${l.id === lessonId ? s.on : ""}`}
                         aria-current={l.id === lessonId ? "page" : undefined}>
                         <Icon name={KIND_ICON[l.kind]} size={18} />
-                        <span className={s.lt}>{l.title}</span>
+                        <span className={s.lt}>{l.title}{l.draft && <small className="muted"> · черновик</small>}</span>
                         {l.done && <Icon name="check" size={18} className={s.ok} />}
                       </Link>
                     ))}
@@ -91,6 +94,15 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
               </details>
             );
           })}
+          {courseFiles.length > 0 && (
+            <div className={s.files}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <b>Материалы курса</b>
+                {materials.length > 1 && <a href={`/api/courses/${outline.course.id}/materials`} className="small">Скачать всё</a>}
+              </div>
+              <FileList items={courseFiles} />
+            </div>
+          )}
         </section>
 
         <article className={`card ${s.article}`}>
@@ -102,6 +114,9 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
             {cur.done && <span className="tag grey"><Icon name="check" size={14} />Пройден</span>}
           </div>
           <h1 className={s.h1}>{row.lesson.title}</h1>
+          {!isLive(row.lesson) && (
+            <div className="notice small" style={{ marginBottom: 16 }}>Черновик или отложенная публикация — студенты этот урок пока не видят.</div>
+          )}
 
           {!longread && steps.length > 1 && (
             <nav className={s.steps} aria-label="Шаги урока">
@@ -127,6 +142,13 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
             ))}
           </div>
 
+          {lessonFiles.length > 0 && (
+            <div className={s.lessonFiles}>
+              <b>Материалы к уроку</b>
+              <FileList items={lessonFiles} />
+            </div>
+          )}
+
           <div className={s.foot}>
             {!longread && n > 1 ? (
               <Link href={`?step=${n - 1}`} scroll={false} className="btn"><Icon name="left" size={18} />Назад</Link>
@@ -145,5 +167,22 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
         </article>
       </div>
     </>
+  );
+}
+
+/** Список файлов для скачивания */
+function FileList({ items }: { items: Awaited<ReturnType<typeof getCourseMaterials>> }) {
+  return (
+    <ul className={s.fileList}>
+      {items.map((m) => (
+        <li key={m.id}>
+          <a href={`/api/files/${m.uploadId}?dl=1`}>
+            <Icon name="dl" size={18} />
+            <span><b>{m.title}</b>{m.description && <small>{m.description}</small>}</span>
+            <small className="muted">{m.size < 1048576 ? `${Math.max(1, Math.round(m.size / 1024))} КБ` : `${(m.size / 1048576).toFixed(1)} МБ`}</small>
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }
