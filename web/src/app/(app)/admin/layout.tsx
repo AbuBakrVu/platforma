@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const [q] = await db.select({ n: sql<number>`count(*)::int` }).from(t.submissions).where(eq(t.submissions.status, "submitted"));
   return (
     <>
-      <AdminTabs isAdmin={user.role === "admin"} toReview={q.n} />
+      <AdminTabs perms={user.perms} toReview={user.perms.includes("review") ? q.n : 0} />
       {children}
     </>
   );

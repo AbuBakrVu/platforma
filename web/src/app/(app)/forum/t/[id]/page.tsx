@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, can } from "@/lib/auth";
 import { authors, canSeeTopic, reactionsFor } from "@/lib/community";
 import { uuidOrNull } from "@/lib/form";
 import { plural } from "@/lib/format";
@@ -33,7 +33,7 @@ export default async function TopicPage({ params }: PageProps<"/forum/t/[id]">) 
     posts.length ? db.select().from(t.postVotes).where(and(eq(t.postVotes.userId, user.id), inArray(t.postVotes.postId, posts.map((p) => p.id)))) : [],
     getXp(user.id),
   ]);
-  const canModerate = user.role !== "student";
+  const canModerate = can(user, "moderate");
   const canAccept = question && (tp.userId === user.id || canModerate);
   const view = (p: (typeof posts)[number]): PostView => ({
     id: p.id, html: renderUserMd(p.body), raw: p.body, at: p.createdAt.toISOString(), edited: !!p.editedAt, score: p.score,

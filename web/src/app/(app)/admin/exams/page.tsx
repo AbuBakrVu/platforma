@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { asc, eq, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { plural } from "@/lib/format";
 import { Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -11,7 +11,7 @@ import { ExamFields } from "./ExamFields";
 export const metadata = { title: "Экзамены · управление" };
 
 export default async function AdminExams() {
-  await requireStaff();
+  await requirePerm("courses");
   const [exams, courses] = await Promise.all([
     db.select({
       id: t.exams.id, title: t.exams.title, published: t.exams.published, demo: t.exams.demo, course: t.courses.title,

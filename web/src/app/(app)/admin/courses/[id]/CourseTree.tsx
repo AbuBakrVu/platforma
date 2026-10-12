@@ -9,7 +9,7 @@ import { addLesson, deleteSection, moveLesson, moveSection, reorderCourse, updat
 import s from "../../admin.module.css";
 
 type Lesson = { id: string; title: string; kind: keyof typeof KIND_LABEL; steps: number; draft: string | null };
-type Section = { id: string; title: string; opensAt: string; lessons: Lesson[] };
+type Section = { id: string; title: string; opensAt: string; parentSkills: string; lessons: Lesson[] };
 type Drag = { type: "section" | "lesson"; id: string } | null;
 
 /** Разделы и уроки курса: перетаскивание за ручку (в том числе урока в другой раздел) и кнопки ↑↓ для клавиатуры */
@@ -97,6 +97,11 @@ export function CourseTree({ courseId, sections: initial }: { courseId: string; 
                 <input id={`so-${sec.id}`} name="opensAt" type="datetime-local" defaultValue={sec.opensAt} className="ctl" />
               </div>
               <Submit className="btn sm">Сохранить</Submit>
+              <div className="field" style={{ flex: "1 1 100%" }}>
+                <label htmlFor={`sp-${sec.id}`}>Для родителей: что ребёнок сможет после раздела</label>
+                <input id={`sp-${sec.id}`} name="parentSkills" defaultValue={sec.parentSkills} className="ctl"
+                  placeholder="Например: «Сам запускает программу на удалённом компьютере и проверяет, что она работает»" />
+              </div>
             </form>
             <div className="row" style={{ flexWrap: "nowrap" }}>
               <form action={moveSection.bind(null, courseId, sec.id, -1)}><button className="btn sm" aria-label="Раздел выше" disabled={i === 0}><Icon name="up" size={16} /></button></form>

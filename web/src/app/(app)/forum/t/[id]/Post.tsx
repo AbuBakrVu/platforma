@@ -7,6 +7,7 @@ import { Reactions } from "@/components/community/Reactions";
 import c from "@/components/community/community.module.css";
 import { acceptAnswer, deletePost, editPost, editTopicBody, replyTopic, votePost } from "../../actions";
 import s from "../../forum.module.css";
+import { isStaffRole } from "@/lib/permissions";
 
 type Summary = { emoji: string; count: number; mine: boolean }[];
 export type PostView = {
@@ -37,7 +38,7 @@ export function Post({ p, topicId, me, question, accepted, canAccept, canModerat
         <div className={c.msgHead}>
           {question && !isTopic && <Avatar user={p.author} size={24} />}
           <b>{p.author.name}</b>
-          {p.author.role !== "student" && <span className={c.staff}>{p.author.role === "admin" ? "администратор" : "преподаватель"}</span>}
+          {isStaffRole(p.author.role) && <span className={c.staff}>{p.author.role === "admin" ? "администратор" : "преподаватель"}</span>}
           <span className="small muted">{when(p.at)}{p.edited ? " · изменено" : ""}</span>
           {accepted && <span className={s.acceptedMark}>✓ Лучший ответ</span>}
         </div>

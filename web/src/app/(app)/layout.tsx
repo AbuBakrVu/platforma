@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { Celebrate } from "@/components/Celebrate";
+import { ImpersonationBar } from "@/components/ImpersonationBar";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { getDueCount, getGroupName } from "@/lib/queries";
@@ -9,7 +10,7 @@ import { unreadTotal } from "@/lib/chats";
 import { Sidebar } from "@/components/Sidebar";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const [group, due, [me], xp, coins, streak, quests, [duels], unread, [mentees]] = await Promise.all([
     getGroupName(user.groupId), getDueCount(user.id),
     db.select({ avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame }).from(t.users).where(eq(t.users.id, user.id)),
@@ -26,10 +27,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     quests: quests.filter((q) => q.done && !q.claimed).length, duels: duels.n, unread, mentees: mentees.n,
   };
   return (
+    <>
+    {user.impersonatorId && <ImpersonationBar name={user.name} />}
     <div className="app">
-      <Sidebar name={user.name} role={user.role} group={group} due={due} avatar={me} game={game} />
+      <Sidebar name={user.name} role={user.role} group={group} due={due} avatar={me} game={game} external={user.external} impersonating={!!user.impersonatorId} />
       <main className="main">{children}</main>
       <Celebrate />
     </div>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireInternal } from "@/lib/auth";
 import { fmtDateTime, plural } from "@/lib/format";
 import { lastResult, LEAGUES, leagueTable } from "@/lib/leagues";
 import { getGroupName, getLeaderboard, getTeamBoard, getXp } from "@/lib/queries";
@@ -23,7 +23,7 @@ function since(p: Period) {
 const short = (n: string) => { const [a, b] = n.split(/\s+/); return b ? `${a} ${b[0]}.` : a; };
 
 export default async function RatingPage({ searchParams }: PageProps<"/rating">) {
-  const user = await requireUser();
+  const user = await requireInternal();
   const sp = await searchParams;
   const period: Period = sp.period === "month" || sp.period === "all" ? sp.period : "week";
   const view: View = sp.view === "league" || sp.view === "teams" ? sp.view : "group";

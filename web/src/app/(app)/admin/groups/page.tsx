@@ -1,6 +1,6 @@
 import { asc, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { plural } from "@/lib/format";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -9,7 +9,7 @@ import { createGroup, deleteGroup, renameGroup, setGroupCourses } from "./action
 export const metadata = { title: "Потоки" };
 
 export default async function GroupsPage() {
-  await requireAdmin();
+  await requirePerm("people");
   const [groups, courses, links] = await Promise.all([
     db.select({
       id: t.groups.id, name: t.groups.name, demo: t.groups.demo,

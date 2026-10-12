@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, desc, eq, type SQL } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 
@@ -11,7 +11,7 @@ const STATUS = { submitted: "Ждёт проверки", accepted: "Принят
 
 /** Очередь домашних заданий: сначала самые старые непроверенные */
 export default async function ReviewQueue({ searchParams }: PageProps<"/admin/review">) {
-  await requireStaff();
+  await requirePerm("review");
   const sp = await searchParams;
   const status = sp.status === "accepted" || sp.status === "returned" ? sp.status : "submitted";
   const where: SQL[] = [eq(t.submissions.status, status)];

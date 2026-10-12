@@ -6,6 +6,7 @@ import { parseStep } from "@/lib/steps";
 import { plural } from "@/lib/format";
 import { TopBar } from "@/components/TopBar";
 import { Icon } from "@/components/Icon";
+import { isStaff } from "@/lib/permissions";
 
 export const metadata = { title: "Лаборатории" };
 
@@ -20,7 +21,7 @@ export default async function LabsPage() {
         <h1>Лаборатории</h1>
         <p>Практика в настоящем терминале: у каждого своя учебная машина, которую можно сломать и сбросить одной кнопкой.</p>
       </div>
-      {!labsEnabled() && user.role !== "student" && (
+      {!labsEnabled() && isStaff(user) && (
         <div className="notice">Сервис лабораторий на сервере не включён — студенты увидят задания, но не смогут запустить среду. Как включить — в README, раздел «Лаборатории».</div>
       )}
       <section className="card">

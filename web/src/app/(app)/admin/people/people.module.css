@@ -1,0 +1,15 @@
+.hero { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 20px; }
+.heroText { flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px; }
+.heroText h1 { font-size: 26px; font-weight: 700; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stats div { display: flex; flex-direction: column; padding: 14px 16px; border-radius: var(--r-s); background: #fff; }
+.stats b { font-size: 20px; }
+.stats span { font-size: 12px; color: var(--muted); }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); align-items: start; }
+.course { display: grid; grid-template-columns: 1fr 120px 44px; gap: 10px; align-items: center; font-size: 14px; }
+.line { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line2); font-size: 14px; color: var(--ink2); }
+.line:first-of-type { border-top: 0; }
+.line > :first-child { flex: 1; min-width: 0; }
+.ok { color: var(--green); font-weight: 600; }
+.bad { color: #B42318; font-weight: 600; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; font-size: 24px; }

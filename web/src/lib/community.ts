@@ -1,8 +1,9 @@
 import "server-only";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import type { CurrentUser } from "./auth";
+import type { Learner } from "./auth";
 import { canAccessCourse, getCourseOutline } from "./queries";
+import { isStaff } from "@/lib/permissions";
 
 export const EMOJI = ["👍", "❤️", "🔥", "🎉", "😂", "🤔"] as const;
 export type Target = "comment" | "post" | "topic" | "message" | "announcement";
@@ -23,21 +24,21 @@ export async function reactionsFor(target: Target, ids: string[], userId: string
 }
 
 /** Урок виден пользователю (курс доступен, урок опубликован и открыт) */
-export async function canSeeLesson(user: CurrentUser, lessonId: string) {
+export async function canSeeLesson(user: Learner, lessonId: string) {
   const [row] = await db.select({ slug: t.courses.slug }).from(t.lessons)
     .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId)).innerJoin(t.courses, eq(t.courses.id, t.sections.courseId))
     .where(eq(t.lessons.id, lessonId));
   if (!row) return false;
-  if (user.role !== "student") return true;
+  if (isStaff(user)) return true;
   const outline = await getCourseOutline(row.slug, user);
   return !!outline?.flat.some((l) => l.id === lessonId);
 }
 
 /** Раздел форума виден: общий — всем, курса — тем, у кого есть курс; темы потока — только потоку */
-export async function canSeeTopic(user: CurrentUser, topic: { courseId: string | null; groupId: string | null }) {
-  if (user.role !== "student") return true;
+export async function canSeeTopic(user: Learner, topic: { courseId: string | null; groupId: string | null }) {
+  if (isStaff(user)) return true;
   if (topic.groupId && topic.groupId !== user.groupId) return false;
-  if (!topic.courseId) return true;
+  if (!topic.courseId) return !user.external;
   const [c] = await db.select({ id: t.courses.id, published: t.courses.published, publishAt: t.courses.publishAt }).from(t.courses).where(eq(t.courses.id, topic.courseId));
   return !!c && canAccessCourse(user, c);
 }
@@ -48,7 +49,7 @@ export async function isChatMember(userId: string, chatId: string) {
 }
 
 /** Может ли пользователь видеть объект — для реакций */
-export async function canSeeTarget(user: CurrentUser, target: Target, id: string) {
+export async function canSeeTarget(user: Learner, target: Target, id: string) {
   switch (target) {
     case "comment": {
       const [c] = await db.select({ lessonId: t.comments.lessonId }).from(t.comments).where(eq(t.comments.id, id));
@@ -69,7 +70,7 @@ export async function canSeeTarget(user: CurrentUser, target: Target, id: string
     }
     case "announcement": {
       const [a] = await db.select({ groupId: t.announcements.groupId }).from(t.announcements).where(eq(t.announcements.id, id));
-      return !!a && (user.role !== "student" || !a.groupId || a.groupId === user.groupId);
+      return !!a && (isStaff(user) || !a.groupId || a.groupId === user.groupId);
     }
   }
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireInternal } from "@/lib/auth";
 import { loadDuel, startPlaying } from "@/lib/duels";
 import { isCorrect } from "@/lib/exams";
 import { uuidOrNull } from "@/lib/form";
@@ -17,7 +17,7 @@ export const metadata = { title: "Дуэль" };
 const secs = (ms: number | null) => (ms === null ? "—" : `${Math.round(ms / 1000)} с`);
 
 export default async function DuelPage({ params, searchParams }: PageProps<"/duels/[id]">) {
-  const user = await requireUser();
+  const user = await requireInternal();
   const id = uuidOrNull((await params).id);
   let d = id ? await loadDuel(id, user.id) : null;
   if (!d) notFound();

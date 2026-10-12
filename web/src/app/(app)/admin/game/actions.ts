@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { dateTime, int, str, uuidOrNull } from "@/lib/form";
 
 const METRICS = ["xp", "lessons", "cards", "exams", "labs"];
 const touch = () => { revalidatePath("/admin/game"); revalidatePath("/", "layout"); };
 
 export async function addChallenge(form: FormData) {
-  await requireAdmin();
+  await requirePerm("shop");
   const title = str(form, "title"), metric = str(form, "metric");
   const startsAt = dateTime(form, "startsAt"), endsAt = dateTime(form, "endsAt");
   if (!title || !METRICS.includes(metric) || !startsAt || !endsAt || endsAt <= startsAt) return;
@@ -23,13 +23,13 @@ export async function addChallenge(form: FormData) {
 }
 
 export async function deleteChallenge(id: string) {
-  await requireAdmin();
+  await requirePerm("shop");
   await db.delete(t.challenges).where(eq(t.challenges.id, id));
   touch();
 }
 
 export async function addTeam(form: FormData) {
-  await requireAdmin();
+  await requirePerm("shop");
   const name = str(form, "name");
   if (!name) return;
   await db.insert(t.teams).values({ name, color: /^#[0-9a-f]{6}$/i.test(str(form, "color")) ? str(form, "color") : "#1E5A3C" });
@@ -37,14 +37,14 @@ export async function addTeam(form: FormData) {
 }
 
 export async function deleteTeam(id: string) {
-  await requireAdmin();
+  await requirePerm("shop");
   await db.delete(t.teams).where(eq(t.teams.id, id));
   touch();
 }
 
 /** Команды студентов: поле team_<userId> = id команды или пусто */
 export async function setTeams(form: FormData) {
-  await requireAdmin();
+  await requirePerm("shop");
   const pairs = [...form.entries()].filter(([k]) => k.startsWith("team_")).map(([k, v]) => [uuidOrNull(k.slice(5)), uuidOrNull(String(v))] as const);
   const users = pairs.map(([u]) => u).filter((u): u is string => !!u);
   if (!users.length) return;

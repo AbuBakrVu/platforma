@@ -21,7 +21,7 @@ export default async function ForumSection({ params, searchParams }: PageProps<"
   const key = (await params).section;
   const sp = await searchParams;
   const course = await sectionCourse(key);
-  if (course === undefined || (course && !(await canAccessCourse(user, course)))) notFound();
+  if (course === undefined || (course && !(await canAccessCourse(user, course))) || (!course && user.external)) notFound();
   const filter = (Object.keys(FILTERS) as (keyof typeof FILTERS)[]).find((f) => f === sp.f) ?? "all";
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
 

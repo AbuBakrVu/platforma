@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin, requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { bool, slugify, str, uuidOrNull } from "@/lib/form";
 
 async function freeProgramSlug(base: string, exceptId?: string) {
@@ -23,7 +23,7 @@ const touch = (id?: string) => {
 };
 
 export async function createProgram(form: FormData) {
-  await requireStaff();
+  await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   const [p] = await db.insert(t.programs).values({
@@ -33,7 +33,7 @@ export async function createProgram(form: FormData) {
 }
 
 export async function updateProgram(id: string, form: FormData) {
-  await requireStaff();
+  await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   await db.update(t.programs).set({
@@ -47,14 +47,14 @@ export async function updateProgram(id: string, form: FormData) {
 }
 
 export async function deleteProgram(id: string) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.delete(t.programs).where(eq(t.programs.id, id));
   touch();
   redirect("/admin/programs");
 }
 
 export async function addProgramCourse(id: string, form: FormData) {
-  await requireStaff();
+  await requirePerm("courses");
   const courseId = uuidOrNull(str(form, "courseId"));
   if (!courseId) return;
   const [m] = await db.select({ p: sql<number>`coalesce(max(${t.programCourses.position}), 0)::int` })
@@ -64,13 +64,13 @@ export async function addProgramCourse(id: string, form: FormData) {
 }
 
 export async function removeProgramCourse(id: string, courseId: string) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.delete(t.programCourses).where(and(eq(t.programCourses.programId, id), eq(t.programCourses.courseId, courseId)));
   touch(id);
 }
 
 export async function moveProgramCourse(id: string, courseId: string, dir: -1 | 1) {
-  await requireStaff();
+  await requirePerm("courses");
   const list = await db.select().from(t.programCourses).where(eq(t.programCourses.programId, id)).orderBy(asc(t.programCourses.position));
   const i = list.findIndex((x) => x.courseId === courseId), j = i + dir;
   if (i < 0 || !list[j]) return;
@@ -86,7 +86,7 @@ export async function moveProgramCourse(id: string, courseId: string, dir: -1 | 
 
 /** Потоки, которые проходят программу: отмеченные чекбоксы name="group" (только администратор — потоками управляет он) */
 export async function setProgramGroups(id: string, form: FormData) {
-  await requireAdmin();
+  await requirePerm("courses");
   const ids = form.getAll("group").map(String).map(uuidOrNull).filter((x): x is string => !!x);
   await db.transaction(async (tx) => {
     await tx.delete(t.groupPrograms).where(eq(t.groupPrograms.programId, id));

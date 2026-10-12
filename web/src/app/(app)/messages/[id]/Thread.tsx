@@ -7,6 +7,7 @@ import { Reactions } from "@/components/community/Reactions";
 import c from "@/components/community/community.module.css";
 import { deleteMessage, fetchMessages, sendMessage, type MessageView } from "../actions";
 import s from "../messages.module.css";
+import { isStaffRole } from "@/lib/permissions";
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 const day = (iso: string) => new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -51,7 +52,7 @@ export function Thread({ chatId, initial, canModerate }: { chatId: string; initi
               <div className={`${s.m} ${m.mine ? s.mine : ""} ${grouped ? s.grouped : ""}`}>
                 {!m.mine && !grouped ? <Avatar user={m.author} size={32} /> : <span className={s.spacer} />}
                 <div className={s.bubbleWrap}>
-                  {!m.mine && !grouped && <span className={s.name}>{m.author.name}{m.author.role !== "student" && <span className={c.staff}> {m.author.role === "admin" ? "админ" : "преподаватель"}</span>}</span>}
+                  {!m.mine && !grouped && <span className={s.name}>{m.author.name}{isStaffRole(m.author.role) && <span className={c.staff}> {m.author.role === "admin" ? "админ" : "преподаватель"}</span>}</span>}
                   <div className={s.bubble}>
                     {m.deleted ? <span className={c.deleted}>Сообщение удалено</span> : <div className={c.text} dangerouslySetInnerHTML={{ __html: m.html }} />}
                     <span className={s.time}>{time(m.at)}</span>

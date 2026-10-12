@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireInternal, can } from "@/lib/auth";
 import { kbSearch, kbTree } from "@/lib/kb";
 import { getXp } from "@/lib/queries";
 import { TopBar } from "@/components/TopBar";
@@ -9,8 +9,8 @@ import s from "./kb.module.css";
 export const metadata = { title: "База знаний" };
 
 export default async function KB({ searchParams }: PageProps<"/kb">) {
-  const user = await requireUser();
-  const staff = user.role !== "student";
+  const user = await requireInternal();
+  const staff = can(user, "kb");
   const q = String((await searchParams).q ?? "").trim();
   const [tree, xp, found] = await Promise.all([kbTree(staff), getXp(user.id), q ? kbSearch(q, staff) : null]);
   return (

@@ -1,17 +1,20 @@
 import { and, asc, desc, eq, ilike, isNull, or, type SQL } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
+import { ROLE_LABEL } from "@/lib/permissions";
+import Link from "next/link";
 import { fmtDate } from "@/lib/format";
 import { Confirm, Copy, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
-import { createInvite, deleteInvite, deleteUser, setPassword, updateUser } from "./actions";
+import { deleteInvite, deleteUser, setPassword, updateUser } from "./actions";
+import { InviteForm } from "./InviteForm";
 
 export const metadata = { title: "Люди и приглашения" };
 
-const ROLE = { student: "Студент", teacher: "Преподаватель", admin: "Администратор" } as const;
+const ROLE = ROLE_LABEL;
 
 export default async function UsersPage({ searchParams }: PageProps<"/admin/users">) {
-  const me = await requireAdmin();
+  const me = await requirePerm("people");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const gf = typeof sp.group === "string" ? sp.group : "";
@@ -21,12 +24,15 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
   if (gf === "none") where.push(isNull(t.users.groupId));
   else if (gf) where.push(eq(t.users.groupId, gf));
 
-  const [groups, invites, users] = await Promise.all([
+  const [groups, invites, users, courses, roles, students] = await Promise.all([
     db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
     db.select({ inv: t.invites, group: t.groups.name }).from(t.invites)
       .leftJoin(t.groups, eq(t.groups.id, t.invites.groupId)).orderBy(desc(t.invites.createdAt)),
     db.select().from(t.users).where(where.length ? and(...where) : undefined)
       .orderBy(asc(t.users.role), asc(t.users.name)).limit(300),
+    db.select({ id: t.courses.id, name: t.courses.title }).from(t.courses).orderBy(asc(t.courses.title)),
+    db.select({ id: t.accessRoles.id, name: t.accessRoles.name }).from(t.accessRoles).orderBy(asc(t.accessRoles.name)),
+    db.select({ id: t.users.id, name: t.users.name }).from(t.users).where(eq(t.users.role, "student")).orderBy(asc(t.users.name)),
   ]);
   const now = new Date();
   const alive = (i: typeof invites[number]["inv"]) =>
@@ -38,37 +44,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
 
       <section className="card">
         <div className="card-h"><h2>Новое приглашение</h2></div>
-        <form action={createInvite} className="form">
-          <div className="form-row">
-            <div className="field">
-              <label htmlFor="i-group">Поток</label>
-              <select id="i-group" name="groupId" className="ctl" defaultValue={groups[0]?.id ?? ""}>
-                <option value="">Без потока</option>
-                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="i-role">Роль</label>
-              <select id="i-role" name="role" className="ctl" defaultValue="student">
-                <option value="student">Студент</option>
-                <option value="teacher">Преподаватель</option>
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="i-max">Сколько раз можно использовать</label>
-              <input id="i-max" name="maxUses" type="number" min={1} className="ctl" placeholder="без ограничения" />
-            </div>
-            <div className="field">
-              <label htmlFor="i-days">Действует, дней</label>
-              <input id="i-days" name="days" type="number" min={1} max={365} defaultValue={14} className="ctl" />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="i-note">Заметка (видна только вам)</label>
-            <input id="i-note" name="note" className="ctl" placeholder="Например, для группы вечернего потока" />
-          </div>
-          <div><Submit><Icon name="plus" size={18} />Создать код</Submit></div>
-        </form>
+        <InviteForm groups={groups} courses={courses} roles={roles} students={students} />
       </section>
 
       <section className="card">
@@ -81,7 +57,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                 {invites.map(({ inv, group }) => (
                   <tr key={inv.id} style={alive(inv) ? undefined : { opacity: 0.5 }}>
                     <td><b className="mono" style={{ fontWeight: 600 }}>{inv.code}</b></td>
-                    <td>{group ?? "без потока"} · {ROLE[inv.role]}</td>
+                    <td>{inv.role === "parent" ? "Родитель" : inv.role === "teacher" ? "Сотрудник" : inv.external ? `Внешний · курсов: ${inv.courseIds.length}` : `${group ?? "без потока"} · Ученик`}</td>
                     <td>{inv.usedCount}{inv.maxUses != null ? ` из ${inv.maxUses}` : ""}</td>
                     <td>{inv.expiresAt ? fmtDate(inv.expiresAt) : "бессрочно"}</td>
                     <td className="muted">{inv.note}</td>
@@ -121,7 +97,8 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
               {users.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <b style={{ fontWeight: 600 }}>{u.name}</b>{u.id === me.id && <span className="small muted"> · вы</span>}
+                    <Link href={`/admin/people/${u.id}`} style={{ fontWeight: 600, color: "var(--ink)" }}>{u.name}</Link>{u.id === me.id && <span className="small muted"> · вы</span>}
+                    {u.external && <span className="tag grey" style={{ marginLeft: 6 }}>внешний</span>}
                     {u.demo && <span className="tag warn" style={{ marginLeft: 6 }}>демо</span>}
                     <div className="small muted">{u.email}</div>
                   </td>

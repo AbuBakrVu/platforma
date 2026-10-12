@@ -3,32 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { str, uuidOrNull } from "@/lib/form";
 
 export async function createGroup(form: FormData) {
-  await requireAdmin();
+  await requirePerm("people");
   const name = str(form, "name");
   if (name) await db.insert(t.groups).values({ name });
   revalidatePath("/admin/groups");
 }
 
 export async function renameGroup(id: string, form: FormData) {
-  await requireAdmin();
+  await requirePerm("people");
   const name = str(form, "name");
   if (name) await db.update(t.groups).set({ name }).where(eq(t.groups.id, id));
   revalidatePath("/admin/groups");
 }
 
 export async function deleteGroup(id: string) {
-  await requireAdmin();
+  await requirePerm("people");
   await db.delete(t.groups).where(eq(t.groups.id, id)); // студенты остаются без потока
   revalidatePath("/admin/groups");
 }
 
 /** Курсы потока: отмеченные чекбоксы name="course" */
 export async function setGroupCourses(id: string, form: FormData) {
-  await requireAdmin();
+  await requirePerm("people");
   const ids = form.getAll("course").map(String).map(uuidOrNull).filter((x): x is string => !!x);
   await db.transaction(async (tx) => {
     await tx.delete(t.groupCourses).where(ids.length

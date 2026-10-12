@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { freeSlug } from "@/lib/courses";
 import { bool, dateTime, int, slugify, str } from "@/lib/form";
 import { TZ } from "@/lib/format";
@@ -25,7 +25,7 @@ const touch = (courseId: string) => {
 };
 
 export async function createCourse(form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   const [c] = await db.insert(t.courses).values({
@@ -36,7 +36,7 @@ export async function createCourse(form: FormData) {
 }
 
 export async function updateCourse(id: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   const [old] = await db.select().from(t.courses).where(eq(t.courses.id, id));
@@ -50,6 +50,7 @@ export async function updateCourse(id: string, form: FormData) {
     published,
     publishAt,
     sequential: bool(form, "sequential"),
+    parentDescription: str(form, "parentDescription").slice(0, 2000),
   }).where(eq(t.courses.id, id));
   const what = [
     old.published !== published && (published ? "опубликовал" : "снял с публикации"),
@@ -62,14 +63,14 @@ export async function updateCourse(id: string, form: FormData) {
 }
 
 export async function deleteCourse(id: string) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.delete(t.courses).where(eq(t.courses.id, id));
   revalidatePath("/", "layout");
   redirect("/admin/courses");
 }
 
 export async function addSection(courseId: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   const [m] = await db.select({ p: sql<number>`coalesce(max(${t.sections.position}), 0)::int` }).from(t.sections)
@@ -80,17 +81,17 @@ export async function addSection(courseId: string, form: FormData) {
 }
 
 export async function updateSection(courseId: string, id: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
-  await db.update(t.sections).set({ title, opensAt: dateTime(form, "opensAt") })
+  await db.update(t.sections).set({ title, opensAt: dateTime(form, "opensAt"), parentSkills: str(form, "parentSkills").slice(0, 2000) })
     .where(and(eq(t.sections.id, id), eq(t.sections.courseId, courseId)));
   await log(courseId, me.id, `Изменил раздел «${title}»`);
   touch(courseId);
 }
 
 export async function deleteSection(courseId: string, id: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const [sec] = await db.delete(t.sections).where(and(eq(t.sections.id, id), eq(t.sections.courseId, courseId))).returning();
   if (sec) await log(courseId, me.id, `Удалил раздел «${sec.title}» с уроками`);
   touch(courseId);
@@ -98,7 +99,7 @@ export async function deleteSection(courseId: string, id: string) {
 
 /** Поменять раздел местами с соседним (dir: -1 вверх, 1 вниз) */
 export async function moveSection(courseId: string, id: string, dir: -1 | 1) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.transaction(async (tx) => {
     const [cur] = await tx.select().from(t.sections).where(and(eq(t.sections.id, id), eq(t.sections.courseId, courseId)));
     if (!cur) return;
@@ -113,7 +114,7 @@ export async function moveSection(courseId: string, id: string, dir: -1 | 1) {
 }
 
 export async function addLesson(courseId: string, sectionId: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   const [m] = await db.select({ p: sql<number>`coalesce(max(${t.lessons.position}), 0)::int` }).from(t.lessons)
@@ -126,7 +127,7 @@ export async function addLesson(courseId: string, sectionId: string, form: FormD
 }
 
 export async function moveLesson(courseId: string, id: string, dir: -1 | 1) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.transaction(async (tx) => {
     const [cur] = await tx.select().from(t.lessons).where(eq(t.lessons.id, id));
     if (!cur) return;
@@ -141,7 +142,7 @@ export async function moveLesson(courseId: string, id: string, dir: -1 | 1) {
 }
 
 export async function updateLesson(courseId: string, id: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   await db.update(t.lessons).set({
@@ -159,7 +160,7 @@ export async function updateLesson(courseId: string, id: string, form: FormData)
 }
 
 export async function deleteLesson(courseId: string, id: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const [l] = await db.delete(t.lessons).where(eq(t.lessons.id, id)).returning();
   if (l) await log(courseId, me.id, `Удалил урок «${l.title}»`);
   touch(courseId);
@@ -168,7 +169,7 @@ export async function deleteLesson(courseId: string, id: string) {
 
 /** Новый порядок разделов и уроков после перетаскивания. Уроки можно переносить между разделами. */
 export async function reorderCourse(courseId: string, order: { id: string; lessons: string[] }[]) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   await db.transaction(async (tx) => {
     const own = await tx.select({ id: t.sections.id }).from(t.sections).where(eq(t.sections.courseId, courseId));
     const ownIds = new Set(own.map((x) => x.id));
@@ -208,7 +209,7 @@ async function stepInCourse(courseId: string, stepId: string) {
 const lessonPath = (courseId: string, lessonId: string) => `/admin/courses/${courseId}/lessons/${lessonId}`;
 
 export async function addStep(courseId: string, lessonId: string, kind: StepKind) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   if (!STEP_KINDS.includes(kind) || !(await lessonInCourse(courseId, lessonId))) return;
   const [m] = await db.select({ p: sql<number>`coalesce(max(${t.lessonSteps.position}), 0)::int` }).from(t.lessonSteps)
     .where(eq(t.lessonSteps.lessonId, lessonId));
@@ -246,7 +247,7 @@ function invalid(kind: StepKind, c: unknown) {
  * Каждое сохранение — новая версия в истории.
  */
 export async function saveStep(courseId: string, stepId: string, title: string, content: unknown) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const lessonId = await stepInCourse(courseId, stepId);
   if (!lessonId) return { error: "Шаг не найден" };
   const [st] = await db.select().from(t.lessonSteps).where(eq(t.lessonSteps.id, stepId));
@@ -270,7 +271,7 @@ export async function saveStep(courseId: string, stepId: string, title: string, 
 
 /** Вернуть шаг к сохранённой версии (сама версия остаётся в истории, возврат — новая версия) */
 export async function restoreRevision(courseId: string, stepId: string, revisionId: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const lessonId = await stepInCourse(courseId, stepId);
   if (!lessonId) return;
   const [st] = await db.select().from(t.lessonSteps).where(eq(t.lessonSteps.id, stepId));
@@ -283,7 +284,7 @@ export async function restoreRevision(courseId: string, stepId: string, revision
 
 /** Сохранить шаг в библиотеку и связать с ней: дальше правки идут во все уроки, где он стоит */
 export async function saveToLibrary(courseId: string, stepId: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const lessonId = await stepInCourse(courseId, stepId);
   if (!lessonId) return;
   const [st] = await db.select().from(t.lessonSteps).where(eq(t.lessonSteps.id, stepId));
@@ -298,7 +299,7 @@ export async function saveToLibrary(courseId: string, stepId: string) {
 
 /** Отвязать от библиотеки: шаг получает собственную копию содержимого */
 export async function unlinkFromLibrary(courseId: string, stepId: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const lessonId = await stepInCourse(courseId, stepId);
   if (!lessonId) return;
   const [row] = await db.select({ st: t.lessonSteps, lib: t.libraryItems }).from(t.lessonSteps)
@@ -311,7 +312,7 @@ export async function unlinkFromLibrary(courseId: string, stepId: string) {
 
 /** Вставить элемент библиотеки в урок: связанно (правки общие) или копией */
 export async function insertFromLibrary(courseId: string, lessonId: string, libraryId: string, mode: "link" | "copy") {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   if (!(await lessonInCourse(courseId, lessonId))) return;
   const [item] = await db.select().from(t.libraryItems).where(eq(t.libraryItems.id, libraryId));
   if (!item) return;
@@ -328,7 +329,7 @@ export async function insertFromLibrary(courseId: string, lessonId: string, libr
 
 /** Скопировать урок со всеми шагами в раздел (в том числе другого курса). Связи с библиотекой сохраняются. */
 export async function copyLesson(courseId: string, lessonId: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const target = str(form, "sectionId");
   if (!(await lessonInCourse(courseId, lessonId)) || !/^[0-9a-f-]{36}$/.test(target)) return;
   const [sec] = await db.select().from(t.sections).where(eq(t.sections.id, target));
@@ -354,7 +355,7 @@ export async function copyLesson(courseId: string, lessonId: string, form: FormD
 }
 
 export async function deleteStep(courseId: string, stepId: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const lessonId = await stepInCourse(courseId, stepId);
   if (!lessonId) return;
   const [st] = await db.delete(t.lessonSteps).where(eq(t.lessonSteps.id, stepId)).returning();
@@ -364,7 +365,7 @@ export async function deleteStep(courseId: string, stepId: string) {
 }
 
 export async function reorderSteps(courseId: string, lessonId: string, ids: string[]) {
-  await requireStaff();
+  await requirePerm("courses");
   if (!(await lessonInCourse(courseId, lessonId))) return;
   await db.transaction(async (tx) => {
     const own = await tx.select({ id: t.lessonSteps.id }).from(t.lessonSteps).where(eq(t.lessonSteps.lessonId, lessonId));
@@ -376,7 +377,7 @@ export async function reorderSteps(courseId: string, lessonId: string, ids: stri
 
 /** Материалы для скачивания: файлы уже загружены через /api/upload, здесь — привязка к курсу */
 export async function addMaterials(courseId: string, items: { uploadId: string; title: string }[]) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const ids = items.map((x) => x.uploadId).filter((x) => /^[0-9a-f-]{36}$/.test(x));
   if (!ids.length) return;
   const own = await db.select({ id: t.uploads.id }).from(t.uploads).where(and(inArray(t.uploads.id, ids), eq(t.uploads.courseId, courseId)));
@@ -392,7 +393,7 @@ export async function addMaterials(courseId: string, items: { uploadId: string; 
 }
 
 export async function updateMaterial(courseId: string, id: string, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
   const lessonId = str(form, "lessonId");
@@ -404,14 +405,14 @@ export async function updateMaterial(courseId: string, id: string, form: FormDat
 }
 
 export async function deleteMaterial(courseId: string, id: string) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const [m] = await db.delete(t.courseMaterials).where(and(eq(t.courseMaterials.id, id), eq(t.courseMaterials.courseId, courseId))).returning();
   if (m) await log(courseId, me.id, `Удалил материал «${m.title}»`);
   touch(courseId);
 }
 
 export async function moveMaterial(courseId: string, id: string, dir: -1 | 1) {
-  await requireStaff();
+  await requirePerm("courses");
   const list = await db.select().from(t.courseMaterials).where(eq(t.courseMaterials.courseId, courseId)).orderBy(asc(t.courseMaterials.position));
   const i = list.findIndex((x) => x.id === id), j = i + dir;
   if (i < 0 || !list[j]) return;

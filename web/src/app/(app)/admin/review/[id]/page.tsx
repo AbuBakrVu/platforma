@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { renderMd } from "@/lib/markdown";
@@ -15,7 +15,7 @@ import s from "../review.module.css";
 export const metadata = { title: "Проверка работы" };
 
 export default async function ReviewItem({ params, searchParams }: PageProps<"/admin/review/[id]">) {
-  await requireStaff();
+  await requirePerm("review");
   const id = uuidOrNull((await params).id);
   if (!id) notFound();
   const [row] = await db.select({

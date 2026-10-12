@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireInternal } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { myDuels } from "@/lib/duels";
 import { getXp } from "@/lib/queries";
@@ -14,7 +14,7 @@ export const metadata = { title: "Дуэли" };
 
 /** Дуэли: 5 вопросов из общих курсов, побеждает больше верных ответов (при равенстве — кто быстрее) */
 export default async function DuelsPage() {
-  const user = await requireUser();
+  const user = await requireInternal();
   const [duels, xp, classmates] = await Promise.all([
     myDuels(user.id), getXp(user.id),
     user.groupId ? db.select({ id: t.users.id, name: t.users.name }).from(t.users)

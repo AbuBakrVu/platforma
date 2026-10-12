@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { FRAMES } from "@/lib/frames";
 import { bool, int, optInt, str, uuidOrNull } from "@/lib/form";
 import { cancelPurchase, DEFAULT_ITEMS } from "@/lib/shop";
@@ -21,7 +21,7 @@ function fields(form: FormData) {
 }
 
 export async function addItem(form: FormData) {
-  await requireAdmin();
+  await requirePerm("shop");
   const f = fields(form);
   if (!f.title) return;
   await db.insert(t.shopItems).values({ ...f, active: true });
@@ -29,7 +29,7 @@ export async function addItem(form: FormData) {
 }
 
 export async function updateItem(id: string, form: FormData) {
-  await requireAdmin();
+  await requirePerm("shop");
   const f = fields(form);
   if (!f.title) return;
   await db.update(t.shopItems).set(f).where(eq(t.shopItems.id, id));
@@ -37,26 +37,26 @@ export async function updateItem(id: string, form: FormData) {
 }
 
 export async function deleteItem(id: string) {
-  await requireAdmin();
+  await requirePerm("shop");
   await db.delete(t.shopItems).where(eq(t.shopItems.id, id));
   touch();
 }
 
 export async function addDefaultItems() {
-  await requireAdmin();
+  await requirePerm("shop");
   const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(t.shopItems);
   if (n === 0) await db.insert(t.shopItems).values(DEFAULT_ITEMS);
   touch();
 }
 
 export async function issuePurchase(id: string) {
-  await requireAdmin();
+  await requirePerm("shop");
   await db.update(t.purchases).set({ status: "issued" }).where(eq(t.purchases.id, id));
   touch();
 }
 
 export async function refundPurchase(id: string) {
-  await requireAdmin();
+  await requirePerm("shop");
   await cancelPurchase(id);
   touch();
 }

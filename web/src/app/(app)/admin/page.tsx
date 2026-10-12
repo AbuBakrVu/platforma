@@ -21,11 +21,11 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
   const removed = (await searchParams).removed;
 
   const tiles = [
-    { label: "Пользователи", n: users, href: "/admin/users", admin: true },
-    { label: "Потоки", n: groups, href: "/admin/groups", admin: true },
-    { label: "Курсы", n: courses, href: "/admin/courses", admin: false },
-    { label: "Экзамены", n: exams, href: "/admin/exams", admin: false },
-  ].filter((x) => user.role === "admin" || !x.admin);
+    { label: "Пользователи", n: users, href: "/admin/users", perm: "people" as const },
+    { label: "Потоки", n: groups, href: "/admin/groups", perm: "people" as const },
+    { label: "Курсы", n: courses, href: "/admin/courses", perm: "courses" as const },
+    { label: "Экзамены", n: exams, href: "/admin/exams", perm: "courses" as const },
+  ].filter((x) => user.perms.includes(x.perm));
 
   return (
     <>

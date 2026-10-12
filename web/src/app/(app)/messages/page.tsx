@@ -5,13 +5,14 @@ import { TopBar } from "@/components/TopBar";
 import { startDirect } from "./actions";
 import { ChatList } from "./ChatList";
 import s from "./messages.module.css";
+import { isStaff } from "@/lib/permissions";
 
 export const metadata = { title: "Сообщения" };
 
-const ROLE = { student: "студент", teacher: "преподаватель", admin: "администратор" } as const;
+const ROLE = { student: "ученик", teacher: "преподаватель", admin: "администратор", parent: "родитель" } as const;
 
 export default async function Messages() {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const [chats, people, xp] = await Promise.all([myChats(user), contacts(user), getXp(user.id)]);
   return (
     <>
@@ -22,7 +23,7 @@ export default async function Messages() {
             <label htmlFor="to" className="small muted">Новый диалог</label>
             <div className="row" style={{ flexWrap: "nowrap" }}>
               <select id="to" name="user" className="ctl" required defaultValue="">
-                <option value="" disabled>{user.role === "student" ? "Преподаватель или наставник" : "Кому написать"}</option>
+                <option value="" disabled>{!isStaff(user) ? "Преподаватель или наставник" : "Кому написать"}</option>
                 {people.map((p) => <option key={p.id} value={p.id}>{p.name} · {ROLE[p.role]}</option>)}
               </select>
               <button className="btn pri">Написать</button>

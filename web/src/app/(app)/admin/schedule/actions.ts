@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { dateTime, optStr, str, uuidOrNull } from "@/lib/form";
 
 const KINDS = ["lecture", "practice", "deadline"] as const;
 
 export async function createEvent(form: FormData) {
-  await requireStaff();
+  await requirePerm("schedule");
   const groupId = uuidOrNull(str(form, "groupId"));
   const startsAt = dateTime(form, "startsAt");
   const title = str(form, "title");
@@ -30,7 +30,7 @@ export async function createEvent(form: FormData) {
 }
 
 export async function deleteEvent(id: string, groupId: string) {
-  await requireStaff();
+  await requirePerm("schedule");
   await db.delete(t.scheduleEvents).where(eq(t.scheduleEvents.id, id));
   revalidatePath("/", "layout");
   redirect(`/admin/schedule?group=${groupId}`);
@@ -40,7 +40,7 @@ const STATUSES = ["present", "absent", "excused"] as const;
 
 /** Посещаемость: поля a_<userId> = present|absent|excused, пустое — не отмечен */
 export async function saveAttendance(eventId: string, form: FormData) {
-  await requireStaff();
+  await requirePerm("schedule");
   const [ev] = await db.select().from(t.scheduleEvents).where(eq(t.scheduleEvents.id, eventId));
   if (!ev) return;
   const students = await db.select({ id: t.users.id }).from(t.users)

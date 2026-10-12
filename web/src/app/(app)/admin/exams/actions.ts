@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { parseOptions, validateQuestion, type QKind } from "@/lib/exams";
 import { bool, int, str, uuidOrNull } from "@/lib/form";
 
@@ -31,7 +31,7 @@ function examFields(form: FormData) {
 }
 
 export async function createExam(form: FormData) {
-  await requireStaff();
+  await requirePerm("courses");
   const f = examFields(form);
   if (!f.title) return;
   const [e] = await db.insert(t.exams).values({ ...f, published: false }).returning({ id: t.exams.id });
@@ -39,7 +39,7 @@ export async function createExam(form: FormData) {
 }
 
 export async function updateExam(id: string, form: FormData) {
-  await requireStaff();
+  await requirePerm("courses");
   const f = examFields(form);
   if (!f.title) return;
   await db.update(t.exams).set({ ...f, published: bool(form, "published") }).where(eq(t.exams.id, id));
@@ -47,7 +47,7 @@ export async function updateExam(id: string, form: FormData) {
 }
 
 export async function deleteExam(id: string) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.delete(t.exams).where(eq(t.exams.id, id));
   revalidatePath("/exams");
   redirect("/admin/exams");
@@ -56,7 +56,7 @@ export async function deleteExam(id: string) {
 export type QuestionState = { error?: string; values?: { kind: string; prompt: string; options: string; points: string; explanation: string } };
 
 export async function saveQuestion(examId: string, questionId: string | null, _: QuestionState, form: FormData): Promise<QuestionState> {
-  await requireStaff();
+  await requirePerm("courses");
   const kind = asKind(str(form, "kind"));
   const prompt = str(form, "prompt");
   const raw = String(form.get("options") ?? "");
@@ -79,13 +79,13 @@ export async function saveQuestion(examId: string, questionId: string | null, _:
 }
 
 export async function deleteQuestion(examId: string, id: string) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.delete(t.examQuestions).where(and(eq(t.examQuestions.id, id), eq(t.examQuestions.examId, examId)));
   touch(examId);
 }
 
 export async function moveQuestion(examId: string, id: string, dir: -1 | 1) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.transaction(async (tx) => {
     const [cur] = await tx.select().from(t.examQuestions).where(and(eq(t.examQuestions.id, id), eq(t.examQuestions.examId, examId)));
     if (!cur) return;

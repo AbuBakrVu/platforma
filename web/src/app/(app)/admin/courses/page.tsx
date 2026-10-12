@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { asc, eq, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { plural } from "@/lib/format";
 import { Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -12,7 +12,7 @@ import { ImportCourse } from "./ImportCourse";
 export const metadata = { title: "Курсы" };
 
 export default async function AdminCourses() {
-  await requireStaff();
+  await requirePerm("courses");
   const courses = await db.select({
     id: t.courses.id, title: t.courses.title, slug: t.courses.slug, published: t.courses.published, publishAt: t.courses.publishAt, demo: t.courses.demo,
     lessons: sql<number>`count(${t.lessons.id})::int`,

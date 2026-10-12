@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { DuelQuestion } from "@/db/schema";
-import type { CurrentUser } from "./auth";
+import type { Learner } from "./auth";
 import { isCorrect } from "./exams";
 import { award } from "./gamify";
 import { getMyCourses } from "./queries";
@@ -15,7 +15,7 @@ const DUEL_HOURS = 48;
 const MAX_MS = 10 * 60_000;
 
 /** Вопросы для дуэли: из экзаменов и вопросов в уроках курсов, доступных обоим */
-async function pool(a: CurrentUser, b: CurrentUser) {
+async function pool(a: Learner, b: Learner) {
   const [ca, cb] = await Promise.all([getMyCourses(a), getMyCourses(b)]);
   const common = ca.filter((c) => !c.lockedBy && cb.some((x) => x.id === c.id && !x.lockedBy)).map((c) => c.id);
   if (!common.length) return [];
@@ -36,7 +36,7 @@ async function pool(a: CurrentUser, b: CurrentUser) {
   return out;
 }
 
-export async function createDuel(me: CurrentUser, opponentId: string) {
+export async function createDuel(me: Learner, opponentId: string) {
   if (opponentId === me.id) return { error: "Нельзя вызвать самого себя" };
   const [opp] = await db.select({ id: t.users.id, name: t.users.name, email: t.users.email, role: t.users.role, groupId: t.users.groupId })
     .from(t.users).where(eq(t.users.id, opponentId));

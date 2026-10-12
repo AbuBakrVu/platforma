@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { getUser } from "@/lib/auth";
+import { can, getUser } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { gradebook } from "@/lib/gradebook";
 import { xlsx } from "@/lib/xlsx";
@@ -8,7 +8,7 @@ import { xlsx } from "@/lib/xlsx";
 /** Журнал оценок в Excel (.xlsx) — только персоналу */
 export async function GET(req: Request) {
   const user = await getUser();
-  if (!user || user.role === "student") return new Response("Нет доступа", { status: 403 });
+  if (!user || !can(user, "gradebook")) return new Response("Нет доступа", { status: 403 });
   const q = new URL(req.url).searchParams;
   const groupId = uuidOrNull(q.get("group") ?? ""), courseId = uuidOrNull(q.get("course") ?? "");
   if (!groupId || !courseId) return new Response("Укажите поток и курс", { status: 400 });

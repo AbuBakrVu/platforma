@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { METRIC_LABEL, type Metric } from "@/lib/quests";
@@ -12,7 +12,7 @@ import { addChallenge, addTeam, deleteChallenge, deleteTeam, setTeams } from "./
 export const metadata = { title: "Челленджи и команды" };
 
 export default async function AdminGame({ searchParams }: PageProps<"/admin/game">) {
-  await requireAdmin();
+  await requirePerm("shop");
   const [challenges, teams, groups] = await Promise.all([
     db.select({ c: t.challenges, group: t.groups.name }).from(t.challenges).leftJoin(t.groups, eq(t.groups.id, t.challenges.groupId))
       .orderBy(desc(t.challenges.endsAt)),

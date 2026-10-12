@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { fmtDateTime, plural, toZonedInput } from "@/lib/format";
 import { parseStep, STEP_KINDS, STEP_LABEL } from "@/lib/steps";
@@ -29,7 +29,7 @@ function uploadIds(content: Record<string, unknown>) {
 }
 
 export default async function LessonEditor({ params, searchParams }: PageProps<"/admin/courses/[id]/lessons/[lessonId]">) {
-  await requireStaff();
+  await requirePerm("courses");
   const p = await params;
   const id = uuidOrNull(p.id), lessonId = uuidOrNull(p.lessonId);
   if (!id || !lessonId) notFound();

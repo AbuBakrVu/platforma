@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { can, requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -15,7 +15,7 @@ import {
 export const metadata = { title: "Программа · управление" };
 
 export default async function ProgramEditor({ params }: PageProps<"/admin/programs/[id]">) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const id = uuidOrNull((await params).id);
   if (!id) notFound();
   const [p] = await db.select().from(t.programs).where(eq(t.programs.id, id));
@@ -82,7 +82,7 @@ export default async function ProgramEditor({ params }: PageProps<"/admin/progra
 
       <section className="card">
         <div className="card-h"><h2>Потоки</h2></div>
-        {me.role === "admin" ? (
+        {can(me, "people") ? (
           <form action={setProgramGroups.bind(null, id)} className="form">
             {groups.length ? (
               <div className="row" style={{ gap: 18 }}>

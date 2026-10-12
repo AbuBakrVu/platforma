@@ -6,6 +6,7 @@ import { Avatar, type AvatarUser } from "@/components/Avatar";
 import { Composer } from "./Composer";
 import { Reactions } from "./Reactions";
 import s from "./community.module.css";
+import { isStaffRole } from "@/lib/permissions";
 
 export type CommentView = {
   id: string; parentId: string | null; html: string; raw: string; at: string; edited: boolean; deleted: boolean;
@@ -25,7 +26,7 @@ export function CommentItem({ c, lessonId, me, canModerate, replies }: {
         <div className={s.msgBody}>
           <div className={s.msgHead}>
             <b>{c.author.name}</b>
-            {c.author.role !== "student" && <span className={s.staff}>{c.author.role === "admin" ? "администратор" : "преподаватель"}</span>}
+            {isStaffRole(c.author.role) && <span className={s.staff}>{c.author.role === "admin" ? "администратор" : "преподаватель"}</span>}
             <span className="small muted">{when(c.at)}{c.edited ? " · изменено" : ""}</span>
           </div>
           {c.deleted ? <span className={s.deleted}>Комментарий удалён</span>

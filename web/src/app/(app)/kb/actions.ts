@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { bool, int, str, uuidOrNull } from "@/lib/form";
 import { freeKbSlug } from "@/lib/kb";
 
 /** Создать или сохранить статью; id = null — новая */
 export async function saveArticle(id: string | null, _: unknown, form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("kb");
   const title = str(form, "title").slice(0, 200);
   const body = String(form.get("body") ?? "").slice(0, 200_000);
   if (!title) return { error: "Нужен заголовок" };
@@ -28,7 +28,7 @@ export async function saveArticle(id: string | null, _: unknown, form: FormData)
 }
 
 export async function deleteArticle(id: string) {
-  await requireStaff();
+  await requirePerm("kb");
   // Дочерние статьи поднимаются на уровень выше
   const [a] = await db.select().from(t.kbArticles).where(eq(t.kbArticles.id, id));
   if (!a) return;

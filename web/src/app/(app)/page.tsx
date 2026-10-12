@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { GameStrip } from "@/components/game/GameStrip";
 import { DashboardSocial } from "@/components/community/DashboardSocial";
 import s from "./dashboard.module.css";
+import { isStaff } from "@/lib/permissions";
 
 export default async function Dashboard() {
   const user = await requireUser();
@@ -57,7 +58,7 @@ export default async function Dashboard() {
         </p>
       </div>
 
-      {user.role === "student" && <GameStrip user={user} />}
+      {!isStaff(user) && <GameStrip user={user} />}
       <DashboardSocial user={user} />
 
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))" }}>

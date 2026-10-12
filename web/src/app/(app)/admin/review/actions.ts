@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, eq, gt } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { str } from "@/lib/form";
 import { award } from "@/lib/gamify";
 import { saveStepProgress } from "@/lib/progress";
@@ -12,7 +12,7 @@ import { parseStep } from "@/lib/steps";
 
 /** Проверить работу: баллы по критериям, комментарий, «принять» или «на доработку» */
 export async function reviewSubmission(id: string, decision: "accepted" | "returned", form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("review");
   const [row] = await db.select({ sub: t.submissions, step: t.lessonSteps, lib: t.libraryItems.content, lesson: t.lessons })
     .from(t.submissions)
     .innerJoin(t.lessonSteps, eq(t.lessonSteps.id, t.submissions.stepId))
