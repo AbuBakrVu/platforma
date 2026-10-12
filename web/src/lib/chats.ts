@@ -1,7 +1,8 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import type { CurrentUser } from "./auth";
+import type { Learner } from "./auth";
+import { isStaff, isStaffRole } from "@/lib/permissions";
 
 /** Чат потока создаётся при первом обращении */
 export async function groupChat(groupId: string) {
@@ -12,12 +13,20 @@ export async function groupChat(groupId: string) {
 }
 
 /** Кому пользователь может написать лично */
-export async function canDirect(me: CurrentUser, otherId: string) {
+export async function canDirect(me: Learner, otherId: string) {
   if (otherId === me.id) return false;
   const [other] = await db.select({ role: t.users.role }).from(t.users).where(eq(t.users.id, otherId));
   if (!other) return false;
-  if (me.role !== "student" || other.role !== "student") return true; // персонал ↔ кто угодно
-  // Студент ↔ студент — только наставник и подопечный
+  if (isStaff(me) || isStaffRole(other.role)) return true; // персонал ↔ кто угодно
+  // Родитель ↔ свой ребёнок
+  if (me.role === "parent" || other.role === "parent") {
+    const [pc] = await db.select().from(t.parentChildren).where(or(
+      and(eq(t.parentChildren.parentId, me.id), eq(t.parentChildren.childId, otherId)),
+      and(eq(t.parentChildren.parentId, otherId), eq(t.parentChildren.childId, me.id)),
+    ));
+    return !!pc;
+  }
+  // Ученик ↔ ученик — только наставник и подопечный
   const [m] = await db.select().from(t.mentorships).where(or(
     and(eq(t.mentorships.mentorId, me.id), eq(t.mentorships.studentId, otherId)),
     and(eq(t.mentorships.mentorId, otherId), eq(t.mentorships.studentId, me.id)),
@@ -25,7 +34,7 @@ export async function canDirect(me: CurrentUser, otherId: string) {
   return !!m;
 }
 
-export async function directChat(me: CurrentUser, otherId: string) {
+export async function directChat(me: Learner, otherId: string) {
   if (!(await canDirect(me, otherId))) return null;
   const pairKey = [me.id, otherId].sort().join(":");
   const [c] = await db.select().from(t.chats).where(eq(t.chats.pairKey, pairKey));
@@ -37,11 +46,11 @@ export async function directChat(me: CurrentUser, otherId: string) {
 }
 
 /** Доступ к чату: участник личного; для чата потока — студенты потока и персонал (участие добавляется само) */
-export async function openChat(me: CurrentUser, chatId: string) {
+export async function openChat(me: Learner, chatId: string) {
   const [c] = await db.select().from(t.chats).where(eq(t.chats.id, chatId));
   if (!c) return null;
   if (c.kind === "group") {
-    if (me.role === "student" && c.groupId !== me.groupId) return null;
+    if (!isStaff(me) && c.groupId !== me.groupId) return null;
     await db.insert(t.chatMembers).values({ chatId: c.id, userId: me.id, lastReadAt: new Date(0) }).onConflictDoNothing();
     return c;
   }
@@ -50,7 +59,7 @@ export async function openChat(me: CurrentUser, chatId: string) {
 }
 
 /** Список чатов: собеседник или название потока, последнее сообщение, непрочитанные */
-export async function myChats(me: CurrentUser) {
+export async function myChats(me: Learner) {
   if (me.groupId) await openChat(me, (await groupChat(me.groupId)).id);
   const mine = await db.select({ chat: t.chats, lastReadAt: t.chatMembers.lastReadAt }).from(t.chatMembers)
     .innerJoin(t.chats, eq(t.chats.id, t.chatMembers.chatId)).where(eq(t.chatMembers.userId, me.id))
@@ -99,12 +108,16 @@ export async function chatMessages(chatId: string, after: Date | null, limit = 2
   return rows.reverse();
 }
 
-/** С кем можно начать диалог: персонал, наставник/подопечные; персоналу — все */
-export async function contacts(me: CurrentUser) {
+/** С кем можно начать диалог: персонал, наставник/подопечные, родитель ↔ свои дети; персоналу — все */
+export async function contacts(me: Learner) {
   const base = db.select({ id: t.users.id, name: t.users.name, role: t.users.role, groupId: t.users.groupId }).from(t.users);
-  if (me.role !== "student") return base.where(ne(t.users.id, me.id)).orderBy(asc(t.users.name));
+  if (isStaff(me)) return base.where(ne(t.users.id, me.id)).orderBy(asc(t.users.name));
+  const staff = inArray(t.users.role, ["teacher", "admin"]);
+  if (me.role === "parent") {
+    const kids = (await db.select({ id: t.parentChildren.childId }).from(t.parentChildren).where(eq(t.parentChildren.parentId, me.id))).map((k) => k.id);
+    return base.where(kids.length ? or(staff, inArray(t.users.id, kids)) : staff).orderBy(asc(t.users.name));
+  }
   const links = await db.select().from(t.mentorships).where(or(eq(t.mentorships.mentorId, me.id), eq(t.mentorships.studentId, me.id)));
   const ids = links.flatMap((l) => [l.mentorId, l.studentId]).filter((x) => x !== me.id);
-  return base.where(and(ne(t.users.id, me.id), ids.length ? or(ne(t.users.role, "student"), inArray(t.users.id, ids)) : ne(t.users.role, "student")))
-    .orderBy(asc(t.users.name));
+  return base.where(and(ne(t.users.id, me.id), ids.length ? or(staff, inArray(t.users.id, ids)) : staff)).orderBy(asc(t.users.name));
 }

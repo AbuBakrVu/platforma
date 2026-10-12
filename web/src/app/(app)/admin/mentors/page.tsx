@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { Submit } from "@/components/Buttons";
 import { setMentors } from "./actions";
@@ -9,7 +9,7 @@ export const metadata = { title: "Наставники" };
 
 /** Назначение наставников: преподаватель, сотрудник или опытный студент из другого потока */
 export default async function Mentors({ searchParams }: PageProps<"/admin/mentors">) {
-  await requireAdmin();
+  await requirePerm("people");
   const groups = await db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name));
   const groupId = uuidOrNull(String((await searchParams).group ?? "")) ?? groups[0]?.id ?? null;
   const [students, everyone] = await Promise.all([

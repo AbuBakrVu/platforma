@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime, plural } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { parseStep, STEP_LABEL } from "@/lib/steps";
@@ -16,7 +16,7 @@ import { deleteLibraryItem, restoreLibraryRevision, saveLibraryItem, updateLibra
 export const metadata = { title: "Библиотека · элемент" };
 
 export default async function LibraryItem({ params, searchParams }: PageProps<"/admin/library/[id]">) {
-  await requireStaff();
+  await requirePerm("courses");
   const id = uuidOrNull((await params).id);
   if (!id) notFound();
   const [item] = await db.select().from(t.libraryItems).where(eq(t.libraryItems.id, id));

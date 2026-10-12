@@ -16,7 +16,7 @@ import s from "./profile.module.css";
 export const metadata = { title: "Профиль" };
 
 export default async function ProfilePage() {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const [[me], xp, coins, streak, got, frames] = await Promise.all([
     db.select().from(t.users).where(eq(t.users.id, user.id)),
     totalXp(user.id), getCoins(user.id), getStreak(user.id), userAchievements(user.id), unlockedFrames(user.id),

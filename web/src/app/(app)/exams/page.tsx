@@ -7,6 +7,7 @@ import { plural } from "@/lib/format";
 import { TopBar } from "@/components/TopBar";
 import { Submit } from "@/components/Buttons";
 import { startExam } from "./actions";
+import { isStaff } from "@/lib/permissions";
 
 export const metadata = { title: "Пробные экзамены" };
 
@@ -25,7 +26,7 @@ export default async function ExamsPage() {
       .where(and(eq(t.examAttempts.userId, user.id), inArray(t.examAttempts.examId, ids), isNotNull(t.examAttempts.finishedAt)))
       .groupBy(t.examAttempts.examId),
   ]) : [[], []];
-  const shown = exams.filter((e) => e.published || user.role !== "student");
+  const shown = exams.filter((e) => e.published || isStaff(user));
 
   return (
     <>

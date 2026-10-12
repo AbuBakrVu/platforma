@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireUser, can } from "@/lib/auth";
 import { myChats, openChat } from "@/lib/chats";
 import { uuidOrNull } from "@/lib/form";
 import { getXp } from "@/lib/queries";
@@ -13,7 +13,7 @@ import s from "../messages.module.css";
 export const metadata = { title: "Сообщения" };
 
 export default async function ChatPage({ params }: PageProps<"/messages/[id]">) {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const id = uuidOrNull((await params).id);
   const chat = id ? await openChat(user, id) : null;
   if (!chat) notFound();
@@ -27,7 +27,7 @@ export default async function ChatPage({ params }: PageProps<"/messages/[id]">) 
         <section className={`card ${s.side} ${s.hideMobile}`}><ChatList chats={chats} current={chat.id} /></section>
         <section className={`card ${s.main}`}>
           <div className="card-h"><h2>{me?.title}</h2>{chat.kind === "group" && <span className="small muted">общий чат потока</span>}</div>
-          <Thread chatId={chat.id} initial={initial} canModerate={user.role !== "student"} />
+          <Thread chatId={chat.id} initial={initial} canModerate={can(user, "moderate")} />
         </section>
       </div>
     </>

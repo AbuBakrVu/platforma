@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/auth";
 import { Celebrate } from "@/components/Celebrate";
+import { ImpersonationBar } from "@/components/ImpersonationBar";
 
 /** Экраны «на весь экран» без бокового меню: экзамен, позже — лаборатория */
 export default async function FocusLayout({ children }: LayoutProps<"/">) {
-  await requireUser();
-  return <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", gap: 12, padding: 12 }}>{children}<Celebrate /></div>;
+  const user = await requireUser();
+  return <>{user.impersonatorId && <ImpersonationBar name={user.name} />}<div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", gap: 12, padding: 12 }}>{children}<Celebrate /></div></>;
 }

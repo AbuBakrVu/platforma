@@ -1,5 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
+import { can } from "@/lib/auth";
 import type { CurrentUser } from "@/lib/auth";
 import { authors, reactionsFor } from "@/lib/community";
 import { renderUserMd } from "@/lib/user-md";
@@ -17,7 +18,7 @@ export async function LessonComments({ lessonId, user }: { lessonId: string; use
   });
   const roots = rows.filter((r) => !r.parentId);
   const visible = rows.filter((r) => !r.deletedAt).length;
-  const canModerate = user.role !== "student";
+  const canModerate = can(user, "moderate");
 
   return (
     <section className="card" id="comments" aria-label="Обсуждение урока">

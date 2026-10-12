@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { str } from "@/lib/form";
 import { parseStep, STEP_KINDS, type StepKind } from "@/lib/steps";
 
@@ -18,7 +18,7 @@ async function usedInCourses(libraryId: string) {
 }
 
 export async function createLibraryItem(form: FormData) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const kind = str(form, "kind") as StepKind;
   const title = str(form, "title");
   if (!STEP_KINDS.includes(kind) || !title) return;
@@ -27,14 +27,14 @@ export async function createLibraryItem(form: FormData) {
 }
 
 export async function updateLibraryTags(id: string, form: FormData) {
-  await requireStaff();
+  await requirePerm("courses");
   await db.update(t.libraryItems).set({ tags: str(form, "tags") }).where(eq(t.libraryItems.id, id));
   revalidatePath("/admin/library", "layout");
 }
 
 /** Сохранить содержимое элемента: меняется во всех уроках, где он связан */
 export async function saveLibraryItem(id: string, title: string, content: unknown) {
-  const me = await requireStaff();
+  const me = await requirePerm("courses");
   const [item] = await db.select().from(t.libraryItems).where(eq(t.libraryItems.id, id));
   if (!item) return { error: "Элемент не найден" };
   const c = parseStep(item.kind, content);
@@ -51,7 +51,7 @@ export async function saveLibraryItem(id: string, title: string, content: unknow
 }
 
 export async function restoreLibraryRevision(id: string, revisionId: string) {
-  await requireStaff();
+  await requirePerm("courses");
   const [rev] = await db.select().from(t.stepRevisions).where(and(eq(t.stepRevisions.id, revisionId), eq(t.stepRevisions.libraryId, id)));
   if (!rev) return;
   await saveLibraryItem(id, rev.title, rev.content);
@@ -60,7 +60,7 @@ export async function restoreLibraryRevision(id: string, revisionId: string) {
 
 /** Удалить элемент: связанные шаги сохраняют его содержимое как собственную копию */
 export async function deleteLibraryItem(id: string) {
-  await requireStaff();
+  await requirePerm("courses");
   const [item] = await db.select().from(t.libraryItems).where(eq(t.libraryItems.id, id));
   if (!item) return;
   await db.transaction(async (tx) => {

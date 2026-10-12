@@ -2,7 +2,8 @@ import "server-only";
 import { and, asc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { cache } from "react";
-import type { CurrentUser } from "./auth";
+import type { CurrentUser, Learner } from "./auth";
+import { isStaff } from "@/lib/permissions";
 
 /** Опубликован и время публикации наступило (черновики и отложенная публикация) */
 const live = (published: typeof t.courses.published | typeof t.lessons.published, at: typeof t.courses.publishAt | typeof t.lessons.publishAt): SQL =>
@@ -55,6 +56,11 @@ const groupAccess = cache(async (groupId: string) => {
   return { direct: new Set(direct.map((d) => d.courseId)), programs: viaPrograms };
 });
 
+/** Курсы, выданные пользователю лично (внешним ученикам), с действующим сроком */
+const personalCourses = cache(async (userId: string) =>
+  new Set((await db.select({ id: t.userCourses.courseId }).from(t.userCourses)
+    .where(and(eq(t.userCourses.userId, userId), or(isNull(t.userCourses.until), gte(t.userCourses.until, sql`now()`))))).map((r) => r.id)));
+
 /** Сколько живых уроков в курсах и сколько из них пройдено */
 async function courseProgress(userId: string, courseIds: string[]) {
   if (!courseIds.length) return new Map<string, { title: string; total: number; done: number }>();
@@ -99,7 +105,7 @@ export const getCourseLocks = cache(async (userId: string, role: CurrentUser["ro
 });
 
 /** Курсы пользователя с прогрессом. Без потока — все опубликованные. lockedBy — курс программы, который нужно пройти раньше. */
-export async function getMyCourses(user: CurrentUser) {
+export async function getMyCourses(user: Learner) {
   const base = db
     .select({
       id: t.courses.id,
@@ -118,29 +124,37 @@ export async function getMyCourses(user: CurrentUser) {
     .$dynamic();
 
   const visible = live(t.courses.published, t.courses.publishAt);
+  const mine = await personalCourses(user.id);
+  // Внешний ученик — только выданные курсы; без потока — все опубликованные (как раньше)
+  if (user.external) {
+    if (!mine.size) return [];
+    return (await base.where(and(visible, inArray(t.courses.id, [...mine])))).map((c) => ({ ...c, lockedBy: null as string | null }));
+  }
   if (!user.groupId) return (await base.where(visible)).map((c) => ({ ...c, lockedBy: null as string | null }));
   const access = await groupAccess(user.groupId);
-  const ids = [...new Set([...access.direct, ...access.programs.map((p) => p.courseId)])];
+  const ids = [...new Set([...access.direct, ...access.programs.map((p) => p.courseId), ...mine])];
   if (!ids.length) return [];
   const [rows, locks] = await Promise.all([
     base.where(and(visible, inArray(t.courses.id, ids))),
     getCourseLocks(user.id, user.role, user.groupId),
   ]);
-  return rows.map((c) => ({ ...c, lockedBy: locks.get(c.id) ?? null }));
+  return rows.map((c) => ({ ...c, lockedBy: mine.has(c.id) ? null : locks.get(c.id) ?? null }));
 }
 
 /** Студенту доступны опубликованные курсы его потока (напрямую или из программы), кроме ещё закрытых в программе; персоналу — все */
-export async function canAccessCourse(user: CurrentUser, course: { id: string; published: boolean; publishAt: Date | null }) {
-  if (user.role !== "student") return true;
-  if (!isLive(course) || !user.groupId) return false;
+export async function canAccessCourse(user: Learner, course: { id: string; published: boolean; publishAt: Date | null }) {
+  if (isStaff(user)) return true;
+  if (!isLive(course) || user.role !== "student") return false;
+  if ((await personalCourses(user.id)).has(course.id)) return true;
+  if (user.external || !user.groupId) return false;
   const access = await groupAccess(user.groupId);
   if (!access.direct.has(course.id) && !access.programs.some((p) => p.courseId === course.id)) return false;
   return !(await getCourseLocks(user.id, user.role, user.groupId)).has(course.id);
 }
 
 /** Доступ к курсу по id (для файлов и пакетов). courseId = null — только персоналу. */
-export async function canAccessCourseId(user: CurrentUser, courseId: string | null) {
-  if (user.role !== "student") return true;
+export async function canAccessCourseId(user: Learner, courseId: string | null) {
+  if (isStaff(user)) return true;
   if (!courseId) return false;
   const [course] = await db.select({ id: t.courses.id, published: t.courses.published, publishAt: t.courses.publishAt })
     .from(t.courses).where(eq(t.courses.id, courseId));
@@ -148,7 +162,7 @@ export async function canAccessCourseId(user: CurrentUser, courseId: string | nu
 }
 
 /** Структура курса: разделы → уроки, с отметкой пройденных. null — нет курса или нет доступа. */
-export async function getCourseOutline(slug: string, user: CurrentUser) {
+export async function getCourseOutline(slug: string, user: Learner) {
   const userId = user.id;
   const [course] = await db.select().from(t.courses).where(eq(t.courses.slug, slug));
   if (!course || !(await canAccessCourse(user, course))) return null;
@@ -188,11 +202,11 @@ export async function getCourseOutline(slug: string, user: CurrentUser) {
     }
     if (!r.lessonId) continue;
     const draft = !isLive({ published: r.lessonPublished!, publishAt: r.lessonPublishAt });
-    if (draft && user.role === "student") continue;
+    if (draft && !isStaff(user)) continue;
     s.lessons.push({ id: r.lessonId, title: r.lessonTitle!, kind: r.kind!, done: r.done, draft, locked: false });
   }
   // Последовательное прохождение: всё после первого непройденного урока закрыто (для студентов)
-  if (course.sequential && user.role === "student") {
+  if (course.sequential && !isStaff(user)) {
     let gap = false;
     for (const sec of sections.filter((x) => !x.locked)) {
       for (const l of sec.lessons) {
@@ -260,7 +274,7 @@ export async function getLessonSteps(lessonId: string, userId: string) {
 }
 
 /** Шаг, доступный пользователю: курс открыт ему и раздел не закрыт по дате. null — нет доступа. */
-export async function getStepForUser(stepId: string, user: CurrentUser) {
+export async function getStepForUser(stepId: string, user: Learner) {
   const [r] = await db
     .select({ step: t.lessonSteps, lib: t.libraryItems.content, lesson: t.lessons, section: t.sections, course: t.courses })
     .from(t.lessonSteps)
@@ -271,8 +285,8 @@ export async function getStepForUser(stepId: string, user: CurrentUser) {
     .where(eq(t.lessonSteps.id, stepId));
   if (!r || !(await canAccessCourse(user, r.course))) return null;
   const row = { ...r, step: { ...r.step, content: r.lib ?? r.step.content } };
-  if (user.role === "student" && ((row.section.opensAt && row.section.opensAt > new Date()) || !isLive(row.lesson))) return null;
-  if (user.role === "student" && row.course.sequential) {
+  if (!isStaff(user) && ((row.section.opensAt && row.section.opensAt > new Date()) || !isLive(row.lesson))) return null;
+  if (!isStaff(user) && row.course.sequential) {
     const outline = await getCourseOutline(row.course.slug, user);
     if (!outline?.flat.some((l) => l.id === row.lesson.id)) return null;
   }
@@ -312,7 +326,7 @@ export async function getDueCards(userId: string, limit = 50) {
  * Доступ к загруженному файлу или пакету: напрямую по курсу или через любой шаг доступного курса,
  * который на него ссылается (скопированный урок, элемент библиотеки, картинка в тексте).
  */
-export async function canAccessAsset(user: CurrentUser, courseId: string | null, assetId: string) {
+export async function canAccessAsset(user: Learner, courseId: string | null, assetId: string) {
   if (await canAccessCourseId(user, courseId)) return true;
   const pattern = `%${assetId}%`;
   const rows = await db.selectDistinct({ id: t.courses.id, published: t.courses.published, publishAt: t.courses.publishAt })
@@ -337,7 +351,7 @@ export async function getCourseMaterials(courseId: string) {
 }
 
 /** Лабораторные из курсов пользователя: шаги «Лаба» в доступных уроках */
-export async function getMyLabs(user: CurrentUser) {
+export async function getMyLabs(user: Learner) {
   const courses = await getMyCourses(user);
   if (!courses.length) return [];
   const rows = await db.select({
@@ -356,12 +370,12 @@ export async function getMyLabs(user: CurrentUser) {
     .where(and(eq(t.lessonSteps.kind, "lab"), inArray(t.courses.id, courses.map((c) => c.id))))
     .orderBy(asc(t.courses.title), asc(t.sections.position), asc(t.lessons.position), asc(t.lessonSteps.position));
   const now = new Date();
-  return rows.filter((r) => user.role !== "student"
+  return rows.filter((r) => isStaff(user)
     || (isLive({ published: r.lessonPublished, publishAt: r.lessonPublishAt }) && !(r.opensAt && r.opensAt > now)));
 }
 
 /** Программы потока с курсами по порядку (прогресс и замки берутся из getMyCourses) */
-export async function getMyPrograms(user: CurrentUser) {
+export async function getMyPrograms(user: Learner) {
   if (!user.groupId) return [];
   const rows = await db.select({
     id: t.programs.id, title: t.programs.title, description: t.programs.description, sequential: t.programs.sequential,

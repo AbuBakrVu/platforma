@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, can } from "@/lib/auth";
 import { canSeeLesson, canSeeTarget, EMOJI, reactionsFor, type Target } from "@/lib/community";
 import { uuidOrNull } from "@/lib/form";
 
@@ -11,7 +11,7 @@ const TARGETS: Target[] = ["comment", "post", "topic", "message", "announcement"
 
 /** Поставить или снять реакцию; возвращает новую сводку */
 export async function toggleReaction(target: Target, id: string, emoji: string) {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const tid = uuidOrNull(id);
   if (!tid || !TARGETS.includes(target) || !EMOJI.includes(emoji as never) || !(await canSeeTarget(user, target, tid))) return null;
   const key = and(eq(t.reactions.target, target), eq(t.reactions.targetId, tid), eq(t.reactions.userId, user.id), eq(t.reactions.emoji, emoji));
@@ -63,6 +63,6 @@ export async function deleteComment(id: string) {
   const user = await requireUser();
   if (!uuidOrNull(id)) return;
   await db.update(t.comments).set({ deletedAt: new Date() })
-    .where(user.role === "student" ? and(eq(t.comments.id, id), eq(t.comments.userId, user.id)) : eq(t.comments.id, id));
+    .where(!can(user, "moderate") ? and(eq(t.comments.id, id), eq(t.comments.userId, user.id)) : eq(t.comments.id, id));
   revalidatePath("/courses", "layout");
 }

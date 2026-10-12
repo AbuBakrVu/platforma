@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 
 /** Наставники студентов: поле mentor_<studentId> = id наставника или пусто */
 export async function setMentors(form: FormData) {
-  await requireAdmin();
+  await requirePerm("people");
   const pairs = [...form.entries()].filter(([k]) => k.startsWith("mentor_"))
     .map(([k, v]) => [uuidOrNull(k.slice(7)), uuidOrNull(String(v))] as const)
     .filter((p): p is readonly [string, string | null] => !!p[0]);

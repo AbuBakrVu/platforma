@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { toEditorText } from "@/lib/exams";
 import { fmtDateTime } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
@@ -17,7 +17,7 @@ const KIND = { single: "Один ответ", multiple: "Несколько от
 export const metadata = { title: "Экзамен · управление" };
 
 export default async function ExamEditor({ params, searchParams }: PageProps<"/admin/exams/[id]">) {
-  await requireStaff();
+  await requirePerm("courses");
   const id = uuidOrNull((await params).id);
   if (!id) notFound();
   const sp = await searchParams;

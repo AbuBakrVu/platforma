@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDate, fmtTime, fmtWeekday } from "@/lib/format";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -12,7 +12,7 @@ export const metadata = { title: "Расписание · управление" 
 const KIND = { lecture: "Лекция", practice: "Практика", deadline: "Дедлайн" } as const;
 
 export default async function AdminSchedule({ searchParams }: PageProps<"/admin/schedule">) {
-  await requireStaff();
+  await requirePerm("schedule");
   const sp = await searchParams;
   const [groups, courses] = await Promise.all([
     db.select().from(t.groups).orderBy(asc(t.groups.name)),

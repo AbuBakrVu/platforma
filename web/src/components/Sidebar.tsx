@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "./Avatar";
+import { isStaffRole } from "@/lib/permissions";
 import { Icon, type IconName } from "./Icon";
 import { signOut } from "@/app/(auth)/login/actions";
 
@@ -28,15 +29,22 @@ const EXTRA: typeof MAIN = [
   { href: "/shop", label: "Магазин", icon: "shop" },
 ];
 
-const ROLE = { student: "Студент", teacher: "Преподаватель", admin: "Администратор" } as const;
+const ROLE = { student: "Ученик", teacher: "Преподаватель", admin: "Администратор", parent: "Родитель" } as const;
+/** Разделы для своих — внешнему ученику (клиенту, партнёру) не показываем */
+const INTERNAL = new Set(["/schedule", "/duels", "/rating", "/news", "/kb"]);
+const PARENT: typeof MAIN = [
+  { href: "/parent", label: "Мои дети", icon: "person" },
+  { href: "/messages", label: "Сообщения", icon: "mail" },
+  { href: "/news", label: "Объявления", icon: "bell" },
+];
 
 type Game = {
   level: number; title: string; pct: number; coins: number; streak: number; streakToday: boolean; quests: number; duels: number;
   unread: number; mentees: number;
 };
 
-export function Sidebar({ name, role, group, due = 0, avatar, game }: {
-  name: string; role: keyof typeof ROLE; group?: string | null; due?: number;
+export function Sidebar({ name, role, group, due = 0, avatar, game, external = false, impersonating = false }: {
+  name: string; role: keyof typeof ROLE; group?: string | null; due?: number; external?: boolean; impersonating?: boolean;
   avatar: { avatarId: string | null; avatarColor: string | null; frame: string | null }; game: Game;
 }) {
   const path = usePathname();
@@ -51,6 +59,23 @@ export function Sidebar({ name, role, group, due = 0, avatar, game }: {
       {l.href === "/duels" && game.duels > 0 && <span className="badge" aria-label={`${game.duels} дуэли ждут вашего хода`}>{game.duels}</span>}
     </Link>
   );
+
+  const shown = (list: typeof MAIN) => list.filter((l) => !external || !INTERNAL.has(l.href));
+
+  if (role === "parent") {
+    return (
+      <nav className="side" aria-label="Меню">
+        <Link href="/profile" className="me" aria-label="Профиль">
+          <Avatar user={{ name, ...avatar }} size={44} />
+          <div style={{ minWidth: 0 }}><b>{name}</b><small>{ROLE.parent}</small></div>
+        </Link>
+        <div className="nav">{PARENT.map(item)}</div>
+        <form action={signOut} style={{ marginTop: "auto" }}>
+          <button className="btn" style={{ width: "100%" }}><Icon name="logout" size={18} />{impersonating ? "Завершить просмотр" : "Выйти"}</button>
+        </form>
+      </nav>
+    );
+  }
 
   return (
     <nav className="side" aria-label="Меню">
@@ -67,21 +92,21 @@ export function Sidebar({ name, role, group, due = 0, avatar, game }: {
         <span className={`game-st ${game.streakToday ? "" : "cold"}`} title="Серия дней">🔥{game.streak}</span>
         <span className="game-st" title="Монеты">🪙{game.coins}</span>
       </Link>
-      <div className="nav">{MAIN.map(item)}</div>
+      <div className="nav">{shown(MAIN).map(item)}</div>
       <div className="sep" />
       <div className="nav">
-        {SOCIAL.map(item)}
+        {shown(SOCIAL).map(item)}
         {game.mentees > 0 && item({ href: "/mentees", label: "Подопечные", icon: "person-check" })}
       </div>
       <div className="sep" />
       <div className="nav">
         {EXTRA.map(item)}
-        {role !== "student" && item({ href: "/admin", label: "Управление", icon: "settings" })}
+        {isStaffRole(role) && item({ href: "/admin", label: "Управление", icon: "settings" })}
       </div>
       <form action={signOut} style={{ marginTop: "auto" }}>
         <button className="btn" style={{ width: "100%" }}>
           <Icon name="logout" size={18} />
-          Выйти
+          {impersonating ? "Завершить просмотр" : "Выйти"}
         </button>
       </form>
     </nav>

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, can } from "@/lib/auth";
 import { chatMessages, directChat, markRead, openChat } from "@/lib/chats";
 import { authors, reactionsFor } from "@/lib/community";
 import { str, uuidOrNull } from "@/lib/form";
@@ -16,7 +16,7 @@ export type MessageView = {
 };
 
 export async function startDirect(form: FormData) {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const other = uuidOrNull(str(form, "user"));
   const chat = other ? await directChat(user, other) : null;
   if (chat) redirect(`/messages/${chat.id}`);
@@ -24,7 +24,7 @@ export async function startDirect(form: FormData) {
 
 /** Новые сообщения после момента after (опрос раз в несколько секунд) */
 export async function fetchMessages(chatId: string, after: string | null): Promise<MessageView[] | null> {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const id = uuidOrNull(chatId);
   if (!id || !(await openChat(user, id))) return null;
   const rows = await chatMessages(id, after ? new Date(after) : null);
@@ -37,7 +37,7 @@ export async function fetchMessages(chatId: string, after: string | null): Promi
 }
 
 export async function sendMessage(chatId: string, body: string) {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const id = uuidOrNull(chatId);
   const text = body.replace(/\r/g, "").trim().slice(0, 5000);
   if (!id || !text) return { error: "Пустое сообщение" };
@@ -53,10 +53,10 @@ export async function sendMessage(chatId: string, body: string) {
 
 /** Удалить своё сообщение; в чате потока персонал может удалить любое */
 export async function deleteMessage(id: string) {
-  const user = await requireUser();
+  const user = await requireUser({ parents: true });
   const mid = uuidOrNull(id);
   if (!mid) return;
   const [m] = await db.select({ msg: t.messages, kind: t.chats.kind }).from(t.messages).innerJoin(t.chats, eq(t.chats.id, t.messages.chatId)).where(eq(t.messages.id, mid));
-  if (!m || (m.msg.userId !== user.id && !(user.role !== "student" && m.kind === "group"))) return;
+  if (!m || (m.msg.userId !== user.id && !(can(user, "moderate") && m.kind === "group"))) return;
   await db.update(t.messages).set({ deletedAt: new Date() }).where(eq(t.messages.id, mid));
 }

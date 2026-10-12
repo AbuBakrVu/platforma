@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { db, schema as t } from "@/db";
-import { getUser, type CurrentUser } from "@/lib/auth";
+import { can, getUser, type CurrentUser } from "@/lib/auth";
 import { getStepForUser } from "@/lib/queries";
 import { officeToPdf, srtToVtt } from "@/lib/convert";
 import { uuidOrNull } from "@/lib/form";
@@ -46,7 +46,8 @@ export async function POST(req: Request) {
   const user = await getUser();
   if (!user) return Response.json({ error: "Нужно войти" }, { status: 401 });
   const q = new URL(req.url).searchParams;
-  if (user.role === "student" || q.get("kind") === "avatar" || q.get("kind") === "submission") {
+  // Персонал с правом на курсы или базу знаний загружает материалы; остальные — только аватар и работы
+  if (!(can(user, "courses") || can(user, "kb")) || q.get("kind") === "avatar" || q.get("kind") === "submission") {
     const name = (q.get("name") ?? "file").replace(/[\\/\0]/g, "_").slice(0, 200) || "file";
     return studentUpload(req, user, q, name);
   }

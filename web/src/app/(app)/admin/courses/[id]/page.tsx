@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime, toZonedInput } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { Confirm, Submit } from "@/components/Buttons";
@@ -16,7 +16,7 @@ import s from "../../admin.module.css";
 export const metadata = { title: "Курс · управление" };
 
 export default async function CourseEditor({ params }: PageProps<"/admin/courses/[id]">) {
-  await requireStaff();
+  await requirePerm("courses");
   const id = uuidOrNull((await params).id);
   if (!id) notFound();
   const [course] = await db.select().from(t.courses).where(eq(t.courses.id, id));
@@ -70,6 +70,9 @@ export default async function CourseEditor({ params }: PageProps<"/admin/courses
               <input id="c-pub" name="publishAt" type="datetime-local" defaultValue={toZonedInput(course.publishAt)} className="ctl" />
             </div>
           </div>
+          <div className="field"><label htmlFor="c-parent">Для родителей: о курсе простыми словами</label>
+            <textarea id="c-parent" name="parentDescription" defaultValue={course.parentDescription} className="ctl" style={{ minHeight: 80 }}
+              placeholder="Без терминов: чему научится ребёнок и где это пригодится. Например: «Учимся запускать сайты и приложения на серверах — так работают все интернет-сервисы»." /></div>
           <label className="check"><input type="checkbox" name="sequential" defaultChecked={course.sequential} />
             Последовательное прохождение — следующий урок открывается, только когда пройден предыдущий</label>
           <div className="row" style={{ justifyContent: "space-between" }}>
@@ -79,7 +82,7 @@ export default async function CourseEditor({ params }: PageProps<"/admin/courses
       </section>
 
       <CourseTree courseId={id} sections={sections.map((sec) => ({
-        id: sec.id, title: sec.title, opensAt: toZonedInput(sec.opensAt),
+        id: sec.id, title: sec.title, opensAt: toZonedInput(sec.opensAt), parentSkills: sec.parentSkills,
         lessons: lessons.filter((l) => l.sectionId === sec.id)
           .map((l) => ({ id: l.id, title: l.title, kind: l.kind, steps: l.steps, draft: draftLabel(l) })),
       }))} />

@@ -2,7 +2,8 @@ import {
   type AnyPgColumn, pgTable, pgEnum, uuid, text, integer, timestamp, boolean, jsonb, primaryKey, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-export const roleEnum = pgEnum("role", ["student", "teacher", "admin"]);
+/** student — ученик, teacher — персонал (права уточняет accessRole), admin — всё, parent — родитель ученика */
+export const roleEnum = pgEnum("role", ["student", "teacher", "admin", "parent"]);
 export const lessonKindEnum = pgEnum("lesson_kind", ["theory", "practice", "lab"]);
 export const eventKindEnum = pgEnum("event_kind", ["lecture", "practice", "deadline"]);
 export const attendanceEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
@@ -45,6 +46,12 @@ export const users = pgTable("users", {
   freezes: integer("freezes").notNull().default(0),
   /** Лига: 0 — Бронза … 5 — Алмаз */
   league: integer("league").notNull().default(0),
+  /** Внешний ученик (клиент, партнёр): только выданные ему курсы, без внутренних разделов */
+  external: boolean("external").notNull().default(false),
+  /** Роль персонала с набором прав (для teacher); null — права преподавателя по умолчанию */
+  accessRoleId: uuid("access_role_id"),
+  /** Для родителя — тоже; когда последний раз заходил */
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("users_email_idx").on(t.email)]);
 
@@ -59,6 +66,13 @@ export const invites = pgTable("invites", {
   usedCount: integer("used_count").notNull().default(0),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   note: text("note").notNull().default(""),
+  /** Приглашение родителя — к этому ученику */
+  childId: uuid("child_id").references((): AnyPgColumn => users.id, { onDelete: "cascade" }),
+  /** Внешний ученик: курсы, которые ему откроются */
+  external: boolean("external").notNull().default(false),
+  courseIds: jsonb("course_ids").$type<string[]>().notNull().default([]),
+  /** Роль персонала для приглашённого преподавателя */
+  accessRoleId: uuid("access_role_id"),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("invites_code_idx").on(t.code)]);
@@ -68,6 +82,8 @@ export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  /** Вход под пользователем: кто из администраторов смотрит его глазами */
+  impersonatorId: uuid("impersonator_id"),
 }, (t) => [index("sessions_user_idx").on(t.userId)]);
 
 export const courses = pgTable("courses", {
@@ -80,6 +96,8 @@ export const courses = pgTable("courses", {
   publishAt: timestamp("publish_at", { withTimezone: true }),
   /** Последовательное прохождение: урок открывается, когда пройден предыдущий */
   sequential: boolean("sequential").notNull().default(false),
+  /** Для родителей: о курсе простыми словами, без терминов */
+  parentDescription: text("parent_description").notNull().default(""),
   demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("courses_slug_idx").on(t.slug)]);
@@ -121,6 +139,8 @@ export const sections = pgTable("sections", {
   title: text("title").notNull(),
   /** Раздел закрыт до этой даты */
   opensAt: timestamp("opens_at", { withTimezone: true }),
+  /** Для родителей: что ребёнок сможет делать после раздела — простыми словами */
+  parentSkills: text("parent_skills").notNull().default(""),
 }, (t) => [index("sections_course_idx").on(t.courseId, t.position)]);
 
 export const lessons = pgTable("lessons", {
@@ -640,3 +660,37 @@ export const kbArticles = pgTable("kb_articles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("kb_slug_idx").on(t.slug), index("kb_parent_idx").on(t.parentId, t.position)]);
+
+/* ——— Роли, родители, внешние ученики ——— */
+
+/** Роль персонала: набор прав (см. lib/permissions.ts) */
+export const accessRoles = pgTable("access_roles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  perms: jsonb("perms").$type<string[]>().notNull().default([]),
+  createdAt: createdAt(),
+});
+
+export const parentChildren = pgTable("parent_children", {
+  parentId: uuid("parent_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  childId: uuid("child_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+}, (t) => [primaryKey({ columns: [t.parentId, t.childId] }), index("parent_children_child_idx").on(t.childId)]);
+
+/** Курсы, выданные пользователю лично (внешним ученикам) */
+export const userCourses = pgTable("user_courses", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  /** null — бессрочно */
+  until: timestamp("until", { withTimezone: true }),
+}, (t) => [primaryKey({ columns: [t.userId, t.courseId] })]);
+
+/** Журнал действий администраторов: вход под пользователем, смена ролей и т.п. */
+export const auditLog = pgTable("audit_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  targetId: uuid("target_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("audit_target_idx").on(t.targetId, t.createdAt)]);

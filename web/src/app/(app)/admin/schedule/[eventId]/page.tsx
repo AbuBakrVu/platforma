@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime, fmtTime } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { Submit } from "@/components/Buttons";
@@ -18,7 +18,7 @@ const OPTIONS = [
 export const metadata = { title: "Посещаемость" };
 
 export default async function AttendancePage({ params, searchParams }: PageProps<"/admin/schedule/[eventId]">) {
-  await requireStaff();
+  await requirePerm("schedule");
   const id = uuidOrNull((await params).eventId);
   if (!id) notFound();
   const [ev] = await db.select({ ev: t.scheduleEvents, group: t.groups.name }).from(t.scheduleEvents)

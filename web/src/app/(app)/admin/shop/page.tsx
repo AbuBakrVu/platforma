@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { asc, desc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireAdmin } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { FRAMES } from "@/lib/frames";
 import { fmtDateTime } from "@/lib/format";
 import { SHOP_KIND } from "@/lib/shop";
@@ -34,7 +34,7 @@ function ItemFields({ it }: { it?: Item }) {
 }
 
 export default async function AdminShop() {
-  await requireAdmin();
+  await requirePerm("shop");
   const [items, orders] = await Promise.all([
     db.select().from(t.shopItems).orderBy(asc(t.shopItems.price)),
     db.select({ p: t.purchases, name: t.users.name, group: t.groups.name }).from(t.purchases)

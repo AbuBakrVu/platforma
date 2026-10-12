@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { STEP_KINDS, STEP_LABEL, type StepKind } from "@/lib/steps";
@@ -14,7 +14,7 @@ export const metadata = { title: "Библиотека" };
 
 /** Библиотека шагов: один материал — в нескольких уроках и курсах */
 export default async function Library({ searchParams }: PageProps<"/admin/library">) {
-  await requireStaff();
+  await requirePerm("courses");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const kind = STEP_KINDS.includes(sp.kind as StepKind) ? (sp.kind as StepKind) : null;

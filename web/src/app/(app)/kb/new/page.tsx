@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { ArticleForm } from "../ArticleForm";
 
 export const metadata = { title: "Новая статья" };
 
 export default async function NewArticle({ searchParams }: PageProps<"/kb/new">) {
-  await requireStaff();
+  await requirePerm("kb");
   const parents = await db.select({ id: t.kbArticles.id, title: t.kbArticles.title }).from(t.kbArticles).orderBy(asc(t.kbArticles.title));
   return (
     <>

@@ -1,6 +1,6 @@
 import { asc } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { gradebook } from "@/lib/gradebook";
 import { Icon } from "@/components/Icon";
@@ -10,7 +10,7 @@ export const metadata = { title: "Журнал оценок" };
 
 /** Журнал оценок: студенты потока × оцениваемые элементы курса, выгрузка в Excel */
 export default async function Gradebook({ searchParams }: PageProps<"/admin/gradebook">) {
-  await requireStaff();
+  await requirePerm("gradebook");
   const sp = await searchParams;
   const [groups, courses] = await Promise.all([
     db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),

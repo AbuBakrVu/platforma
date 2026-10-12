@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { can, requireUser } from "@/lib/auth";
 import { canSeeTopic } from "@/lib/community";
 import { uuidOrNull } from "@/lib/form";
 import { award } from "@/lib/gamify";
@@ -28,6 +28,7 @@ export async function createTopic(section: string, _: unknown, form: FormData) {
   if (title.length < 4) return { error: "Название слишком короткое" };
   if (!body) return { error: "Напишите текст" };
   let courseId: string | null = null;
+  if (section === "general" && user.external) return { error: "Раздел недоступен" };
   if (section !== "general") {
     const [c] = await db.select().from(t.courses).where(eq(t.courses.slug, section));
     if (!c || !(await canAccessCourse(user, c))) return { error: "Раздел недоступен" };
@@ -46,7 +47,7 @@ export async function replyTopic(topicId: string, body: string) {
   const tp = await topicFor(topicId);
   const text = clean(body);
   if (!tp || !(await canSeeTopic(user, tp))) return { error: "Тема недоступна" };
-  if (tp.locked && user.role === "student") return { error: "Тема закрыта" };
+  if (tp.locked && !can(user, "moderate")) return { error: "Тема закрыта" };
   if (!text) return { error: "Пустой ответ" };
   const [last] = await db.select({ at: t.forumPosts.createdAt }).from(t.forumPosts)
     .where(eq(t.forumPosts.userId, user.id)).orderBy(desc(t.forumPosts.createdAt)).limit(1);
@@ -80,7 +81,7 @@ export async function deletePost(id: string) {
   const pid = uuidOrNull(id);
   if (!pid) return;
   const [p] = await db.update(t.forumPosts).set({ deletedAt: new Date() })
-    .where(user.role === "student" ? and(eq(t.forumPosts.id, pid), eq(t.forumPosts.userId, user.id)) : eq(t.forumPosts.id, pid)).returning();
+    .where(!can(user, "moderate") ? and(eq(t.forumPosts.id, pid), eq(t.forumPosts.userId, user.id)) : eq(t.forumPosts.id, pid)).returning();
   if (p) await db.update(t.forumTopics).set({ replies: sql`greatest(${t.forumTopics.replies} - 1, 0)` }).where(eq(t.forumTopics.id, p.topicId));
   touch();
 }
@@ -107,7 +108,7 @@ export async function votePost(id: string, value: 1 | -1) {
 export async function acceptAnswer(topicId: string, postId: string | null) {
   const user = await requireUser();
   const tp = await topicFor(topicId);
-  if (!tp || tp.kind !== "question" || (tp.userId !== user.id && user.role === "student")) return;
+  if (!tp || tp.kind !== "question" || (tp.userId !== user.id && !can(user, "moderate"))) return;
   const pid = postId ? uuidOrNull(postId) : null;
   if (pid) {
     const [p] = await db.select().from(t.forumPosts).where(and(eq(t.forumPosts.id, pid), eq(t.forumPosts.topicId, tp.id)));
@@ -124,7 +125,7 @@ export async function moderateTopic(topicId: string, op: "pin" | "lock" | "delet
   const tp = await topicFor(topicId);
   if (!tp) return;
   const own = tp.userId === user.id;
-  if (user.role === "student" && !(op === "delete" && own)) return;
+  if (!can(user, "moderate") && !(op === "delete" && own)) return;
   if (op === "delete") {
     await db.update(t.forumTopics).set({ deletedAt: new Date() }).where(eq(t.forumTopics.id, tp.id));
     touch();

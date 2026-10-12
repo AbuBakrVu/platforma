@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireStaff } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { Confirm } from "@/components/Buttons";
 import { deleteArticle } from "../../actions";
 import { ArticleForm } from "../../ArticleForm";
@@ -10,7 +10,7 @@ import { ArticleForm } from "../../ArticleForm";
 export const metadata = { title: "Статья · редактирование" };
 
 export default async function EditArticle({ params }: PageProps<"/kb/[slug]/edit">) {
-  await requireStaff();
+  await requirePerm("kb");
   const [a] = await db.select().from(t.kbArticles).where(eq(t.kbArticles.slug, (await params).slug));
   if (!a) notFound();
   const parents = await db.select({ id: t.kbArticles.id, title: t.kbArticles.title }).from(t.kbArticles).orderBy(asc(t.kbArticles.title));

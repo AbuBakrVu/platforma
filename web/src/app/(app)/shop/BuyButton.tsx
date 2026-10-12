@@ -12,7 +12,7 @@ export function BuyButton({ id, title, price, disabled, label }: { id: string; t
         if (!window.confirm(`Купить «${title}» за ${price} монет?`)) return;
         start(async () => {
           const r = await buyItem(id);
-          setMsg(r.error ? { ok: false, text: r.error } : { ok: true, text: r.instant ? "Готово!" : "Заказ принят — администратор выдаст" });
+          setMsg("error" in r && r.error ? { ok: false, text: r.error } : { ok: true, text: "instant" in r && r.instant ? "Готово!" : "Заказ принят — администратор выдаст" });
         });
       }}>{pending ? "Покупаю…" : label ?? `Купить · ${price} 🪙`}</button>
       {msg && <span className={`small ${msg.ok ? "" : "err"}`} role="status">{msg.text}</span>}

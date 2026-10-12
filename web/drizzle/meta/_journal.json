@@ -57,6 +57,13 @@
       "when": 1791834118938,
       "tag": "0007_community",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791836998711,
+      "tag": "0008_roles_parents",
+      "breakpoints": true
     }
   ]
 }

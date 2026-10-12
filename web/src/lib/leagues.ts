@@ -28,7 +28,7 @@ async function standings(league: number, week: string) {
   return db.select({ id: t.users.id, name: t.users.name, avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame, xp })
     .from(t.users)
     .leftJoin(t.xpEvents, and(eq(t.xpEvents.userId, t.users.id), gte(t.xpEvents.createdAt, from), lt(t.xpEvents.createdAt, to)))
-    .where(and(eq(t.users.role, "student"), eq(t.users.league, league)))
+    .where(and(eq(t.users.role, "student"), eq(t.users.external, false), eq(t.users.league, league)))
     .groupBy(t.users.id)
     .orderBy(sql`${xp} desc`, t.users.name);
 }

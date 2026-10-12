@@ -1,10 +1,11 @@
 import "server-only";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import type { CurrentUser } from "./auth";
+import type { Learner } from "./auth";
 import { checkAchievements } from "./achievements";
 import { award, celebrate, touchActivity } from "./gamify";
 import { getMyCourses } from "./queries";
+import { isStaff } from "@/lib/permissions";
 
 export type QKind = "single" | "multiple" | "order";
 export type Option = { id: string; text: string };
@@ -97,8 +98,8 @@ export async function finalizeAttempt(attemptId: string) {
 }
 
 /** Экзамены, доступные пользователю: без курса — всем, с курсом — потокам этого курса. Персонал видит всё. */
-export async function accessibleExams(user: CurrentUser) {
-  if (user.role !== "student") {
+export async function accessibleExams(user: Learner) {
+  if (isStaff(user)) {
     return db.select().from(t.exams).orderBy(asc(t.exams.title));
   }
   // Курсы потока — напрямую и из программ обучения (кроме ещё закрытых в программе)
@@ -108,7 +109,7 @@ export async function accessibleExams(user: CurrentUser) {
     .orderBy(asc(t.exams.title));
 }
 
-export async function canTakeExam(user: CurrentUser, examId: string) {
+export async function canTakeExam(user: Learner, examId: string) {
   return (await accessibleExams(user)).find((e) => e.id === examId) ?? null;
 }
 

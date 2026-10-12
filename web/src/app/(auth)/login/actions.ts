@@ -44,10 +44,20 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
     const invite = await consumeInvite(tx, code);
     if (!invite) return null; // транзакция ничего не изменила
     const [user] = await tx.insert(schema.users)
-      .values({ name, email, passwordHash, role: invite.role, groupId: invite.groupId })
+      .values({
+        name, email, passwordHash, role: invite.role, groupId: invite.role === "student" ? invite.groupId : null,
+        external: invite.role === "student" && invite.external, accessRoleId: invite.role === "teacher" ? invite.accessRoleId : null,
+      })
       .onConflictDoNothing()
       .returning({ id: schema.users.id });
     if (!user) tx.rollback(); // email заняли параллельно — возвращаем использование кода
+    // Родитель сразу видит своего ребёнка; внешний ученик — выданные курсы
+    if (invite.role === "parent" && invite.childId) {
+      await tx.insert(schema.parentChildren).values({ parentId: user.id, childId: invite.childId }).onConflictDoNothing();
+    }
+    if (invite.role === "student" && invite.courseIds.length) {
+      await tx.insert(schema.userCourses).values(invite.courseIds.map((courseId) => ({ userId: user.id, courseId }))).onConflictDoNothing();
+    }
     return user.id;
   }).catch((e) => {
     if (e instanceof TransactionRollbackError) return undefined;
@@ -61,6 +71,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
 }
 
 export async function signOut() {
-  await destroySession();
-  redirect("/login");
+  const viewed = await destroySession();
+  // После входа под пользователем — обратно в его профиль в «Управлении»
+  redirect(viewed ? `/admin/people/${viewed}` : "/login");
 }

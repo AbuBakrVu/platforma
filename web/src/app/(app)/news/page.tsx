@@ -1,6 +1,6 @@
 import { asc } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireInternal, can } from "@/lib/auth";
 import { authors, reactionsFor } from "@/lib/community";
 import { fmtDateTime } from "@/lib/format";
 import { newsFor } from "@/lib/news";
@@ -16,8 +16,8 @@ import { NewAnnouncement } from "./NewAnnouncement";
 export const metadata = { title: "Объявления" };
 
 export default async function News() {
-  const user = await requireUser();
-  const staff = user.role !== "student";
+  const user = await requireInternal({ parents: true });
+  const staff = can(user, "news");
   const [items, xp, groups] = await Promise.all([
     newsFor(user), getXp(user.id),
     staff ? db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)) : [],
