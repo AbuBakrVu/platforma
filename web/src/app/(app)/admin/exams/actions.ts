@@ -24,6 +24,9 @@ function examFields(form: FormData) {
     durationMin: int(form, "durationMin", 1, 600, 45),
     passPercent: int(form, "passPercent", 1, 100, 80),
     xp: int(form, "xp", 0, 10000, 200),
+    shuffleQuestions: bool(form, "shuffleQuestions"),
+    shuffleOptions: bool(form, "shuffleOptions"),
+    review: (["full", "mistakes", "score"] as const).find((x) => x === str(form, "review")) ?? "full",
   };
 }
 
@@ -50,7 +53,7 @@ export async function deleteExam(id: string) {
   redirect("/admin/exams");
 }
 
-export type QuestionState = { error?: string; values?: { kind: string; prompt: string; options: string } };
+export type QuestionState = { error?: string; values?: { kind: string; prompt: string; options: string; points: string; explanation: string } };
 
 export async function saveQuestion(examId: string, questionId: string | null, _: QuestionState, form: FormData): Promise<QuestionState> {
   await requireStaff();
@@ -58,16 +61,18 @@ export async function saveQuestion(examId: string, questionId: string | null, _:
   const prompt = str(form, "prompt");
   const raw = String(form.get("options") ?? "");
   const { options, answer } = parseOptions(raw, kind);
+  const points = int(form, "points", 1, 100, 1);
+  const explanation = str(form, "explanation");
   const error = !prompt ? "Введите текст вопроса" : validateQuestion(kind, options, answer);
-  if (error) return { error, values: { kind, prompt, options: raw } };
+  if (error) return { error, values: { kind, prompt, options: raw, points: String(points), explanation } };
 
   if (questionId) {
-    await db.update(t.examQuestions).set({ kind, prompt, options, answer })
+    await db.update(t.examQuestions).set({ kind, prompt, options, answer, points, explanation })
       .where(and(eq(t.examQuestions.id, questionId), eq(t.examQuestions.examId, examId)));
   } else {
     const [m] = await db.select({ p: sql<number>`coalesce(max(${t.examQuestions.position}), 0)::int` })
       .from(t.examQuestions).where(eq(t.examQuestions.examId, examId));
-    await db.insert(t.examQuestions).values({ examId, kind, prompt, options, answer, position: m.p + 1 });
+    await db.insert(t.examQuestions).values({ examId, kind, prompt, options, answer, points, explanation, position: m.p + 1 });
   }
   touch(examId);
   redirect(`/admin/exams/${examId}?saved=1#${questionId ?? "new"}`);

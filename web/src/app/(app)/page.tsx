@@ -4,6 +4,7 @@ import { getAttendanceStats, getCourseOutline, getLeaderboard, getMyCourses, get
 import { dayKey, fmtDay, fmtTime, fmtWeekday, greeting, KIND_LABEL, plural } from "@/lib/format";
 import { TopBar } from "@/components/TopBar";
 import { Icon } from "@/components/Icon";
+import { GameStrip } from "@/components/game/GameStrip";
 import s from "./dashboard.module.css";
 
 export default async function Dashboard() {
@@ -54,6 +55,8 @@ export default async function Dashboard() {
             : "Сегодня занятий нет — хорошее время пройти урок"}
         </p>
       </div>
+
+      {user.role === "student" && <GameStrip user={user} />}
 
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))" }}>
         {next && outline ? (

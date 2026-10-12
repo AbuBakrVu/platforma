@@ -1,0 +1,112 @@
+import { eq } from "drizzle-orm";
+import { db, schema as t } from "@/db";
+import { ACHIEVEMENTS, userAchievements } from "@/lib/achievements";
+import { requireUser } from "@/lib/auth";
+import { AVATAR_COLORS, FRAMES } from "@/lib/frames";
+import { fmtDate } from "@/lib/format";
+import { getCoins, getStreak, levelOf, levelXp, totalXp } from "@/lib/gamify";
+import { LEAGUES } from "@/lib/leagues";
+import { Avatar } from "@/components/Avatar";
+import { TopBar } from "@/components/TopBar";
+import { unlockedFrames } from "@/lib/unlocks";
+import { setAvatarColor, setFrame } from "./actions";
+import { AvatarUpload } from "./AvatarUpload";
+import s from "./profile.module.css";
+
+export const metadata = { title: "Профиль" };
+
+export default async function ProfilePage() {
+  const user = await requireUser();
+  const [[me], xp, coins, streak, got, frames] = await Promise.all([
+    db.select().from(t.users).where(eq(t.users.id, user.id)),
+    totalXp(user.id), getCoins(user.id), getStreak(user.id), userAchievements(user.id), unlockedFrames(user.id),
+  ]);
+  const lv = levelOf(xp);
+  const have = new Map(got.map((a) => [a.code, a.earnedAt]));
+  const league = LEAGUES[me.league];
+
+  return (
+    <>
+      <TopBar xp={xp} left={<b>Профиль</b>} />
+      <section className={`card ${s.hero}`}>
+        <Avatar user={me} size={96} />
+        <div className={s.heroText}>
+          <h1>{me.name}</h1>
+          <span className="muted">{me.email}</span>
+          <div className={s.level}>
+            <b>Уровень {lv.level} · {lv.title}</b>
+            <div className="bar" style={{ width: 260 }}><i style={{ width: `${lv.pct}%` }} /></div>
+            <span className="small muted">{xp} / {lv.to} XP до {lv.level + 1}-го уровня</span>
+          </div>
+        </div>
+        <div className={s.stats}>
+          <div><b>🔥 {streak.streak}</b><span>серия</span></div>
+          <div><b>🪙 {coins}</b><span>монет</span></div>
+          <div><b>{league.icon} {league.name}</b><span>лига</span></div>
+          <div><b>🏅 {got.length}</b><span>наград</span></div>
+        </div>
+      </section>
+
+      <div className={s.grid}>
+        <section className="card">
+          <div className="card-h"><h2>Аватар</h2></div>
+          <AvatarUpload has={!!me.avatarId} />
+          {!me.avatarId && (
+            <form className={s.colors} aria-label="Цвет аватара">
+              {AVATAR_COLORS.map((c) => (
+                <button key={c} formAction={setAvatarColor.bind(null, c)} className={`${s.color} ${me.avatarColor === c ? s.on : ""}`}
+                  style={{ background: c }} aria-label={`Цвет ${c}`} aria-pressed={me.avatarColor === c} />
+              ))}
+            </form>
+          )}
+          <span className="small muted">Рамка — открывается уровнем или в магазине</span>
+          <form className={s.frames}>
+            <button formAction={setFrame.bind(null, null)} className={`${s.frame} ${!me.frame ? s.on : ""}`}>
+              <Avatar user={{ ...me, frame: null }} size={44} /><span>Без рамки</span></button>
+            {FRAMES.map((f) => {
+              const open = frames.has(f.code);
+              return (
+                <button key={f.code} formAction={setFrame.bind(null, f.code)} disabled={!open}
+                  className={`${s.frame} ${me.frame === f.code ? s.on : ""}`} title={open ? f.name : f.level ? `Откроется на ${f.level} уровне` : "Купите в магазине"}>
+                  <Avatar user={{ ...me, frame: f.code }} size={44} />
+                  <span>{f.name}</span>
+                  {!open && <small>{f.level ? `${f.level} ур.` : "магазин"}</small>}
+                </button>
+              );
+            })}
+          </form>
+        </section>
+
+        <section className="card">
+          <div className="card-h"><h2>Уровни</h2></div>
+          <ol className={s.levels}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+              <li key={n} className={n === lv.level ? s.on : n < lv.level ? s.passed : ""}>
+                <b>{n}</b><span>{levelOf(levelXp(n)).title}</span><small>{levelXp(n)} XP</small>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+
+      <section className="card">
+        <div className="card-h"><h2>Достижения</h2><span className="small muted">{got.length} из {ACHIEVEMENTS.length}</span></div>
+        <div className={s.badges}>
+          {ACHIEVEMENTS.map((a) => {
+            const at = have.get(a.code);
+            const hidden = a.secret && !at;
+            return (
+              <div key={a.code} className={`${s.badge} ${at ? s.got : ""}`}>
+                <span className={s.bIcon}>{hidden ? "❔" : a.icon}</span>
+                <b>{hidden ? "Секретное достижение" : a.title}</b>
+                <span className="small muted">{hidden ? "Узнаете, когда получите" : a.description}</span>
+                {a.season && <span className={s.season}>Сезонное · {a.season.name}</span>}
+                <small>{at ? `Получено ${fmtDate(at)}` : `+${a.coins} 🪙`}</small>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </>
+  );
+}

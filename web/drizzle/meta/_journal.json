@@ -43,6 +43,13 @@
       "when": 1791805108698,
       "tag": "0005_programs_sequential",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791814801354,
+      "tag": "0006_grading_gamification",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,12 @@
+.canvas { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+.stack { position: fixed; top: 16px; right: 16px; z-index: 61; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+.toast { display: flex; gap: 12px; align-items: center; min-width: 260px; max-width: 340px; padding: 14px 16px; border-radius: 16px;
+  background: var(--dark); color: #EAF2EC; box-shadow: 0 10px 30px rgba(10, 25, 15, .25); animation: in .35s ease; }
+.toast div { display: flex; flex-direction: column; gap: 2px; }
+.toast small { font-size: 12px; color: #9FD3AE; }
+.toast b { font-size: 15px; }
+.toast span:not(.icon) { font-size: 13px; color: #F2C66D; }
+.icon { font-size: 30px; line-height: 1; }
+.small { min-width: 0; padding: 8px 14px; gap: 10px; background: var(--green); }
+@keyframes in { from { transform: translateY(-12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }

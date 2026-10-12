@@ -20,3 +20,12 @@
 .mine + tr td { border-top-color: transparent; }
 .mine .av { background: var(--green); color: #fff; }
 .who { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.leagues { display: flex; gap: 10px; font-size: 30px; }
+.leagues span { filter: grayscale(1); opacity: .35; }
+.leagues .lgPast { opacity: .6; }
+.leagues .lgOn { filter: none; opacity: 1; transform: scale(1.25); }
+.up td:first-child { box-shadow: inset 3px 0 0 #2E9D5B; }
+.down td:first-child { box-shadow: inset 3px 0 0 #B42318; }
+.legendUp, .legendDown { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: #2E9D5B; vertical-align: -1px; }
+.legendDown { background: #B42318; }
+.teamDot { width: 14px; height: 14px; border-radius: 4px; flex: none; }

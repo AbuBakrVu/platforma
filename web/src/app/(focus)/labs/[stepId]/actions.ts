@@ -6,6 +6,8 @@ import { db, schema as t } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { activeSession, labsEnabled, lastTasksDone, refreshStatus, runCheck, startSession, stopSession, terminalBase, terminalToken } from "@/lib/labs";
 import { saveStepProgress } from "@/lib/progress";
+import { checkAchievements } from "@/lib/achievements";
+import { celebrate, touchActivity } from "@/lib/gamify";
 import { getStepForUser } from "@/lib/queries";
 import { parseStep } from "@/lib/steps";
 
@@ -89,7 +91,11 @@ export async function checkLab(stepId: string) {
   const tasksDone = l.tasks.filter((x) => done.has(x.id)).map((x) => x.id);
   await db.update(t.labSessions).set({ tasksDone }).where(eq(t.labSessions.id, s.id));
   const all = l.tasks.length > 0 && l.tasks.every((x) => done.has(x.id));
-  if (all) await saveStepProgress(user.id, stepId, true, { tasksDone });
+  if (all) {
+    await saveStepProgress(user.id, stepId, true, { tasksDone });
+    await touchActivity(user.id);
+    await celebrate(await checkAchievements(user.id));
+  }
   revalidatePath(`/courses`, "layout");
   return { results, tasksDone, all, lessonId: row.lesson.id };
 }

@@ -7,14 +7,17 @@ const TABS = [
   { href: "/admin", label: "Обзор", admin: false },
   { href: "/admin/groups", label: "Потоки", admin: true },
   { href: "/admin/users", label: "Люди и приглашения", admin: true },
+  { href: "/admin/review", label: "Проверка", admin: false },
+  { href: "/admin/gradebook", label: "Журнал оценок", admin: false },
   { href: "/admin/courses", label: "Курсы", admin: false },
   { href: "/admin/programs", label: "Программы", admin: false },
   { href: "/admin/library", label: "Библиотека", admin: false },
   { href: "/admin/schedule", label: "Расписание", admin: false },
   { href: "/admin/exams", label: "Экзамены", admin: false },
+  { href: "/admin/shop", label: "Магазин и игра", admin: true },
 ];
 
-export function AdminTabs({ isAdmin }: { isAdmin: boolean }) {
+export function AdminTabs({ isAdmin, toReview = 0 }: { isAdmin: boolean; toReview?: number }) {
   const path = usePathname();
   const on = (h: string) => (h === "/admin" ? path === h : path.startsWith(h));
   return (
@@ -22,6 +25,7 @@ export function AdminTabs({ isAdmin }: { isAdmin: boolean }) {
       {TABS.filter((t) => isAdmin || !t.admin).map((t) => (
         <Link key={t.href} href={t.href} className={on(t.href) ? "on" : undefined} aria-current={on(t.href) ? "page" : undefined}>
           {t.label}
+          {t.href === "/admin/review" && toReview > 0 && <span className="badge" style={{ marginLeft: 6 }}>{toReview}</span>}
         </Link>
       ))}
     </nav>

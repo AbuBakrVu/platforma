@@ -5,7 +5,7 @@ import { Icon } from "@/components/Icon";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import {
   embedUrl, newId, parseChapters, QUIZ_LABEL, STEP_LABEL,
-  type CardsContent, type FileContent, type LabContent, type PackageContent, type QuizContent, type StepContent, type StepKind, type TextContent, type VideoContent,
+  type AssignmentContent, type CardsContent, type FileContent, type LabContent, type PackageContent, type QuizContent, type StepContent, type StepKind, type TextContent, type VideoContent,
 } from "@/lib/steps";
 import { fmtSize, upload, type Uploaded, type UploadedPackage } from "@/lib/upload-client";
 import s from "./steps.module.css";
@@ -71,6 +71,7 @@ export function StepEditor({ courseId, step, files: initialFiles, packages: init
       {step.kind === "quiz" && <QuizEditor c={content as QuizContent} {...ctx} />}
       {step.kind === "cards" && <CardsEditor c={content as CardsContent} {...ctx} />}
       {step.kind === "lab" && <LabEditor c={content as LabContent} {...ctx} />}
+      {step.kind === "assignment" && <AssignmentEditor c={content as AssignmentContent} {...ctx} />}
       {step.kind === "package" && <PackageEditor c={content as PackageContent} {...ctx} pkgs={pkgs}
         onPackage={(p) => setPkgs((x) => [p, ...x])} />}
 
@@ -454,6 +455,50 @@ function LabEditor({ c, set, courseId }: Ctx & { c: LabContent }) {
       </div>
       <label className="check"><input type="checkbox" checked={c.required} onChange={(e) => set<"lab">({ required: e.target.checked })} />
         Обязательная — урок не засчитается, пока не выполнены все задания</label>
+    </>
+  );
+}
+
+function AssignmentEditor({ c, set, courseId }: Ctx & { c: AssignmentContent }) {
+  const upd = (id: string, patch: Partial<AssignmentContent["rubric"][number]>) =>
+    set<"assignment">({ rubric: c.rubric.map((x) => (x.id === id ? { ...x, ...patch } : x)) });
+  const total = c.rubric.reduce((n, x) => n + x.max, 0);
+  return (
+    <>
+      <p className="small muted" style={{ margin: 0 }}>
+        Студент отправляет ответ текстом и/или файлами. Работа попадает в «Управление → Проверка»: вы ставите баллы по критериям,
+        пишете комментарий и принимаете работу или возвращаете на доработку.
+      </p>
+      <MarkdownEditor value={c.md} onChange={(md) => set<"assignment">({ md })} courseId={courseId} label="Условие задания" minHeight={200} />
+      <label className="check"><input type="checkbox" checked={c.allowText} onChange={(e) => set<"assignment">({ allowText: e.target.checked })} />
+        Ответ текстом</label>
+      <label className="check"><input type="checkbox" checked={c.allowFiles} onChange={(e) => set<"assignment">({ allowFiles: e.target.checked })} />
+        Прикрепление файлов (до 10 файлов)</label>
+
+      <div className="field">
+        <span className={s.label}>Критерии оценки (рубрика){total ? ` · всего ${total} баллов` : " — необязательно"}</span>
+        {c.rubric.map((x, i) => (
+          <div key={x.id} className={s.fileRow}>
+            <span className={s.num}>{i + 1}</span>
+            <input className="ctl" value={x.title} placeholder="Например, Код работает" aria-label={`Критерий ${i + 1}`}
+              onChange={(e) => upd(x.id, { title: e.target.value })} />
+            <input className="ctl" value={x.description} placeholder="Пояснение для студента" aria-label={`Пояснение к критерию ${i + 1}`}
+              onChange={(e) => upd(x.id, { description: e.target.value })} />
+            <input className="ctl" type="number" min={1} max={100} style={{ width: 90 }} value={x.max} aria-label={`Баллы за критерий ${i + 1}`}
+              onChange={(e) => upd(x.id, { max: Math.max(1, Number(e.target.value) || 1) })} />
+            <button type="button" className="btn sm danger" aria-label="Удалить критерий"
+              onClick={() => set<"assignment">({ rubric: c.rubric.filter((y) => y.id !== x.id) })}><Icon name="x" size={16} /></button>
+          </div>
+        ))}
+        <div><button type="button" className="btn sm" onClick={() => set<"assignment">({ rubric: [...c.rubric, { id: newId(), title: "", description: "", max: 5 }] })}>
+          <Icon name="plus" size={16} />Критерий</button></div>
+      </div>
+      <div className="field" style={{ maxWidth: 200 }}>
+        <label htmlFor="as-xp">XP за принятую работу</label>
+        <input id="as-xp" type="number" min={0} max={10000} className="ctl" value={c.xp} onChange={(e) => set<"assignment">({ xp: Number(e.target.value) || 0 })} />
+      </div>
+      <label className="check"><input type="checkbox" checked={c.required} onChange={(e) => set<"assignment">({ required: e.target.checked })} />
+        Обязательное — урок не засчитается, пока работа не принята</label>
     </>
   );
 }

@@ -1,6 +1,6 @@
 /** Шаги урока: типы содержимого и их разбор из jsonb. Модуль общий для сервера и клиента. */
 
-export type StepKind = "text" | "video" | "file" | "quiz" | "cards" | "package" | "lab";
+export type StepKind = "text" | "video" | "file" | "quiz" | "cards" | "package" | "lab" | "assignment";
 
 export type VideoSource = { uploadId: string; label: string };
 export type Subtitle = { uploadId: string; label: string; lang: string };
@@ -54,12 +54,26 @@ export type LabContent = {
   required: boolean;
 };
 
+export type Criterion = { id: string; title: string; description: string; max: number };
+export type AssignmentContent = {
+  /** Условие задания (Markdown) */
+  md: string;
+  allowText: boolean;
+  allowFiles: boolean;
+  /** Критерии оценки; пусто — проверка без баллов, просто «принято / на доработку» */
+  rubric: Criterion[];
+  xp: number;
+  /** Урок не засчитается, пока работа не принята */
+  required: boolean;
+};
+
 export type StepContent = {
   text: TextContent; video: VideoContent; file: FileContent; quiz: QuizContent; cards: CardsContent; package: PackageContent; lab: LabContent;
+  assignment: AssignmentContent;
 };
 
 export const STEP_LABEL: Record<StepKind, string> = {
-  text: "Текст", video: "Видео", file: "Документ", quiz: "Вопрос", cards: "Карточки", package: "SCORM / xAPI", lab: "Лаба",
+  text: "Текст", video: "Видео", file: "Документ", quiz: "Вопрос", cards: "Карточки", package: "SCORM / xAPI", lab: "Лаба", assignment: "Задание",
 };
 export const STEP_KINDS = Object.keys(STEP_LABEL) as StepKind[];
 export const QUIZ_LABEL: Record<QuizKind, string> = { single: "Один ответ", multiple: "Несколько ответов", text: "Ввод ответа" };
@@ -113,6 +127,14 @@ export function parseStep<K extends StepKind>(kind: K, raw: unknown): StepConten
       cpus: n(c.cpus, 1, 0.25, 8),
       required: b(c.required, true),
     }),
+    assignment: () => ({
+      md: s(c.md),
+      allowText: b(c.allowText, true),
+      allowFiles: b(c.allowFiles, true),
+      rubric: arr(c.rubric).map(obj).map((x) => ({ id: s(x.id), title: s(x.title), description: s(x.description), max: n(x.max, 5, 1, 100) })).filter((x) => x.id),
+      xp: n(c.xp, 50, 0, 10000),
+      required: b(c.required, true),
+    }),
   };
   return parsers[kind]() as StepContent[K];
 }
@@ -139,7 +161,7 @@ export function checkQuiz(q: QuizContent, given: string[]) {
 
 /** Шаг, без которого урок не засчитывается */
 export function isRequired(kind: StepKind, raw: unknown) {
-  if (kind === "quiz" || kind === "video" || kind === "package" || kind === "lab") return (parseStep(kind, raw) as { required: boolean }).required;
+  if (kind === "quiz" || kind === "video" || kind === "package" || kind === "lab" || kind === "assignment") return (parseStep(kind, raw) as { required: boolean }).required;
   return false;
 }
 

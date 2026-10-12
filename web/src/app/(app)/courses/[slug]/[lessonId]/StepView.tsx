@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "@/lib/auth";
 import { md, renderMd } from "@/lib/markdown";
@@ -8,6 +8,7 @@ import { fmtDateFull, plural } from "@/lib/format";
 import { lastTasksDone } from "@/lib/labs";
 import { Icon } from "@/components/Icon";
 import { VideoPlayer } from "@/components/player/VideoPlayer";
+import { Assignment } from "@/components/steps/Assignment";
 import { CardDeck } from "@/components/steps/CardDeck";
 import { PackagePlayer } from "@/components/steps/PackagePlayer";
 import { Quiz } from "@/components/steps/Quiz";
@@ -117,6 +118,19 @@ export async function StepView({ step, user }: { step: StepRow; user: CurrentUse
           </ol>
           <div><a href={`/labs/${step.id}`} className="btn pri"><Icon name="term" size={18} />{done.size ? "Продолжить лабораторную" : "Открыть лабораторную"}</a></div>
         </div>
+      );
+    }
+
+    case "assignment": {
+      const a = parseStep("assignment", step.content);
+      const subs = await db.select().from(t.submissions)
+        .where(and(eq(t.submissions.stepId, step.id), eq(t.submissions.userId, user.id))).orderBy(desc(t.submissions.attempt));
+      return (
+        <Assignment stepId={step.id} html={renderMd(a.md)} allowText={a.allowText} allowFiles={a.allowFiles} rubric={a.rubric}
+          history={subs.map((x) => ({
+            id: x.id, attempt: x.attempt, status: x.status, text: x.text, files: x.files, score: x.score, maxScore: x.maxScore,
+            feedback: x.feedback, scores: x.scores, at: x.submittedAt.toISOString(),
+          }))} />
       );
     }
 

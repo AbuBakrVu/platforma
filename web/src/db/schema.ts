@@ -7,7 +7,12 @@ export const lessonKindEnum = pgEnum("lesson_kind", ["theory", "practice", "lab"
 export const eventKindEnum = pgEnum("event_kind", ["lecture", "practice", "deadline"]);
 export const attendanceEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
 export const questionKindEnum = pgEnum("question_kind", ["single", "multiple", "order"]);
-export const stepKindEnum = pgEnum("step_kind", ["text", "video", "file", "quiz", "cards", "package", "lab"]);
+export const stepKindEnum = pgEnum("step_kind", ["text", "video", "file", "quiz", "cards", "package", "lab", "assignment"]);
+export const reviewModeEnum = pgEnum("review_mode", ["full", "mistakes", "score"]);
+export const submissionStatusEnum = pgEnum("submission_status", ["submitted", "accepted", "returned"]);
+export const purchaseStatusEnum = pgEnum("purchase_status", ["new", "issued", "cancelled"]);
+export const shopKindEnum = pgEnum("shop_kind", ["merch", "perk", "freeze", "frame"]);
+export const duelStatusEnum = pgEnum("duel_status", ["pending", "active", "done", "declined", "expired"]);
 export const lessonLayoutEnum = pgEnum("lesson_layout", ["steps", "longread"]);
 export const packageKindEnum = pgEnum("package_kind", ["scorm12", "scorm2004", "xapi", "cmi5"]);
 
@@ -30,6 +35,16 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("student"),
   groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
   demo: boolean("demo").notNull().default(false),
+  /** Профиль: фото (загрузка), цвет кружка с инициалами, рамка аватара */
+  avatarId: uuid("avatar_id"),
+  avatarColor: text("avatar_color"),
+  frame: text("frame"),
+  /** Дневная цель, XP */
+  dailyGoal: integer("daily_goal").notNull().default(30),
+  /** Заморозки серии: пропущенный день не обнуляет серию */
+  freezes: integer("freezes").notNull().default(0),
+  /** Лига: 0 — Бронза … 5 — Алмаз */
+  league: integer("league").notNull().default(0),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("users_email_idx").on(t.email)]);
 
@@ -216,6 +231,8 @@ export const uploads = pgTable("uploads", {
   size: integer("size").notNull(),
   /** PDF-копия офисного документа для просмотра в браузере */
   pdfId: uuid("pdf_id"),
+  /** Доступ: course — по курсу; private — только автору и персоналу (работы студентов); public — всем вошедшим (аватары) */
+  access: text("access").notNull().default("course"),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 });
@@ -316,6 +333,10 @@ export const exams = pgTable("exams", {
   passPercent: integer("pass_percent").notNull(),
   /** XP за первую успешную сдачу */
   xp: integer("xp").notNull().default(200),
+  shuffleQuestions: boolean("shuffle_questions").notNull().default(false),
+  shuffleOptions: boolean("shuffle_options").notNull().default(false),
+  /** Что показать после сдачи: full — разбор с правильными ответами, mistakes — где ошибки, score — только балл */
+  review: reviewModeEnum("review").notNull().default("full"),
   published: boolean("published").notNull().default(false),
   demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
@@ -331,6 +352,10 @@ export const examQuestions = pgTable("exam_questions", {
   options: jsonb("options").$type<{ id: string; text: string }[]>().notNull(),
   /** Правильные id вариантов (для order — в правильном порядке) */
   answer: jsonb("answer").$type<string[]>().notNull(),
+  /** Вес вопроса в баллах */
+  points: integer("points").notNull().default(1),
+  /** Объяснение в разборе после экзамена */
+  explanation: text("explanation").notNull().default(""),
 }, (t) => [index("exam_questions_idx").on(t.examId, t.position)]);
 
 export const examAttempts = pgTable("exam_attempts", {
@@ -342,6 +367,8 @@ export const examAttempts = pgTable("exam_attempts", {
   /** Ответы: { [questionId]: string[] } */
   answers: jsonb("answers").$type<Record<string, string[]>>().notNull().default({}),
   scorePercent: integer("score_percent"),
+  scorePoints: integer("score_points"),
+  maxPoints: integer("max_points"),
 }, (t) => [index("exam_attempts_user_idx").on(t.userId, t.examId)]);
 
 export const certificates = pgTable("certificates", {
@@ -352,3 +379,142 @@ export const certificates = pgTable("certificates", {
   title: text("title").notNull(),
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("certificates_number_idx").on(t.number)]);
+
+/** Работа студента по шагу «Задание»: текст и файлы, проверка по рубрике */
+export const submissions = pgTable("submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  stepId: uuid("step_id").notNull().references(() => lessonSteps.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** Номер попытки: после «на доработку» студент отправляет новую */
+  attempt: integer("attempt").notNull().default(1),
+  text: text("text").notNull().default(""),
+  files: jsonb("files").$type<{ uploadId: string; name: string; size: number }[]>().notNull().default([]),
+  status: submissionStatusEnum("status").notNull().default("submitted"),
+  /** Баллы по критериям рубрики: { [criterionId]: число } */
+  scores: jsonb("scores").$type<Record<string, number>>().notNull().default({}),
+  score: integer("score"),
+  maxScore: integer("max_score"),
+  feedback: text("feedback").notNull().default(""),
+  reviewerId: uuid("reviewer_id").references(() => users.id, { onDelete: "set null" }),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+}, (t) => [index("submissions_step_user_idx").on(t.stepId, t.userId), index("submissions_status_idx").on(t.status, t.submittedAt)]);
+
+/* ——— Геймификация ——— */
+
+/** Журнал монет (внутренняя валюта). Баланс — сумма. */
+export const coinEvents = pgTable("coin_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(),
+  reason: text("reason").notNull(),
+  sourceKey: text("source_key"),
+  createdAt: createdAt(),
+}, (t) => [index("coin_user_idx").on(t.userId), uniqueIndex("coin_source_idx").on(t.userId, t.sourceKey)]);
+
+/** Дни активности для серии (streak). frozen — день закрыт заморозкой. */
+export const activityDays = pgTable("activity_days", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  frozen: boolean("frozen").notNull().default(false),
+}, (t) => [primaryKey({ columns: [t.userId, t.day] })]);
+
+export const userAchievements = pgTable("user_achievements", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  earnedAt: timestamp("earned_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.code] })]);
+
+/** Недели лиг, уже подведённые (повышение/понижение) */
+export const leagueWeeks = pgTable("league_weeks", {
+  week: text("week").primaryKey(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const leagueResults = pgTable("league_results", {
+  week: text("week").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  league: integer("league").notNull(),
+  place: integer("place").notNull(),
+  xp: integer("xp").notNull(),
+  /** 1 — повышение, -1 — понижение, 0 — осталcя */
+  move: integer("move").notNull(),
+}, (t) => [primaryKey({ columns: [t.week, t.userId] })]);
+
+export const shopItems = pgTable("shop_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  price: integer("price").notNull(),
+  kind: shopKindEnum("kind").notNull().default("merch"),
+  /** Для рамки — её код */
+  value: text("value"),
+  /** null — без ограничения */
+  stock: integer("stock"),
+  imageId: uuid("image_id"),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const purchases = pgTable("purchases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  itemId: uuid("item_id").references(() => shopItems.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  price: integer("price").notNull(),
+  status: purchaseStatusEnum("status").notNull().default("new"),
+  createdAt: createdAt(),
+}, (t) => [index("purchases_user_idx").on(t.userId), index("purchases_status_idx").on(t.status)]);
+
+/** Челленджи от администратора: цель за период с наградой */
+export const challenges = pgTable("challenges", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  /** xp | lessons | cards | exams | labs */
+  metric: text("metric").notNull(),
+  target: integer("target").notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  rewardXp: integer("reward_xp").notNull().default(0),
+  rewardCoins: integer("reward_coins").notNull().default(0),
+  /** null — для всех потоков */
+  groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+});
+
+export const teams = pgTable("teams", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#1E5A3C"),
+  createdAt: createdAt(),
+});
+
+/** Студент — максимум в одной команде */
+export const teamMembers = pgTable("team_members", {
+  teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.userId] }), index("team_members_team_idx").on(t.teamId)]);
+
+export type DuelQuestion = { id: string; kind: "single" | "multiple"; prompt: string; options: { id: string; text: string }[]; answer: string[] };
+
+/** Дуэль: оба отвечают на одни и те же 5 вопросов; побеждает тот, у кого больше верных (при равенстве — кто быстрее) */
+export const duels = pgTable("duels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  challengerId: uuid("challenger_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  opponentId: uuid("opponent_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: duelStatusEnum("status").notNull().default("pending"),
+  questions: jsonb("questions").$type<DuelQuestion[]>().notNull(),
+  challengerAnswers: jsonb("challenger_answers").$type<Record<string, string[]> | null>(),
+  opponentAnswers: jsonb("opponent_answers").$type<Record<string, string[]> | null>(),
+  challengerScore: integer("challenger_score"),
+  opponentScore: integer("opponent_score"),
+  challengerMs: integer("challenger_ms"),
+  opponentMs: integer("opponent_ms"),
+  /** Когда соперник открыл вопросы — для подсчёта времени */
+  challengerStartedAt: timestamp("challenger_started_at", { withTimezone: true }),
+  opponentStartedAt: timestamp("opponent_started_at", { withTimezone: true }),
+  winnerId: uuid("winner_id"),
+  createdAt: createdAt(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (t) => [index("duels_challenger_idx").on(t.challengerId), index("duels_opponent_idx").on(t.opponentId)]);

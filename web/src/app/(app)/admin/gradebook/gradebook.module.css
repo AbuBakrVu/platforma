@@ -1,0 +1,13 @@
+.wrap { overflow: auto; max-height: 70vh; margin: 0 -6px; }
+.table { border-collapse: separate; border-spacing: 0; font-size: 14px; min-width: 100%; }
+.table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--line2); text-align: left; white-space: nowrap; }
+.table thead th { position: sticky; top: 0; background: #fff; z-index: 1; font-size: 12px; font-weight: 500; color: var(--muted);
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.table tbody th { position: sticky; left: 0; background: #fff; font-weight: 600; display: flex; flex-direction: column; }
+.table tbody th small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.table thead th:first-child { left: 0; z-index: 2; }
+.ok { color: var(--green); font-weight: 600; }
+.bad { color: #B42318; }
+.wait { color: var(--warn); }
+.total { font-weight: 700; background: var(--green-tint); }
+.prog { display: flex; flex-direction: column; gap: 4px; min-width: 90px; }

@@ -109,3 +109,10 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 .callout.warning,.callout.important{background:var(--warn-soft);border-color:var(--warn)}
 .callout.warning>b,.callout.important>b{color:var(--warn)}
 .badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--warn);color:#fff;font-size:12px;font-weight:600;display:inline-grid;place-items:center}
+/* ——— Игровая полоска в меню ——— */
+.me{color:var(--ink)}.me:hover{color:var(--ink)}
+.game{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-s);background:#fff;color:var(--ink2);font-size:13px}
+.game:hover{color:var(--ink);box-shadow:0 1px 4px rgba(20,30,20,.08)}
+.game-lv{width:28px;height:28px;border-radius:9px;background:var(--green);color:#fff;font-weight:700;display:grid;place-items:center;flex:none}
+.game-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.game-mid small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.game-st{font-weight:600;white-space:nowrap}.game-st.cold{filter:grayscale(1);opacity:.6}

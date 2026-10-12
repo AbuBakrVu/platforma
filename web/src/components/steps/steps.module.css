@@ -57,3 +57,15 @@
 .labDone { color: #9FD3AE; }
 .labDone svg { margin-right: 6px; vertical-align: -2px; }
 .labCard :global(.btn.pri) { background: #2E7D52; border-color: #2E7D52; }
+
+/* Домашнее задание */
+.assign { border: 1px solid var(--line); border-radius: var(--r-s); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.rubric summary { cursor: pointer; font-size: 14px; font-weight: 500; color: var(--green); }
+.rubric ul { margin: 8px 0 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.sub { border-radius: 12px; padding: 12px 14px; background: #F6F7F5; display: flex; flex-direction: column; gap: 8px; }
+.sub.accepted { background: var(--green-tint); }
+.sub.returned { background: #FBF5EC; }
+.subText { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.55; }
+.scoreList { margin: 0; padding-left: 18px; font-size: 13px; }
+.feedback { border-left: 3px solid var(--green); padding-left: 10px; }
+.feedback p { margin: 2px 0 0; white-space: pre-wrap; font-size: 14px; }

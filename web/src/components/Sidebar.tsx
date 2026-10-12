@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Avatar } from "./Avatar";
 import { Icon, type IconName } from "./Icon";
 import { signOut } from "@/app/(auth)/login/actions";
 
@@ -11,6 +12,8 @@ const MAIN: { href: string; label: string; icon: IconName }[] = [
   { href: "/schedule", label: "Расписание", icon: "cal" },
   { href: "/labs", label: "Лаборатории", icon: "term" },
   { href: "/review", label: "Повторение", icon: "cards" },
+  { href: "/quests", label: "Задания", icon: "flag" },
+  { href: "/duels", label: "Дуэли", icon: "bolt" },
   { href: "/exams", label: "Пробные экзамены", icon: "exam" },
   { href: "/rating", label: "Рейтинг", icon: "cup" },
 ];
@@ -21,11 +24,12 @@ const EXTRA: typeof MAIN = [
 
 const ROLE = { student: "Студент", teacher: "Преподаватель", admin: "Администратор" } as const;
 
-function initials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
-}
+type Game = { level: number; title: string; pct: number; coins: number; streak: number; streakToday: boolean; quests: number; duels: number };
 
-export function Sidebar({ name, role, group, due = 0 }: { name: string; role: keyof typeof ROLE; group?: string | null; due?: number }) {
+export function Sidebar({ name, role, group, due = 0, avatar, game }: {
+  name: string; role: keyof typeof ROLE; group?: string | null; due?: number;
+  avatar: { avatarId: string | null; avatarColor: string | null; frame: string | null }; game: Game;
+}) {
   const path = usePathname();
   const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const item = (l: (typeof MAIN)[number]) => (
@@ -33,18 +37,26 @@ export function Sidebar({ name, role, group, due = 0 }: { name: string; role: ke
       <Icon name={l.icon} />
       {l.label}
       {l.href === "/review" && due > 0 && <span className="badge" aria-label={`${due} к повторению`}>{due}</span>}
+      {l.href === "/quests" && game.quests > 0 && <span className="badge" aria-label={`${game.quests} награды можно забрать`}>{game.quests}</span>}
+      {l.href === "/duels" && game.duels > 0 && <span className="badge" aria-label={`${game.duels} дуэли ждут вашего хода`}>{game.duels}</span>}
     </Link>
   );
 
   return (
     <nav className="side" aria-label="Меню">
-      <div className="me">
-        <div className="ava">{initials(name)}</div>
+      <Link href="/profile" className="me" aria-label="Профиль">
+        <Avatar user={{ name, ...avatar }} size={44} />
         <div style={{ minWidth: 0 }}>
           <b style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</b>
           <small>{ROLE[role]}{group ? ` · ${group}` : ""}</small>
         </div>
-      </div>
+      </Link>
+      <Link href="/profile" className="game" title={`Уровень ${game.level}: ${game.title}`}>
+        <span className="game-lv">{game.level}</span>
+        <span className="game-mid"><small>{game.title}</small><span className="bar"><i style={{ width: `${game.pct}%` }} /></span></span>
+        <span className={`game-st ${game.streakToday ? "" : "cold"}`} title="Серия дней">🔥{game.streak}</span>
+        <span className="game-st" title="Монеты">🪙{game.coins}</span>
+      </Link>
       <div className="nav">{MAIN.map(item)}</div>
       <div className="sep" />
       <div className="nav">
