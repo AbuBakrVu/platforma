@@ -1,6 +1,6 @@
 /** Шаги урока: типы содержимого и их разбор из jsonb. Модуль общий для сервера и клиента. */
 
-export type StepKind = "text" | "video" | "file" | "quiz" | "cards" | "package";
+export type StepKind = "text" | "video" | "file" | "quiz" | "cards" | "package" | "lab";
 
 export type VideoSource = { uploadId: string; label: string };
 export type Subtitle = { uploadId: string; label: string; lang: string };
@@ -35,17 +35,36 @@ export type QuizContent = {
 export type Card = { id: string; front: string; back: string };
 export type CardsContent = { cards: Card[] };
 export type PackageContent = { packageId: string | null; required: boolean; height: number };
+export type LabTask = { id: string; title: string; md: string; hint: string; check: string };
+export type LabContent = {
+  /** Docker-образ среды */
+  image: string;
+  /** Нужен для k3s/Docker внутри среды. Опасно на общем сервере — см. README */
+  privileged: boolean;
+  /** Доступ в интернет из среды */
+  network: boolean;
+  /** Скрипт подготовки: выполняется при запуске среды */
+  setup: string;
+  tasks: LabTask[];
+  /** Время жизни среды, минут */
+  ttlMin: number;
+  memoryMb: number;
+  cpus: number;
+  /** Урок не засчитается, пока не выполнены все задания */
+  required: boolean;
+};
 
 export type StepContent = {
-  text: TextContent; video: VideoContent; file: FileContent; quiz: QuizContent; cards: CardsContent; package: PackageContent;
+  text: TextContent; video: VideoContent; file: FileContent; quiz: QuizContent; cards: CardsContent; package: PackageContent; lab: LabContent;
 };
 
 export const STEP_LABEL: Record<StepKind, string> = {
-  text: "Текст", video: "Видео", file: "Документ", quiz: "Вопрос", cards: "Карточки", package: "SCORM / xAPI",
+  text: "Текст", video: "Видео", file: "Документ", quiz: "Вопрос", cards: "Карточки", package: "SCORM / xAPI", lab: "Лаба",
 };
 export const STEP_KINDS = Object.keys(STEP_LABEL) as StepKind[];
 export const QUIZ_LABEL: Record<QuizKind, string> = { single: "Один ответ", multiple: "Несколько ответов", text: "Ввод ответа" };
 
+const n = (v: unknown, d: number, min: number, max: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d);
 const s = (v: unknown, d = "") => (typeof v === "string" ? v : d);
 const b = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const arr = (v: unknown) => (Array.isArray(v) ? v : []);
@@ -83,8 +102,25 @@ export function parseStep<K extends StepKind>(kind: K, raw: unknown): StepConten
       required: b(c.required, true),
       height: typeof c.height === "number" ? c.height : 640,
     }),
+    lab: () => ({
+      image: s(c.image, "debian:12-slim").trim() || "debian:12-slim",
+      privileged: b(c.privileged, false),
+      network: b(c.network, false),
+      setup: s(c.setup),
+      tasks: arr(c.tasks).map(obj).map((x) => ({ id: s(x.id), title: s(x.title), md: s(x.md), hint: s(x.hint), check: s(x.check) })).filter((x) => x.id),
+      ttlMin: n(c.ttlMin, 60, 5, 480),
+      memoryMb: n(c.memoryMb, 1024, 128, 16384),
+      cpus: n(c.cpus, 1, 0.25, 8),
+      required: b(c.required, true),
+    }),
   };
   return parsers[kind]() as StepContent[K];
+}
+
+/** Лаба для браузера студента: без скриптов проверки и подготовки */
+export type PublicLab = { tasks: Omit<LabTask, "check">[]; ttlMin: number; required: boolean };
+export function publicLab(l: LabContent): PublicLab {
+  return { tasks: l.tasks.map(({ id, title, md, hint }) => ({ id, title, md, hint })), ttlMin: l.ttlMin, required: l.required };
 }
 
 /** Вопрос без правильных ответов — то, что можно отдать в браузер студента */
@@ -103,7 +139,7 @@ export function checkQuiz(q: QuizContent, given: string[]) {
 
 /** Шаг, без которого урок не засчитывается */
 export function isRequired(kind: StepKind, raw: unknown) {
-  if (kind === "quiz" || kind === "video" || kind === "package") return (parseStep(kind, raw) as { required: boolean }).required;
+  if (kind === "quiz" || kind === "video" || kind === "package" || kind === "lab") return (parseStep(kind, raw) as { required: boolean }).required;
   return false;
 }
 

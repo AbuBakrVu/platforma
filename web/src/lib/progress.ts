@@ -31,6 +31,8 @@ export async function markPackage(userId: string, packageId: string, completed: 
   }).where(and(eq(t.packageState.userId, userId), eq(t.packageState.packageId, packageId)));
   if (!completed) return;
   const steps = await db.select({ id: t.lessonSteps.id }).from(t.lessonSteps)
-    .where(and(eq(t.lessonSteps.kind, "package"), sql`${t.lessonSteps.content}->>'packageId' = ${packageId}`));
+    .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
+    .where(and(eq(t.lessonSteps.kind, "package"),
+      sql`coalesce(${t.libraryItems.content}, ${t.lessonSteps.content})->>'packageId' = ${packageId}`));
   for (const s of steps) await saveStepProgress(userId, s.id, true, { scorePercent });
 }

@@ -7,18 +7,19 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebStream } from "node:stream/web";
 
 /** Каталог файлов: в Docker — том /data/uploads, локально — web/data/uploads */
-export const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR ?? "data/uploads");
+// turbopackIgnore: путь вычисляется во время работы, иначе сборка «трассирует» весь проект вместе с загрузками
+export const UPLOAD_DIR = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR ?? "data/uploads");
 
 /** Максимальный размер загрузки, МБ (видео бывают большими) */
 export const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 4096);
 
-export const filePath = (id: string) => path.join(UPLOAD_DIR, "files", id.slice(0, 2), id);
-export const packageDir = (id: string) => path.join(UPLOAD_DIR, "pkg", id);
+export const filePath = (id: string) => path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, "files", id.slice(0, 2), id);
+export const packageDir = (id: string) => path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, "pkg", id);
 
 /** Путь внутри пакета без выхода за его каталог (../ и абсолютные пути отбрасываются) */
 export function insidePackage(id: string, rel: string) {
   const root = packageDir(id);
-  const full = path.resolve(root, path.normalize(rel).replace(/^(\.\.(\/|\\|$))+/, ""));
+  const full = path.resolve(/*turbopackIgnore: true*/ root, path.normalize(rel).replace(/^(\.\.(\/|\\|$))+/, ""));
   return full === root || full.startsWith(root + path.sep) ? full : null;
 }
 

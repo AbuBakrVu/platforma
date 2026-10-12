@@ -15,10 +15,12 @@ export function Submit({ children, pending, className = "btn pri" }: { children:
 }
 
 /** Кнопка с подтверждением — для удаления и других необратимых действий */
-export function Confirm({ message, children, className = "btn" }: { message: string; children: ReactNode; className?: string }) {
+export function Confirm({ message, children, className = "btn", formAction }: {
+  message: string; children: ReactNode; className?: string; formAction?: () => void | Promise<void>;
+}) {
   const { pending } = useFormStatus();
   return (
-    <button className={className} disabled={pending}
+    <button className={className} disabled={pending} formAction={formAction}
       onClick={(e) => { if (!window.confirm(message)) e.preventDefault(); }}>
       {children}
     </button>

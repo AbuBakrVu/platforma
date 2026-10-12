@@ -1,0 +1,226 @@
+import "server-only";
+import { randomUUID } from "node:crypto";
+import { closeSync, createReadStream, mkdirSync, openSync, writeSync } from "node:fs";
+import { cp, mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
+import path from "node:path";
+import { asc, eq, inArray } from "drizzle-orm";
+import { Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from "fflate";
+import { db, schema as t } from "@/db";
+import { freeSlug } from "./courses";
+import { filePath, insidePackage, packageDir, UPLOAD_DIR } from "./storage";
+
+/**
+ * Перенос курса между установками платформы: zip с course.json, файлами (files/<id>)
+ * и распакованными SCORM-пакетами (packages/<id>/…). При импорте все id создаются заново.
+ */
+export const FORMAT = "platforma-course";
+
+type Manifest = {
+  format: typeof FORMAT; version: 1; exportedAt: string;
+  course: { title: string; slug: string; description: string };
+  sections: {
+    title: string;
+    lessons: { title: string; kind: "theory" | "practice" | "lab"; layout: "steps" | "longread"; durationMin: number; xp: number; published: boolean;
+      steps: { kind: typeof t.lessonSteps.$inferSelect.kind; title: string; content: Record<string, unknown> }[] }[];
+  }[];
+  materials: { title: string; description: string; uploadId: string; lesson: [number, number] | null }[];
+  uploads: { id: string; name: string; mime: string; size: number; pdfId: string | null }[];
+  packages: { id: string; kind: typeof t.packages.$inferSelect.kind; title: string; launch: string; activityId: string | null; launchMethod: string | null }[];
+};
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+
+/** Собрать описание курса; содержимое библиотеки встраивается в шаги */
+async function manifest(courseId: string): Promise<Manifest | null> {
+  const [course] = await db.select().from(t.courses).where(eq(t.courses.id, courseId));
+  if (!course) return null;
+  const sections = await db.select().from(t.sections).where(eq(t.sections.courseId, courseId)).orderBy(asc(t.sections.position));
+  const lessons = sections.length
+    ? await db.select().from(t.lessons).where(inArray(t.lessons.sectionId, sections.map((s) => s.id))).orderBy(asc(t.lessons.position)) : [];
+  const steps = lessons.length
+    ? await db.select({ st: t.lessonSteps, lib: t.libraryItems.content }).from(t.lessonSteps)
+      .leftJoin(t.libraryItems, eq(t.libraryItems.id, t.lessonSteps.libraryId))
+      .where(inArray(t.lessonSteps.lessonId, lessons.map((l) => l.id))).orderBy(asc(t.lessonSteps.position)) : [];
+  const materials = await db.select().from(t.courseMaterials).where(eq(t.courseMaterials.courseId, courseId)).orderBy(asc(t.courseMaterials.position));
+
+  const m: Manifest = {
+    format: FORMAT, version: 1, exportedAt: new Date().toISOString(),
+    course: { title: course.title, slug: course.slug, description: course.description },
+    sections: sections.map((s) => ({
+      title: s.title,
+      lessons: lessons.filter((l) => l.sectionId === s.id).map((l) => ({
+        title: l.title, kind: l.kind, layout: l.layout, durationMin: l.durationMin, xp: l.xp, published: l.published,
+        steps: steps.filter((x) => x.st.lessonId === l.id).map((x) => ({ kind: x.st.kind, title: x.st.title, content: x.lib ?? x.st.content })),
+      })),
+    })),
+    materials: [],
+    uploads: [],
+    packages: [],
+  };
+  const pos = new Map(m.sections.flatMap((s, i) => lessons.filter((l) => l.sectionId === sections[i].id).map((l, j) => [l.id, [i, j] as [number, number]])));
+  m.materials = materials.map((x) => ({ title: x.title, description: x.description, uploadId: x.uploadId, lesson: x.lessonId ? pos.get(x.lessonId) ?? null : null }));
+
+  // Все id в содержимом: среди них загрузки (видео, картинки в тексте) и пакеты
+  const ids = new Set(JSON.stringify(m.sections).match(UUID) ?? []);
+  for (const x of materials) ids.add(x.uploadId);
+  if (ids.size) {
+    const ups = await db.select().from(t.uploads).where(inArray(t.uploads.id, [...ids]));
+    const pdfs = ups.map((u) => u.pdfId).filter((x): x is string => !!x && !ids.has(x));
+    const extra = pdfs.length ? await db.select().from(t.uploads).where(inArray(t.uploads.id, pdfs)) : [];
+    m.uploads = [...ups, ...extra].map((u) => ({ id: u.id, name: u.name, mime: u.mime, size: u.size, pdfId: u.pdfId }));
+    m.packages = (await db.select().from(t.packages).where(inArray(t.packages.id, [...ids])))
+      .map((p) => ({ id: p.id, kind: p.kind, title: p.title, launch: p.launch, activityId: p.activityId, launchMethod: p.launchMethod }));
+  }
+  return m;
+}
+
+async function* walk(dir: string, rel = ""): AsyncGenerator<string> {
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) yield* walk(path.join(/*turbopackIgnore: true*/ dir, e.name), r);
+    else if (e.isFile()) yield r;
+  }
+}
+
+/** Экспорт курса потоком zip — большие видео не держатся в памяти */
+export async function exportCourse(courseId: string) {
+  const m = await manifest(courseId);
+  if (!m) return null;
+  const stream = new ReadableStream<Uint8Array>({
+    async start(ctrl) {
+      let failed = false;
+      const zip = new Zip((err, chunk, final) => {
+        if (failed) return;
+        if (err) { failed = true; ctrl.error(err); return; }
+        ctrl.enqueue(chunk);
+        if (final) ctrl.close();
+      });
+      // Не читаем быстрее, чем клиент скачивает
+      const drain = async () => { while ((ctrl.desiredSize ?? 1) <= 0) await new Promise((r) => setTimeout(r, 20)); };
+      const addFile = async (name: string, full: string) => {
+        const f = new ZipPassThrough(name);
+        zip.add(f);
+        for await (const chunk of createReadStream(full, { highWaterMark: 1 << 20 })) {
+          f.push(chunk as Uint8Array);
+          await drain();
+        }
+        f.push(new Uint8Array(0), true);
+      };
+      try {
+        const json = new ZipDeflate("course.json", { level: 6 });
+        zip.add(json);
+        json.push(new TextEncoder().encode(JSON.stringify(m, null, 1)), true);
+        for (const u of m.uploads) {
+          if (await stat(filePath(u.id)).catch(() => null)) await addFile(`files/${u.id}`, filePath(u.id));
+        }
+        for (const p of m.packages) {
+          const dir = packageDir(p.id);
+          if (!(await stat(dir).catch(() => null))) continue;
+          for await (const rel of walk(dir)) await addFile(`packages/${p.id}/${rel}`, path.join(/*turbopackIgnore: true*/ dir, rel));
+        }
+        zip.end();
+      } catch (e) {
+        failed = true;
+        ctrl.error(e);
+      }
+    },
+  });
+  return { stream, name: `${m.course.slug}.platforma.zip` };
+}
+
+/** Распаковать архив курса во временный каталог, потоком */
+async function unzipTo(zipFile: string, dest: string) {
+  await mkdir(dest, { recursive: true });
+  const root = path.resolve(/*turbopackIgnore: true*/ dest);
+  const uz = new Unzip();
+  uz.register(UnzipInflate);
+  let error: Error | null = null;
+  uz.onfile = (file) => {
+    const full = path.resolve(/*turbopackIgnore: true*/ root, path.normalize(file.name).replace(/^(\.\.(\/|\\|$))+/, ""));
+    if (file.name.endsWith("/") || !full.startsWith(root + path.sep)) return;
+    mkdirSync(path.dirname(full), { recursive: true });
+    const fd = openSync(full, "w");
+    file.ondata = (err, chunk, final) => {
+      if (err) { error = err; return; }
+      writeSync(fd, chunk);
+      if (final) closeSync(fd);
+    };
+    file.start();
+  };
+  for await (const chunk of createReadStream(zipFile, { highWaterMark: 1 << 20 })) uz.push(chunk as Uint8Array);
+  uz.push(new Uint8Array(0), true);
+  if (error) throw error;
+}
+
+/** Импорт курса из архива экспорта. Курс создаётся неопубликованным. */
+export async function importCourse(zipFile: string, userId: string) {
+  const tmp = path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, "tmp", randomUUID());
+  try {
+    await unzipTo(zipFile, tmp);
+    const raw = await readFile(path.join(/*turbopackIgnore: true*/ tmp, "course.json"), "utf8").catch(() => null);
+    if (!raw) throw new Error("В архиве нет course.json — это не экспорт курса платформы");
+    const m = JSON.parse(raw) as Manifest;
+    if (m.format !== FORMAT) throw new Error("Неизвестный формат архива");
+
+    // Новые id для файлов и пакетов, замена во всём содержимом
+    const map = new Map<string, string>();
+    for (const u of m.uploads) map.set(u.id, randomUUID());
+    for (const p of m.packages) map.set(p.id, randomUUID());
+    const remap = <T,>(x: T): T => JSON.parse(JSON.stringify(x).replace(UUID, (id) => map.get(id) ?? id));
+
+    const courseId = await db.transaction(async (tx) => {
+      const [c] = await tx.insert(t.courses).values({
+        title: m.course.title, slug: await freeSlug(m.course.slug), description: m.course.description, published: false,
+      }).returning({ id: t.courses.id });
+
+      for (const u of m.uploads) {
+        const src = path.join(/*turbopackIgnore: true*/ tmp, "files", u.id);
+        if (!(await stat(src).catch(() => null))) continue;
+        const id = map.get(u.id)!;
+        await mkdir(path.dirname(filePath(id)), { recursive: true });
+        await cp(src, filePath(id));
+        await tx.insert(t.uploads).values({
+          id, courseId: c.id, name: u.name, mime: u.mime, size: u.size, pdfId: u.pdfId ? map.get(u.pdfId) ?? null : null, createdBy: userId,
+        });
+      }
+      for (const p of m.packages) {
+        const src = path.join(/*turbopackIgnore: true*/ tmp, "packages", p.id);
+        if (!(await stat(src).catch(() => null))) continue;
+        const id = map.get(p.id)!;
+        await cp(src, packageDir(id), { recursive: true });
+        if (!insidePackage(id, p.launch.split("?")[0]) && !/^https?:/.test(p.launch)) continue;
+        await tx.insert(t.packages).values({ id, courseId: c.id, kind: p.kind, title: p.title, launch: p.launch, activityId: p.activityId, launchMethod: p.launchMethod });
+      }
+
+      const lessonIds: string[][] = [];
+      for (const [i, s] of m.sections.entries()) {
+        const [sec] = await tx.insert(t.sections).values({ courseId: c.id, position: i + 1, title: s.title }).returning({ id: t.sections.id });
+        lessonIds.push([]);
+        for (const [j, l] of s.lessons.entries()) {
+          const [les] = await tx.insert(t.lessons).values({
+            sectionId: sec.id, position: j + 1, title: l.title, kind: l.kind, layout: l.layout, durationMin: l.durationMin, xp: l.xp, published: l.published,
+          }).returning({ id: t.lessons.id });
+          lessonIds[i].push(les.id);
+          if (l.steps.length) {
+            await tx.insert(t.lessonSteps).values(l.steps.map((st, k) => ({
+              lessonId: les.id, position: k + 1, kind: st.kind, title: st.title, content: remap(st.content),
+            })));
+          }
+        }
+      }
+      for (const [k, x] of m.materials.entries()) {
+        const uploadId = map.get(x.uploadId);
+        if (!uploadId) continue;
+        await tx.insert(t.courseMaterials).values({
+          courseId: c.id, uploadId, title: x.title, description: x.description, position: k + 1,
+          lessonId: x.lesson ? lessonIds[x.lesson[0]]?.[x.lesson[1]] ?? null : null,
+        });
+      }
+      await tx.insert(t.courseLog).values({ courseId: c.id, userId, action: `Импортировал курс из архива (${m.exportedAt.slice(0, 10)})` });
+      return c.id;
+    });
+    return courseId;
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}

@@ -83,6 +83,23 @@ fi
 
 # ——— Порт и пароль базы ———
 port_busy() { ss -Htln 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"; }
+
+LABS=0
+case ",${COMPOSE_PROFILES:-}," in *,labs,*) LABS=1 ;; esac
+echo
+say "Лаборатории: у каждого студента свой контейнер с терминалом в браузере."
+warn "Сервису лабораторий нужен доступ к Docker этого сервера (равносильно root). Если здесь работают другие CRM,"
+warn "надёжнее вынести лаборатории на отдельную машину (см. README, «Лаборатории»)."
+if ask_yn "Включить лаборатории на этом сервере?" "$([ $LABS = 1 ] && echo Y || echo N)"; then
+  LABS=1
+  LAB_SECRET=${LAB_SECRET:-$(openssl rand -hex 32)}
+  if [ -z "${LAB_PORT:-}" ]; then
+    LAB_PORT=3200
+    while port_busy "$LAB_PORT"; do LAB_PORT=$((LAB_PORT + 1)); done
+  fi
+else
+  LABS=0
+fi
 if [ -z "${APP_PORT:-}" ]; then
   APP_PORT=3100
   while port_busy "$APP_PORT"; do APP_PORT=$((APP_PORT + 1)); done
@@ -127,9 +144,12 @@ APP_BIND=127.0.0.1
 APP_PORT=$APP_PORT
 APP_TZ=${APP_TZ:-Asia/Almaty}
 COOKIE_SECURE=true
-COMPOSE_PROFILES=$( { [ "$PROXY" = caddy ] && echo caddy; [ "$OFFICE" = 1 ] && echo office; } | paste -sd, -)
+COMPOSE_PROFILES=$( { [ "$PROXY" = caddy ] && echo caddy; [ "$OFFICE" = 1 ] && echo office; [ "$LABS" = 1 ] && echo labs; } | paste -sd, -)
 CONVERTER_URL=$([ "$OFFICE" = 1 ] && echo http://gotenberg:3000)
 MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-4096}
+LAB_RUNNER_URL=$([ "$LABS" = 1 ] && echo http://labs:3200)
+LAB_SECRET=${LAB_SECRET:-}
+LAB_PORT=${LAB_PORT:-3200}
 SEED_DEMO=$SEED_DEMO
 SEED_DEMO_PASSWORD=${SEED_DEMO_PASSWORD:-}
 EOF
@@ -167,6 +187,18 @@ server {
     proxy_request_buffering off;
     proxy_read_timeout 600s;
 
+$([ "$LABS" = 1 ] && cat <<LABS
+    # Терминал лабораторий (WebSocket)
+    location /lab-ws/ {
+        proxy_pass http://127.0.0.1:$LAB_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+    }
+
+LABS
+)
     location / {
         proxy_pass http://127.0.0.1:$APP_PORT;
         proxy_http_version 1.1;
@@ -218,7 +250,12 @@ if [ "$PROXY" = hostcaddy ]; then
     warn "В $cf уже есть сайт $APP_DOMAIN, настроенный не установщиком — не трогаю. Укажите в нём: reverse_proxy 127.0.0.1:$APP_PORT"
   else
     [ -z "$(tail -c1 "$cf")" ] || echo >> "$cf"   # файл должен заканчиваться переводом строки
-    printf '%s\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n%s\n' "$begin" "$APP_DOMAIN" "$APP_PORT" "$end" >> "$cf"
+    if [ "$LABS" = 1 ]; then
+      printf '%s\n%s {\n\thandle /lab-ws/* {\n\t\treverse_proxy 127.0.0.1:%s\n\t}\n\treverse_proxy 127.0.0.1:%s\n}\n%s\n' \
+        "$begin" "$APP_DOMAIN" "$LAB_PORT" "$APP_PORT" "$end" >> "$cf"
+    else
+      printf '%s\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n%s\n' "$begin" "$APP_DOMAIN" "$APP_PORT" "$end" >> "$cf"
+    fi
     if caddy validate --config "$cf" --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy; then
       ok "Caddy: сайт $APP_DOMAIN добавлен в $cf (копия: $backup)"
     else
@@ -233,7 +270,8 @@ fi
 echo
 ok "${B}Готово${N}"
 case $PROXY in
-  manual) echo "   Приложение: http://127.0.0.1:$APP_PORT — настройте проксирование $APP_DOMAIN на этот адрес с HTTPS." ;;
+  manual) echo "   Приложение: http://127.0.0.1:$APP_PORT — настройте проксирование $APP_DOMAIN на этот адрес с HTTPS."
+          [ "$LABS" = 1 ] && echo "   Лаборатории: путь /lab-ws/ (WebSocket) проксируйте на http://127.0.0.1:$LAB_PORT" ;;
   *)      echo "   Сайт:  https://$APP_DOMAIN" ;;
 esac
 echo "   Вход:  $ADMIN_EMAIL и пароль, который вы ввели"

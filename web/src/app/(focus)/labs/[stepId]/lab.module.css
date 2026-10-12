@@ -1,0 +1,43 @@
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: var(--side); border-radius: var(--r); padding: 10px 12px 10px 12px; }
+.titleBox { display: flex; flex-direction: column; min-width: 0; }
+.titleBox b { font-size: 16px; font-weight: 600; }
+.grow { flex: 1; }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: #B7BDB6; }
+.status .dot_ready { background: #2E9D5B; }
+.status .dot_starting { background: var(--warn); animation: pulse 1s infinite alternate; }
+.status .dot_error { background: #B42318; }
+@keyframes pulse { to { opacity: .3; } }
+
+.layout { flex: 1; display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; min-height: 0; }
+.tasks { flex: 1 1 320px; max-width: 440px; overflow: auto; max-height: calc(100vh - 100px); }
+.taskList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.task { display: flex; gap: 12px; padding: 12px; border-radius: 12px; font-size: 15px; line-height: 1.5; }
+.task.now { background: var(--green-tint); }
+.box { width: 24px; height: 24px; border-radius: 7px; flex: none; display: grid; place-items: center; font-size: 12px; font-weight: 600;
+  border: 2px solid #D3D8D2; color: var(--muted); margin-top: 1px; }
+.now .box { border-color: var(--green); color: var(--green); }
+.done .box { background: var(--green); border-color: var(--green); color: #fff; }
+.done b { color: var(--muted); text-decoration: line-through; }
+.taskBody { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.taskBody b { font-weight: 600; }
+.taskBody :global(.prose) { font-size: 14px; }
+.taskBody :global(.prose) p:last-child { margin-bottom: 0; }
+.hint summary { cursor: pointer; font-size: 13px; font-weight: 500; color: var(--green); }
+.fail { font-size: 13px; color: var(--warn); }
+.fail pre { margin: 6px 0 0; padding: 8px 10px; background: #F7F3EC; border-radius: 8px; color: var(--ink2); white-space: pre-wrap; font-size: 12px; max-height: 140px; overflow: auto; }
+
+.console { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; background: var(--dark2); border-radius: var(--r); overflow: hidden; min-height: 520px; }
+.tabs { display: flex; gap: 4px; padding: 6px; background: #0A110D; }
+.tabs button { height: 34px; padding: 0 14px; border: 0; border-radius: 8px; background: none; color: #8DA595; font-size: 13px; }
+.tabs button:hover { color: #E6EFE8; }
+.tabs .on { background: #1B2A21; color: #E6EFE8; }
+.termWrap { position: relative; flex: 1; min-height: 0; padding: 10px 6px 6px 12px; }
+.termWrap[hidden] { display: none; }
+.term { position: absolute; inset: 10px 6px 6px 12px; }
+.reconnect { position: absolute; right: 16px; bottom: 16px; }
+.placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; color: #A9BDB0; text-align: center; }
+.placeholder p { margin: 0; max-width: 420px; }
+.err { max-width: 100%; white-space: pre-wrap; text-align: left; color: #F4B8A8; font-size: 12px; background: #1B120F; padding: 12px; border-radius: 10px; max-height: 240px; overflow: auto; }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #2D4A37; border-top-color: #9FD3AE; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 860px) { .tasks { max-width: none; max-height: none; } .console { min-height: 420px; } }

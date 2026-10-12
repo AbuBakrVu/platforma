@@ -6,7 +6,9 @@
 #   — если своего прокси нет, профиль caddy сам получит HTTPS-сертификат для APP_DOMAIN
 #     (COMPOSE_PROFILES=caddy в .env, нужны свободные порты 80 и 443);
 #   — профиль office добавляет Gotenberg (LibreOffice): Word/PowerPoint/Excel открываются в браузере как PDF
-#     (COMPOSE_PROFILES=office и CONVERTER_URL=http://gotenberg:3000; профили перечисляются через запятую).
+#     (COMPOSE_PROFILES=office и CONVERTER_URL=http://gotenberg:3000; профили перечисляются через запятую);
+#   — профиль labs добавляет сервис лабораторий: контейнеры студентов с терминалом в браузере.
+#     Ему нужен Docker хоста (docker.sock) — прочитайте раздел «Лаборатории» в README.
 # Проще всего ставить через ./install.sh — он спросит домен и администратора и всё настроит.
 name: platforma
 
@@ -52,6 +54,8 @@ services:
       UPLOAD_DIR: /data/uploads
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-4096}
       CONVERTER_URL: ${CONVERTER_URL:-}
+      LAB_RUNNER_URL: ${LAB_RUNNER_URL:-}
+      LAB_SECRET: ${LAB_SECRET:-}
     volumes:
       # Видео, документы, SCORM-пакеты. Делайте резервную копию вместе с базой.
       - uploads:/data/uploads
@@ -60,6 +64,20 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  labs:
+    build: ./labs
+    profiles: ["labs"]
+    restart: unless-stopped
+    environment:
+      LAB_SECRET: ${LAB_SECRET:-}
+      MAX_SESSIONS: ${LAB_MAX_SESSIONS:-20}
+    volumes:
+      # Управление контейнерами студентов. Это равносильно root-доступу к серверу — см. README
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      # WebSocket терминала: прокси отдаёт /lab-ws/ сюда
+      - "127.0.0.1:${LAB_PORT:-3200}:3200"
 
   gotenberg:
     image: gotenberg/gotenberg:8
@@ -71,11 +89,14 @@ services:
     image: caddy:2-alpine
     profiles: ["caddy"]
     restart: unless-stopped
-    command: caddy reverse-proxy --from ${APP_DOMAIN:-localhost} --to web:3000
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
     ports:
       - "80:80"
       - "443:443"
     volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

@@ -1,0 +1,8 @@
+{
+  "name": "platforma-labs",
+  "private": true,
+  "type": "module",
+  "description": "Учебные среды: контейнеры студентов и терминал по WebSocket",
+  "scripts": { "start": "node runner.mjs", "dev": "LAB_DRIVER=local node runner.mjs" },
+  "dependencies": { "ws": "8.18.3" }
+}

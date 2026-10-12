@@ -4,7 +4,7 @@ export type Uploaded = { id: string; name: string; mime: string; size: number; p
 export type UploadedPackage = { id: string; title: string; kind: string };
 
 /** Загрузка файла на /api/upload с прогрессом (fetch прогресс отправки не показывает — поэтому XHR) */
-export function upload<T = Uploaded>(file: File, courseId: string, opts: { kind?: "package"; onProgress?: (pct: number) => void } = {}) {
+export function upload<T = Uploaded>(file: File, courseId: string, opts: { kind?: "package" | "course"; onProgress?: (pct: number) => void } = {}) {
   return new Promise<T>((resolve, reject) => {
     const q = new URLSearchParams({ courseId, name: file.name, ...(opts.kind ? { kind: opts.kind } : {}) });
     const xhr = new XMLHttpRequest();

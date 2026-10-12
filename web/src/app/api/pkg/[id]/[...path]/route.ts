@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { getUser } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
-import { canAccessCourseId } from "@/lib/queries";
+import { canAccessAsset } from "@/lib/queries";
 import { serveFile } from "@/lib/serve";
 import { insidePackage, mimeOf } from "@/lib/storage";
 
@@ -14,7 +14,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/pkg/[id]/[...pat
   const id = uuidOrNull(rawId);
   if (!id) return new Response("Не найдено", { status: 404 });
   const [pkg] = await db.select({ courseId: t.packages.courseId }).from(t.packages).where(eq(t.packages.id, id));
-  if (!pkg || !(await canAccessCourseId(user, pkg.courseId))) return new Response("Не найдено", { status: 404 });
+  if (!pkg || !(await canAccessAsset(user, pkg.courseId, id))) return new Response("Не найдено", { status: 404 });
   const rel = path.map((p) => decodeURIComponent(p)).join("/");
   const full = insidePackage(id, rel);
   if (!full) return new Response("Не найдено", { status: 404 });

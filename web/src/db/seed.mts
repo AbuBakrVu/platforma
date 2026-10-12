@@ -15,7 +15,7 @@ const db = drizzle(client);
 
 if (process.argv.includes("--reset")) {
   await client.unsafe(`truncate ${["certificates", "exam_attempts", "exam_questions", "exams", "attendance", "schedule_events",
-    "xp_events", "card_reviews", "step_progress", "lesson_steps", "lesson_progress", "lessons", "sections", "group_courses", "courses", "invites", "sessions", "users", "groups"].join(", ")} cascade`);
+    "xp_events", "lab_sessions", "course_log", "course_materials", "step_revisions", "library_items", "card_reviews", "step_progress", "lesson_steps", "lesson_progress", "lessons", "sections", "group_courses", "courses", "invites", "sessions", "users", "groups"].join(", ")} cascade`);
   console.log("База очищена");
 }
 
@@ -155,6 +155,19 @@ await db.insert(t.lessonSteps).values([
     },
   },
 ]);
+
+// Лабораторная (нужен сервис labs): простая среда Linux с автопроверкой
+await db.insert(t.lessonSteps).values({
+  lessonId: k8s.lessonIds[2], position: 2, kind: "lab", title: "Первые шаги в терминале",
+  content: {
+    image: "debian:12-slim", privileged: false, network: false, memoryMb: 512, cpus: 1, ttlMin: 45, required: true,
+    setup: "echo 'Добро пожаловать в лабораторию' > /root/README.txt",
+    tasks: [
+      { id: "t1", title: "Создайте каталог project", md: "Каталог должен лежать в домашней папке `/root`.", hint: "`mkdir project`", check: "test -d /root/project" },
+      { id: "t2", title: "Запишите hello в project/hello.txt", md: "Файл должен содержать одну строку `hello`.", hint: "`echo hello > project/hello.txt`", check: "grep -qx hello /root/project/hello.txt" },
+    ],
+  },
+});
 
 const allLessons = await db.select().from(t.lessons);
 const byId = new Map(allLessons.map((l) => [l.id, l]));
