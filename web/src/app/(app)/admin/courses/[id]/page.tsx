@@ -70,6 +70,8 @@ export default async function CourseEditor({ params }: PageProps<"/admin/courses
               <input id="c-pub" name="publishAt" type="datetime-local" defaultValue={toZonedInput(course.publishAt)} className="ctl" />
             </div>
           </div>
+          <label className="check"><input type="checkbox" name="sequential" defaultChecked={course.sequential} />
+            Последовательное прохождение — следующий урок открывается, только когда пройден предыдущий</label>
           <div className="row" style={{ justifyContent: "space-between" }}>
             <Submit>Сохранить</Submit>
           </div>

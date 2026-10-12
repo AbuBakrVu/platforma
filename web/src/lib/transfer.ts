@@ -17,7 +17,7 @@ export const FORMAT = "platforma-course";
 
 type Manifest = {
   format: typeof FORMAT; version: 1; exportedAt: string;
-  course: { title: string; slug: string; description: string };
+  course: { title: string; slug: string; description: string; sequential?: boolean };
   sections: {
     title: string;
     lessons: { title: string; kind: "theory" | "practice" | "lab"; layout: "steps" | "longread"; durationMin: number; xp: number; published: boolean;
@@ -45,7 +45,7 @@ async function manifest(courseId: string): Promise<Manifest | null> {
 
   const m: Manifest = {
     format: FORMAT, version: 1, exportedAt: new Date().toISOString(),
-    course: { title: course.title, slug: course.slug, description: course.description },
+    course: { title: course.title, slug: course.slug, description: course.description, sequential: course.sequential },
     sections: sections.map((s) => ({
       title: s.title,
       lessons: lessons.filter((l) => l.sectionId === s.id).map((l) => ({
@@ -171,6 +171,7 @@ export async function importCourse(zipFile: string, userId: string) {
     const courseId = await db.transaction(async (tx) => {
       const [c] = await tx.insert(t.courses).values({
         title: m.course.title, slug: await freeSlug(m.course.slug), description: m.course.description, published: false,
+        sequential: !!m.course.sequential,
       }).returning({ id: t.courses.id });
 
       for (const u of m.uploads) {

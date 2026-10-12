@@ -63,9 +63,35 @@ export const courses = pgTable("courses", {
   published: boolean("published").notNull().default(true),
   /** Отложенная публикация: опубликованный курс виден студентам только с этого момента */
   publishAt: timestamp("publish_at", { withTimezone: true }),
+  /** Последовательное прохождение: урок открывается, когда пройден предыдущий */
+  sequential: boolean("sequential").notNull().default(false),
   demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("courses_slug_idx").on(t.slug)]);
+
+/** Программа обучения: цепочка курсов */
+export const programs = pgTable("programs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  published: boolean("published").notNull().default(false),
+  /** Курс открывается, когда пройден предыдущий курс программы */
+  sequential: boolean("sequential").notNull().default(true),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex("programs_slug_idx").on(t.slug)]);
+
+export const programCourses = pgTable("program_courses", {
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+}, (t) => [primaryKey({ columns: [t.programId, t.courseId] })]);
+
+/** Какие потоки проходят какие программы (курсы программы становятся доступны потоку) */
+export const groupPrograms = pgTable("group_programs", {
+  groupId: uuid("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.groupId, t.programId] })]);
 
 /** Какие потоки записаны на какие курсы */
 export const groupCourses = pgTable("group_courses", {

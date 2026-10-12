@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, schema as t } from "@/db";
+import { cache } from "react";
 import type { CurrentUser } from "./auth";
 
 /** Опубликован и время публикации наступило (черновики и отложенная публикация) */
@@ -38,7 +39,66 @@ export async function getLeaderboard(groupId: string, since: Date | null) {
   return rows.map((r, i) => ({ ...r, place: i + 1 }));
 }
 
-/** Курсы пользователя с прогрессом. Без потока — все опубликованные. */
+/** Курсы потока: назначенные напрямую и через опубликованные программы обучения */
+const groupAccess = cache(async (groupId: string) => {
+  const [direct, viaPrograms] = await Promise.all([
+    db.select({ courseId: t.groupCourses.courseId }).from(t.groupCourses).where(eq(t.groupCourses.groupId, groupId)),
+    db.select({
+      programId: t.programs.id, sequential: t.programs.sequential, courseId: t.programCourses.courseId, position: t.programCourses.position,
+    })
+      .from(t.groupPrograms)
+      .innerJoin(t.programs, and(eq(t.programs.id, t.groupPrograms.programId), eq(t.programs.published, true)))
+      .innerJoin(t.programCourses, eq(t.programCourses.programId, t.programs.id))
+      .where(eq(t.groupPrograms.groupId, groupId))
+      .orderBy(asc(t.programs.id), asc(t.programCourses.position)),
+  ]);
+  return { direct: new Set(direct.map((d) => d.courseId)), programs: viaPrograms };
+});
+
+/** Сколько живых уроков в курсах и сколько из них пройдено */
+async function courseProgress(userId: string, courseIds: string[]) {
+  if (!courseIds.length) return new Map<string, { title: string; total: number; done: number }>();
+  const rows = await db.select({
+    id: t.courses.id, title: t.courses.title,
+    total: sql<number>`count(${t.lessons.id})::int`,
+    done: sql<number>`count(${t.lessonProgress.lessonId})::int`,
+  }).from(t.courses)
+    .leftJoin(t.sections, eq(t.sections.courseId, t.courses.id))
+    .leftJoin(t.lessons, and(eq(t.lessons.sectionId, t.sections.id), live(t.lessons.published, t.lessons.publishAt)))
+    .leftJoin(t.lessonProgress, and(eq(t.lessonProgress.lessonId, t.lessons.id), eq(t.lessonProgress.userId, userId)))
+    .where(inArray(t.courses.id, courseIds))
+    .groupBy(t.courses.id);
+  return new Map(rows.map((r) => [r.id, r]));
+}
+
+export const courseComplete = (p: { total: number; done: number } | undefined) => !!p && p.total > 0 && p.done >= p.total;
+
+/**
+ * Закрытые курсы последовательных программ: курс → название курса, который нужно пройти раньше.
+ * Курс, назначенный потоку напрямую или открытый хотя бы в одной программе, не закрыт.
+ */
+export const getCourseLocks = cache(async (userId: string, role: CurrentUser["role"], groupId: string | null) => {
+  const locks = new Map<string, string>();
+  if (role !== "student" || !groupId) return locks;
+  const { direct, programs } = await groupAccess(groupId);
+  const seq = programs.filter((p) => p.sequential);
+  if (!seq.length) return locks;
+  const progress = await courseProgress(userId, [...new Set(seq.map((p) => p.courseId))]);
+  const open = new Set<string>();
+  const byProgram = Map.groupBy(seq, (p) => p.programId);
+  for (const items of byProgram.values()) {
+    let blocker: string | null = null;
+    for (const it of items) {
+      if (blocker) { if (!locks.has(it.courseId)) locks.set(it.courseId, blocker); }
+      else open.add(it.courseId);
+      if (!blocker && !courseComplete(progress.get(it.courseId))) blocker = progress.get(it.courseId)?.title ?? "предыдущий курс";
+    }
+  }
+  for (const id of [...locks.keys()]) if (open.has(id) || direct.has(id)) locks.delete(id);
+  return locks;
+});
+
+/** Курсы пользователя с прогрессом. Без потока — все опубликованные. lockedBy — курс программы, который нужно пройти раньше. */
 export async function getMyCourses(user: CurrentUser) {
   const base = db
     .select({
@@ -58,19 +118,24 @@ export async function getMyCourses(user: CurrentUser) {
     .$dynamic();
 
   const visible = live(t.courses.published, t.courses.publishAt);
-  if (!user.groupId) return base.where(visible);
-  return base
-    .innerJoin(t.groupCourses, and(eq(t.groupCourses.courseId, t.courses.id), eq(t.groupCourses.groupId, user.groupId)))
-    .where(visible);
+  if (!user.groupId) return (await base.where(visible)).map((c) => ({ ...c, lockedBy: null as string | null }));
+  const access = await groupAccess(user.groupId);
+  const ids = [...new Set([...access.direct, ...access.programs.map((p) => p.courseId)])];
+  if (!ids.length) return [];
+  const [rows, locks] = await Promise.all([
+    base.where(and(visible, inArray(t.courses.id, ids))),
+    getCourseLocks(user.id, user.role, user.groupId),
+  ]);
+  return rows.map((c) => ({ ...c, lockedBy: locks.get(c.id) ?? null }));
 }
 
-/** Студенту доступны только опубликованные курсы его потока; персоналу — все */
+/** Студенту доступны опубликованные курсы его потока (напрямую или из программы), кроме ещё закрытых в программе; персоналу — все */
 export async function canAccessCourse(user: CurrentUser, course: { id: string; published: boolean; publishAt: Date | null }) {
   if (user.role !== "student") return true;
   if (!isLive(course) || !user.groupId) return false;
-  const [link] = await db.select().from(t.groupCourses)
-    .where(and(eq(t.groupCourses.courseId, course.id), eq(t.groupCourses.groupId, user.groupId)));
-  return !!link;
+  const access = await groupAccess(user.groupId);
+  if (!access.direct.has(course.id) && !access.programs.some((p) => p.courseId === course.id)) return false;
+  return !(await getCourseLocks(user.id, user.role, user.groupId)).has(course.id);
 }
 
 /** Доступ к курсу по id (для файлов и пакетов). courseId = null — только персоналу. */
@@ -111,7 +176,8 @@ export async function getCourseOutline(slug: string, user: CurrentUser) {
   const sections: {
     id: string; title: string; position: number; locked: boolean; opensAt: Date | null;
     /** draft — урок не виден студентам (показывается только персоналу) */
-    lessons: { id: string; title: string; kind: "theory" | "practice" | "lab"; done: boolean; draft: boolean }[];
+    /** locked — последовательный курс: урок откроется, когда пройден предыдущий */
+    lessons: { id: string; title: string; kind: "theory" | "practice" | "lab"; done: boolean; draft: boolean; locked: boolean }[];
   }[] = [];
   for (const r of rows) {
     let s = sections.at(-1);
@@ -123,9 +189,19 @@ export async function getCourseOutline(slug: string, user: CurrentUser) {
     if (!r.lessonId) continue;
     const draft = !isLive({ published: r.lessonPublished!, publishAt: r.lessonPublishAt });
     if (draft && user.role === "student") continue;
-    s.lessons.push({ id: r.lessonId, title: r.lessonTitle!, kind: r.kind!, done: r.done, draft });
+    s.lessons.push({ id: r.lessonId, title: r.lessonTitle!, kind: r.kind!, done: r.done, draft, locked: false });
   }
-  const flat = sections.filter((s) => !s.locked).flatMap((s) => s.lessons.map((l) => ({ ...l, section: s })));
+  // Последовательное прохождение: всё после первого непройденного урока закрыто (для студентов)
+  if (course.sequential && user.role === "student") {
+    let gap = false;
+    for (const sec of sections.filter((x) => !x.locked)) {
+      for (const l of sec.lessons) {
+        if (gap) l.locked = true;
+        else if (!l.done) gap = true;
+      }
+    }
+  }
+  const flat = sections.filter((s) => !s.locked).flatMap((s) => s.lessons.filter((l) => !l.locked).map((l) => ({ ...l, section: s })));
   const total = sections.reduce((n, s) => n + s.lessons.length, 0);
   const done = sections.reduce((n, s) => n + s.lessons.filter((l) => l.done).length, 0);
   return { course, sections, flat, total, done, next: flat.find((l) => !l.done) ?? null };
@@ -196,6 +272,10 @@ export async function getStepForUser(stepId: string, user: CurrentUser) {
   if (!r || !(await canAccessCourse(user, r.course))) return null;
   const row = { ...r, step: { ...r.step, content: r.lib ?? r.step.content } };
   if (user.role === "student" && ((row.section.opensAt && row.section.opensAt > new Date()) || !isLive(row.lesson))) return null;
+  if (user.role === "student" && row.course.sequential) {
+    const outline = await getCourseOutline(row.course.slug, user);
+    if (!outline?.flat.some((l) => l.id === row.lesson.id)) return null;
+  }
   return row;
 }
 
@@ -278,4 +358,25 @@ export async function getMyLabs(user: CurrentUser) {
   const now = new Date();
   return rows.filter((r) => user.role !== "student"
     || (isLive({ published: r.lessonPublished, publishAt: r.lessonPublishAt }) && !(r.opensAt && r.opensAt > now)));
+}
+
+/** Программы потока с курсами по порядку (прогресс и замки берутся из getMyCourses) */
+export async function getMyPrograms(user: CurrentUser) {
+  if (!user.groupId) return [];
+  const rows = await db.select({
+    id: t.programs.id, title: t.programs.title, description: t.programs.description, sequential: t.programs.sequential,
+    courseId: t.programCourses.courseId,
+  })
+    .from(t.groupPrograms)
+    .innerJoin(t.programs, and(eq(t.programs.id, t.groupPrograms.programId), eq(t.programs.published, true)))
+    .innerJoin(t.programCourses, eq(t.programCourses.programId, t.programs.id))
+    .where(eq(t.groupPrograms.groupId, user.groupId))
+    .orderBy(asc(t.programs.title), asc(t.programCourses.position));
+  const out: { id: string; title: string; description: string; sequential: boolean; courseIds: string[] }[] = [];
+  for (const r of rows) {
+    let p = out.at(-1);
+    if (!p || p.id !== r.id) { p = { id: r.id, title: r.title, description: r.description, sequential: r.sequential, courseIds: [] }; out.push(p); }
+    p.courseIds.push(r.courseId);
+  }
+  return out;
 }

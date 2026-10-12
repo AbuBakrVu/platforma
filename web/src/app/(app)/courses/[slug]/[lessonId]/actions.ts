@@ -38,8 +38,10 @@ export async function completeLesson(slug: string, lessonId: string) {
   });
 
   revalidatePath("/", "layout");
-  const i = outline.flat.findIndex((l) => l.id === lessonId);
-  const next = outline.flat[i + 1];
+  // Структуру берём заново: в последовательном курсе следующий урок открылся только что
+  const fresh = (await getCourseOutline(slug, user)) ?? outline;
+  const i = fresh.flat.findIndex((l) => l.id === lessonId);
+  const next = fresh.flat[i + 1];
   redirect(next ? `/courses/${slug}/${next.id}` : `/courses`);
 }
 

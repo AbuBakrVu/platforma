@@ -50,3 +50,5 @@
 .fileList span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .fileList b { font-weight: 500; }
 .fileList span small { color: var(--muted); font-size: 12px; }
+.lockedL { color: var(--muted); cursor: default; }
+.lockedL:hover { background: none; color: var(--muted); }
