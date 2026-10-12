@@ -1,0 +1,28 @@
+.layout { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } .hideMobile { display: none; } }
+.side { gap: 14px; }
+.empty { min-height: 300px; display: grid; place-items: center; }
+.list { display: flex; flex-direction: column; gap: 2px; }
+.item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; color: var(--ink2); }
+.item:hover { background: var(--green-tint); color: var(--ink); }
+.item.on { background: var(--green-soft); }
+.itemBody { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.itemBody b { font-weight: 600; font-size: 14px; }
+.itemBody small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.groupIcon { width: 40px; height: 40px; border-radius: 50%; background: var(--green-soft); display: grid; place-items: center; font-size: 20px; flex: none; }
+.main { min-height: 70vh; }
+.thread { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+.scroll { height: min(62vh, 640px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-right: 6px; }
+.day { align-self: center; margin: 12px auto 6px; font-size: 12px; color: var(--muted); background: #F0F1EF; padding: 2px 10px; border-radius: 10px; width: fit-content; }
+.m { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.grouped { margin-top: 2px; }
+.spacer { width: 32px; flex: none; }
+.mine { flex-direction: row-reverse; }
+.mine .spacer { display: none; }
+.bubbleWrap { display: flex; flex-direction: column; gap: 3px; max-width: min(560px, 80%); }
+.mine .bubbleWrap { align-items: flex-end; }
+.name { font-size: 12px; color: var(--muted); padding-left: 4px; }
+.bubble { position: relative; padding: 8px 12px 18px; border-radius: 16px; background: #F1F3F0; }
+.mine .bubble { background: var(--green-soft); }
+.time { position: absolute; right: 10px; bottom: 3px; font-size: 10px; color: var(--muted); }
+.tools { display: flex; gap: 8px; align-items: center; }

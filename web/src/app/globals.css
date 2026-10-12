@@ -116,3 +116,4 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 .game-lv{width:28px;height:28px;border-radius:9px;background:var(--green);color:#fff;font-weight:700;display:grid;place-items:center;flex:none}
 .game-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.game-mid small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .game-st{font-weight:600;white-space:nowrap}.game-st.cold{filter:grayscale(1);opacity:.6}
+.mention{color:var(--green);font-weight:600;background:var(--green-tint);border-radius:5px;padding:0 3px}

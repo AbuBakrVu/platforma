@@ -110,6 +110,7 @@ export async function POST(req: Request) {
     }
   }
 
-  await db.insert(t.uploads).values({ id, courseId, name: fileName, mime, size, pdfId, createdBy: user.id });
+  // access=public — картинки базы знаний: видят все вошедшие
+  await db.insert(t.uploads).values({ id, courseId, name: fileName, mime, size, pdfId, createdBy: user.id, access: q.get("access") === "public" ? "public" : "course" });
   return Response.json({ id, name: fileName, mime, size, pdfId });
 }

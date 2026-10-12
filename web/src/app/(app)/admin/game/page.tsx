@@ -86,7 +86,7 @@ export default async function AdminGame({ searchParams }: PageProps<"/admin/game
                 <select id="t-gr" name="group" defaultValue={groupId ?? ""} className="ctl">{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
               <button className="btn">Показать</button>
             </form>
-            <form action={setTeams} className="form">
+            <form key={students.map((x) => x.team ?? "-").join()} action={setTeams} className="form">
               <div className="tbl-wrap"><table className="tbl"><tbody>
                 {students.map((st) => (
                   <tr key={st.id}><td>{st.name}</td><td>

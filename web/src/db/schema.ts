@@ -518,3 +518,125 @@ export const duels = pgTable("duels", {
   createdAt: createdAt(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 }, (t) => [index("duels_challenger_idx").on(t.challengerId), index("duels_opponent_idx").on(t.opponentId)]);
+
+/* ——— Общение ——— */
+
+/** Комментарии под уроком; parentId — ответ на комментарий (одна вложенность) */
+export const comments = pgTable("comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id"),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+  editedAt: timestamp("edited_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, (t) => [index("comments_lesson_idx").on(t.lessonId, t.createdAt)]);
+
+export const topicKindEnum = pgEnum("topic_kind", ["discussion", "question"]);
+
+/** Тема форума. courseId — раздел курса, null — общий раздел; groupId — только для потока */
+export const forumTopics = pgTable("forum_topics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").references(() => courses.id, { onDelete: "cascade" }),
+  groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+  kind: topicKindEnum("kind").notNull().default("discussion"),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pinned: boolean("pinned").notNull().default(false),
+  locked: boolean("locked").notNull().default(false),
+  /** Для вопроса — принятый ответ */
+  acceptedPostId: uuid("accepted_post_id"),
+  replies: integer("replies").notNull().default(0),
+  lastPostAt: timestamp("last_post_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAt(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, (t) => [index("forum_topics_idx").on(t.courseId, t.lastPostAt)]);
+
+export const forumPosts = pgTable("forum_posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  topicId: uuid("topic_id").notNull().references(() => forumTopics.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  score: integer("score").notNull().default(0),
+  createdAt: createdAt(),
+  editedAt: timestamp("edited_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, (t) => [index("forum_posts_topic_idx").on(t.topicId, t.createdAt)]);
+
+/** Голоса за ответы в вопросах: +1 / -1 */
+export const postVotes = pgTable("post_votes", {
+  postId: uuid("post_id").notNull().references(() => forumPosts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  value: integer("value").notNull(),
+}, (t) => [primaryKey({ columns: [t.postId, t.userId] })]);
+
+export const chatKindEnum = pgEnum("chat_kind", ["direct", "group"]);
+
+/** Чат: личный (двое) или чат потока */
+export const chats = pgTable("chats", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: chatKindEnum("kind").notNull(),
+  groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+  /** Для личного чата — «меньший_id:больший_id», чтобы не было дублей */
+  pairKey: text("pair_key"),
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex("chats_pair_idx").on(t.pairKey), uniqueIndex("chats_group_idx").on(t.groupId)]);
+
+export const chatMembers = pgTable("chat_members", {
+  chatId: uuid("chat_id").notNull().references(() => chats.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.chatId, t.userId] }), index("chat_members_user_idx").on(t.userId)]);
+
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  chatId: uuid("chat_id").notNull().references(() => chats.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+  editedAt: timestamp("edited_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, (t) => [index("messages_chat_idx").on(t.chatId, t.createdAt)]);
+
+/** Объявления: groupId = null — для всех потоков */
+export const announcements = pgTable("announcements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  pinned: boolean("pinned").notNull().default(false),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [index("announcements_idx").on(t.groupId, t.createdAt)]);
+
+/** Наставник → подопечный */
+export const mentorships = pgTable("mentorships", {
+  mentorId: uuid("mentor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentId: uuid("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+}, (t) => [primaryKey({ columns: [t.studentId] }), index("mentorships_mentor_idx").on(t.mentorId)]);
+
+/** Реакции: на комментарий, сообщение форума, сообщение чата, объявление */
+export const reactions = pgTable("reactions", {
+  target: text("target").notNull(),
+  targetId: uuid("target_id").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  emoji: text("emoji").notNull(),
+}, (t) => [primaryKey({ columns: [t.target, t.targetId, t.userId, t.emoji] }), index("reactions_target_idx").on(t.target, t.targetId)]);
+
+/** База знаний: статьи с разделами (parentId — родительская статья) */
+export const kbArticles = pgTable("kb_articles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  parentId: uuid("parent_id"),
+  position: integer("position").notNull().default(0),
+  published: boolean("published").notNull().default(true),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex("kb_slug_idx").on(t.slug), index("kb_parent_idx").on(t.parentId, t.position)]);

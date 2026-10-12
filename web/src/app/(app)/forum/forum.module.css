@@ -1,0 +1,18 @@
+.section, .topic { display: flex; align-items: center; gap: 14px; padding: 14px 8px; border-top: 1px solid var(--line2); color: var(--ink2); border-radius: 12px; }
+.section:first-child, .topic:first-child { border-top: 0; }
+.section:hover, .topic:hover { background: var(--green-tint); color: var(--ink); }
+.secIcon { font-size: 28px; }
+.secBody, .topicBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.secBody b, .topicBody b { font-weight: 600; color: var(--ink); }
+.secStats { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 14px; }
+.count { display: flex; flex-direction: column; align-items: center; min-width: 56px; font-weight: 700; font-size: 18px; }
+.count small { font-size: 11px; font-weight: 400; color: var(--muted); }
+.question { display: flex; flex-direction: column; gap: 12px; }
+.qTitle { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+.answer { display: flex; gap: 14px; padding: 16px 0; border-top: 1px solid var(--line2); }
+.votes { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; flex: none; }
+.votes button { width: 32px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--muted); font-size: 14px; }
+.votes button:hover { color: var(--green); border-color: var(--green); }
+.votes b { font-size: 17px; }
+.accepted { background: var(--green-tint); border-radius: 14px; padding: 16px 12px; border-top-color: transparent; }
+.acceptedMark { color: var(--green); font-weight: 600; font-size: 13px; }
