@@ -49,11 +49,13 @@ export async function updateCourse(id: string, form: FormData) {
     description: str(form, "description"),
     published,
     publishAt,
+    sequential: bool(form, "sequential"),
   }).where(eq(t.courses.id, id));
   const what = [
     old.published !== published && (published ? "опубликовал" : "снял с публикации"),
     String(old.publishAt) !== String(publishAt) && (publishAt ? "назначил публикацию" : "убрал отложенную публикацию"),
     old.title !== title && `переименовал в «${title}»`,
+    old.sequential !== bool(form, "sequential") && (bool(form, "sequential") ? "включил последовательное прохождение" : "выключил последовательное прохождение"),
   ].filter(Boolean);
   await log(id, me.id, what.length ? `Курс: ${what.join(", ")}` : "Изменил описание курса");
   touch(id);

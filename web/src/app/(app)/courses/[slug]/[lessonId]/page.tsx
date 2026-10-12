@@ -39,7 +39,10 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
   const n = Math.min(Math.max(1, Number((await searchParams).step) || 1), Math.max(1, steps.length));
   const shown = longread ? steps : steps.slice(n - 1, n);
   const lastStep = longread || n >= steps.length;
-  const finishLabel = cur.done ? (next ? "Следующий урок" : "К курсам") : next ? "Завершить урок" : "Завершить курс";
+  // В последовательном курсе следующий урок ещё закрыт, но он есть — считаем по всем урокам
+  const ordered = outline.sections.filter((x) => !x.locked).flatMap((x) => x.lessons);
+  const hasNext = !!ordered[ordered.findIndex((l) => l.id === lessonId) + 1];
+  const finishLabel = cur.done ? (next ? "Следующий урок" : "К курсам") : hasNext ? "Завершить урок" : "Завершить курс";
 
   return (
     <>
@@ -81,7 +84,12 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
                 </summary>
                 {!sec.locked && (
                   <div className={s.ls}>
-                    {sec.lessons.map((l) => (
+                    {sec.lessons.map((l) => l.locked ? (
+                      <span key={l.id} className={`${s.l} ${s.lockedL}`} title="Откроется, когда пройдёте предыдущий урок">
+                        <Icon name="lock" size={18} />
+                        <span className={s.lt}>{l.title}</span>
+                      </span>
+                    ) : (
                       <Link key={l.id} href={`/courses/${slug}/${l.id}`} className={`${s.l} ${l.id === lessonId ? s.on : ""}`}
                         aria-current={l.id === lessonId ? "page" : undefined}>
                         <Icon name={KIND_ICON[l.kind]} size={18} />

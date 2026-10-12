@@ -17,9 +17,9 @@ export default async function Dashboard() {
   ]);
 
   // Текущий курс — незавершённый, в котором студент занимался последним
-  const open = courses.filter((c) => c.done < c.total)
+  const open = courses.filter((c) => c.done < c.total && !c.lockedBy)
     .sort((a, b) => (b.lastAt ? +new Date(b.lastAt) : 0) - (a.lastAt ? +new Date(a.lastAt) : 0));
-  const current = open[0] ?? courses[0];
+  const current = open[0] ?? courses.find((c) => !c.lockedBy);
   const outline = current ? await getCourseOutline(current.slug, user) : null;
   const next = outline?.next ?? null;
   const pct = outline && outline.total ? Math.round((outline.done / outline.total) * 100) : 0;
