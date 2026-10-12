@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { renderMd } from "@/lib/markdown";
 import { saveStepProgress } from "@/lib/progress";
+import { checkAchievements } from "@/lib/achievements";
+import { award, celebrate, touchActivity } from "@/lib/gamify";
 import { getCourseOutline, getLesson, getLessonSteps, getStepForUser } from "@/lib/queries";
 import { schedule, type Grade } from "@/lib/srs";
 import { checkQuiz, isRequired, parseStep, STEP_LABEL } from "@/lib/steps";
@@ -30,12 +32,8 @@ export async function completeLesson(slug: string, lessonId: string) {
     return { error: `Сначала пройдите шаг ${left + 1}: «${st.title || STEP_LABEL[st.kind]}»`, step: left + 1 };
   }
 
-  await db.transaction(async (tx) => {
-    await tx.insert(t.lessonProgress).values({ userId: user.id, lessonId }).onConflictDoNothing();
-    await tx.insert(t.xpEvents)
-      .values({ userId: user.id, amount: row.lesson.xp, reason: `Урок «${row.lesson.title}»`, sourceKey: `lesson:${lessonId}` })
-      .onConflictDoNothing();
-  });
+  await db.insert(t.lessonProgress).values({ userId: user.id, lessonId }).onConflictDoNothing();
+  await award(user.id, { xp: row.lesson.xp, reason: `Урок «${row.lesson.title}»`, sourceKey: `lesson:${lessonId}` });
 
   revalidatePath("/", "layout");
   // Структуру берём заново: в последовательном курсе следующий урок открылся только что
@@ -54,6 +52,7 @@ export async function answerQuiz(stepId: string, given: string[]) {
   const answer = given.filter((x) => typeof x === "string").slice(0, 50).map((x) => x.slice(0, 500));
   const correct = checkQuiz(q, answer);
   await saveStepProgress(user.id, stepId, correct, { answer, correct });
+  if (correct) await touchActivity(user.id);
   return {
     correct,
     // Объяснение и правильный вариант — только после верного ответа: в объяснении обычно есть сам ответ
@@ -97,5 +96,31 @@ export async function reviewCard(stepId: string, cardId: string, grade: Grade) {
     .where(and(eq(t.cardReviews.userId, user.id), eq(t.cardReviews.stepId, stepId)));
   const ids = new Set(seen.map((x) => x.id));
   if (cards.every((c) => ids.has(c.id))) await saveStepProgress(user.id, stepId, true);
+  await touchActivity(user.id);
+  await celebrate(await checkAchievements(user.id));
   revalidatePath("/", "layout");
+}
+
+/** Отправить работу по заданию. Файлы уже загружены студентом (kind=submission). */
+export async function submitAssignment(stepId: string, text: string, fileIds: string[]) {
+  const user = await requireUser();
+  const row = await getStepForUser(stepId, user);
+  if (!row || row.step.kind !== "assignment") return { error: "Задание не найдено" };
+  const a = parseStep("assignment", row.step.content);
+  const body = a.allowText ? text.trim().slice(0, 50_000) : "";
+  const ids = a.allowFiles ? [...new Set(fileIds)].filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 10) : [];
+  const files = ids.length
+    ? (await db.select().from(t.uploads).where(and(inArray(t.uploads.id, ids), eq(t.uploads.createdBy, user.id), eq(t.uploads.access, "private"))))
+      .map((f) => ({ uploadId: f.id, name: f.name, size: f.size }))
+    : [];
+  if (!body && !files.length) return { error: "Добавьте ответ или файл" };
+
+  const [last] = await db.select().from(t.submissions)
+    .where(and(eq(t.submissions.stepId, stepId), eq(t.submissions.userId, user.id))).orderBy(desc(t.submissions.attempt)).limit(1);
+  if (last?.status === "submitted") return { error: "Работа уже на проверке" };
+  if (last?.status === "accepted") return { error: "Работа уже принята" };
+  await db.insert(t.submissions).values({ stepId, userId: user.id, attempt: (last?.attempt ?? 0) + 1, text: body, files });
+  await touchActivity(user.id);
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

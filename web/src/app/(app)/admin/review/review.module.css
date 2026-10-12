@@ -1,0 +1,9 @@
+.layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 16px; align-items: start; }
+.answer { margin: 0; white-space: pre-wrap; line-height: 1.6; background: #F6F7F5; border-radius: 12px; padding: 12px 14px; max-height: 420px; overflow: auto; }
+.file { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink2); }
+.file .small { margin-left: auto; }
+.rubric { display: flex; flex-direction: column; gap: 8px; }
+.crit { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line2); }
+.crit > span:first-child { display: flex; flex-direction: column; }
+.prev { padding: 10px 0; border-top: 1px solid var(--line2); font-size: 14px; }
+.prev p { margin: 4px 0 0; white-space: pre-wrap; }

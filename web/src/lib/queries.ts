@@ -27,7 +27,7 @@ export async function getXp(userId: string) {
 export async function getLeaderboard(groupId: string, since: Date | null) {
   const xp = sql<number>`coalesce(sum(${t.xpEvents.amount}), 0)::int`;
   const rows = await db
-    .select({ id: t.users.id, name: t.users.name, xp })
+    .select({ id: t.users.id, name: t.users.name, avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame, xp })
     .from(t.users)
     .leftJoin(
       t.xpEvents,
@@ -379,4 +379,19 @@ export async function getMyPrograms(user: CurrentUser) {
     p.courseIds.push(r.courseId);
   }
   return out;
+}
+
+/** Командный зачёт: сумма XP участников за период и средний XP на участника */
+export async function getTeamBoard(since: Date | null) {
+  const xp = sql<number>`coalesce(sum(${t.xpEvents.amount}), 0)::int`;
+  const rows = await db.select({
+    id: t.teams.id, name: t.teams.name, color: t.teams.color, xp,
+    members: sql<number>`count(distinct ${t.teamMembers.userId})::int`,
+  })
+    .from(t.teams)
+    .leftJoin(t.teamMembers, eq(t.teamMembers.teamId, t.teams.id))
+    .leftJoin(t.xpEvents, since ? and(eq(t.xpEvents.userId, t.teamMembers.userId), gte(t.xpEvents.createdAt, since)) : eq(t.xpEvents.userId, t.teamMembers.userId))
+    .groupBy(t.teams.id)
+    .orderBy(sql`${xp} desc`);
+  return rows.map((r, i) => ({ ...r, place: i + 1, avg: r.members ? Math.round(r.xp / r.members) : 0 }));
 }

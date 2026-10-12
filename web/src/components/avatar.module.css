@@ -1,0 +1,11 @@
+.av { position: relative; flex: none; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-weight: 600; background: var(--green); }
+.av img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.av[class*="f_"] { box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--ring); }
+.f_leaf { --ring: #4CAF50; }
+.f_silver { --ring: #A7B4BD; }
+.f_gold { --ring: #E3B23C; }
+.f_fire { --ring: #E8743B; box-shadow: 0 0 0 2px #fff, 0 0 0 5px #E8743B, 0 0 12px 3px rgba(232, 116, 59, .55) !important; }
+.f_neon { --ring: #3CF2D2; box-shadow: 0 0 0 2px #0E1611, 0 0 0 5px #3CF2D2, 0 0 14px 4px rgba(60, 242, 210, .6) !important; }
+.f_rainbow::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; z-index: -1;
+  background: conic-gradient(#E8743B, #F2B33D, #2E9D5B, #2F6FD6, #6A4BC4, #C2185B, #E8743B); }
+.f_rainbow { box-shadow: 0 0 0 2px #fff !important; isolation: isolate; }

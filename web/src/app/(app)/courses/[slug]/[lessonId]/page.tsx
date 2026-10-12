@@ -11,7 +11,7 @@ import { StepView } from "./StepView";
 import s from "./lesson.module.css";
 
 const KIND_ICON: Record<keyof typeof KIND_LABEL, IconName> = { theory: "doc", practice: "flask", lab: "term" };
-const STEP_ICON: Record<StepKind, IconName> = { text: "doc", video: "play", file: "doc", quiz: "exam", cards: "cards", package: "skills", lab: "term" };
+const STEP_ICON: Record<StepKind, IconName> = { text: "doc", video: "play", file: "doc", quiz: "exam", cards: "cards", package: "skills", lab: "term", assignment: "edit" };
 
 export async function generateMetadata({ params }: PageProps<"/courses/[slug]/[lessonId]">) {
   const row = await getLesson((await params).lessonId).catch(() => null);

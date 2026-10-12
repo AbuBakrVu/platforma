@@ -1,21 +1,55 @@
 import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { db, schema as t } from "@/db";
-import { getUser } from "@/lib/auth";
+import { getUser, type CurrentUser } from "@/lib/auth";
+import { getStepForUser } from "@/lib/queries";
 import { officeToPdf, srtToVtt } from "@/lib/convert";
 import { uuidOrNull } from "@/lib/form";
 import { extractZip, parsePackage } from "@/lib/packages";
 import { importCourse } from "@/lib/transfer";
 import { filePath, isOffice, mimeOf, packageDir, removeFile, saveStream } from "@/lib/storage";
 
+/** Студенты загружают только аватар и файлы к домашнему заданию */
+const SUBMISSION_MB = Number(process.env.MAX_SUBMISSION_MB ?? 200);
+
+async function studentUpload(req: Request, user: CurrentUser, q: URLSearchParams, name: string) {
+  const kind = q.get("kind");
+  if (!req.body) return Response.json({ error: "Пустой файл" }, { status: 400 });
+  let courseId: string | null = null;
+  if (kind === "avatar") {
+    if (!/\.(png|jpe?g|webp|gif)$/i.test(name)) return Response.json({ error: "Нужна картинка: PNG, JPG или WebP" }, { status: 400 });
+  } else if (kind === "submission") {
+    const stepId = uuidOrNull(q.get("stepId") ?? "");
+    const row = stepId ? await getStepForUser(stepId, user) : null;
+    if (!row || row.step.kind !== "assignment") return Response.json({ error: "Задание не найдено" }, { status: 404 });
+    courseId = row.course.id;
+  } else {
+    return Response.json({ error: "Нет доступа" }, { status: 403 });
+  }
+  const id = randomUUID();
+  let size: number;
+  try {
+    size = await saveStream(id, req.body, kind === "avatar" ? 5 : SUBMISSION_MB);
+  } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 413 });
+  }
+  const mime = mimeOf(name);
+  await db.insert(t.uploads).values({ id, courseId, name, mime, size, createdBy: user.id, access: kind === "avatar" ? "public" : "private" });
+  return Response.json({ id, name, mime, size, pdfId: null });
+}
+
 /**
  * Загрузка файла телом запроса (без multipart — так большие видео не буферизуются в памяти).
- * POST /api/upload?courseId=…&name=…[&kind=package|course]
+ * POST /api/upload?courseId=…&name=…[&kind=package|course|avatar|submission&stepId=…]
  */
 export async function POST(req: Request) {
   const user = await getUser();
-  if (!user || user.role === "student") return Response.json({ error: "Нет доступа" }, { status: 403 });
+  if (!user) return Response.json({ error: "Нужно войти" }, { status: 401 });
   const q = new URL(req.url).searchParams;
+  if (user.role === "student" || q.get("kind") === "avatar" || q.get("kind") === "submission") {
+    const name = (q.get("name") ?? "file").replace(/[\\/\0]/g, "_").slice(0, 200) || "file";
+    return studentUpload(req, user, q, name);
+  }
   const courseId = uuidOrNull(q.get("courseId") ?? "");
   const name = (q.get("name") ?? "file").replace(/[\\/\0]/g, "_").slice(0, 200) || "file";
   if (!req.body) return Response.json({ error: "Пустой файл" }, { status: 400 });

@@ -1,0 +1,31 @@
+.hero { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px; }
+.heroText { flex: 1 1 280px; display: flex; flex-direction: column; gap: 4px; }
+.heroText h1 { font-size: 26px; font-weight: 700; }
+.level { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 8px; }
+.stats div { display: flex; flex-direction: column; padding: 10px 14px; border-radius: 14px; background: var(--green-tint); }
+.stats b { font-size: 17px; }
+.stats span { font-size: 12px; color: var(--muted); }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); align-items: start; }
+.colors { display: flex; flex-wrap: wrap; gap: 8px; }
+.color { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+.color.on { box-shadow: 0 0 0 2px var(--ink); }
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.frame { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px 10px; border-radius: 14px; border: 1px solid var(--line); background: #fff; font-size: 13px; }
+.frame:disabled { opacity: .45; cursor: not-allowed; }
+.frame.on { border-color: var(--green); background: var(--green-tint); }
+.frame small { font-size: 11px; color: var(--muted); }
+.levels { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.levels li { display: grid; grid-template-columns: 28px 1fr; gap: 0 8px; padding: 8px 10px; border-radius: 12px; background: #F4F5F3; font-size: 13px; }
+.levels li b { grid-row: span 2; font-size: 18px; color: var(--muted); }
+.levels li small { color: var(--muted); }
+.levels .passed { background: var(--green-tint); }
+.levels .passed b { color: var(--green); }
+.levels .on { background: var(--green); color: #fff; }
+.levels .on b, .levels .on small { color: #fff; }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.badge { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 16px; background: #F4F5F3; filter: grayscale(1); opacity: .7; }
+.badge.got { background: var(--green-tint); filter: none; opacity: 1; }
+.bIcon { font-size: 34px; line-height: 1.1; }
+.badge small { margin-top: auto; font-size: 12px; color: var(--muted); padding-top: 6px; }
+.season { font-size: 11px; font-weight: 600; color: var(--warn); }

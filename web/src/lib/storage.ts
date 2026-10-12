@@ -24,15 +24,15 @@ export function insidePackage(id: string, rel: string) {
 }
 
 /** Записать поток в файл с ограничением размера; возвращает число байт */
-export async function saveStream(id: string, body: WebStream<Uint8Array> | ReadableStream<Uint8Array>) {
+export async function saveStream(id: string, body: WebStream<Uint8Array> | ReadableStream<Uint8Array>, maxMb = MAX_UPLOAD_MB) {
   const dest = filePath(id);
   await mkdir(path.dirname(dest), { recursive: true });
-  const limit = MAX_UPLOAD_MB * 1024 * 1024;
+  const limit = maxMb * 1024 * 1024;
   let size = 0;
   const counter = new Transform({
     transform(chunk: Buffer, _enc, cb) {
       size += chunk.length;
-      if (size > limit) cb(new Error(`Файл больше ${MAX_UPLOAD_MB} МБ`));
+      if (size > limit) cb(new Error(`Файл больше ${maxMb} МБ`));
       else cb(null, chunk);
     },
   });

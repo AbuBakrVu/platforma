@@ -1,0 +1,13 @@
+.strip { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+.tile { flex-direction: row; align-items: center; gap: 14px; padding: 16px 18px; color: var(--ink); }
+.tile:hover { color: var(--ink); box-shadow: 0 2px 10px rgba(20, 40, 25, .07); }
+.text { display: flex; flex-direction: column; min-width: 0; }
+.text small { font-size: 12px; color: var(--muted); }
+.text b { font-size: 18px; }
+.text em { font-style: normal; font-size: 12px; color: var(--warn); }
+.emoji { font-size: 32px; line-height: 1; }
+.cold { filter: grayscale(1); opacity: .5; }
+.ring { --p: 0%; width: 52px; height: 52px; border-radius: 50%; flex: none; display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--green) 0 var(--p), #E6E9E5 0); }
+.ring::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
+.ring b { position: relative; z-index: 1; font-size: 12px; }

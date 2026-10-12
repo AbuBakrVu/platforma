@@ -2,6 +2,9 @@ import "server-only";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "./auth";
+import { checkAchievements } from "./achievements";
+import { award, celebrate, touchActivity } from "./gamify";
+import { getMyCourses } from "./queries";
 
 export type QKind = "single" | "multiple" | "order";
 export type Option = { id: string; text: string };
@@ -64,26 +67,33 @@ export const deadlineOf = (startedAt: Date, durationMin: number) => new Date(sta
 /** Запас на сетевую задержку при сохранении последнего ответа */
 export const GRACE_MS = 30_000;
 
-/** Завершить попытку: посчитать результат и (один раз) начислить XP за сдачу */
+/** Завершить попытку: посчитать результат в баллах и (один раз) начислить XP за сдачу */
 export async function finalizeAttempt(attemptId: string) {
-  return db.transaction(async (tx) => {
+  const done = await db.transaction(async (tx) => {
     const [row] = await tx.select({ a: t.examAttempts, e: t.exams }).from(t.examAttempts)
       .innerJoin(t.exams, eq(t.exams.id, t.examAttempts.examId))
       .where(eq(t.examAttempts.id, attemptId)).for("update");
     if (!row || row.a.finishedAt) return row?.a ?? null;
     const qs = await tx.select().from(t.examQuestions).where(eq(t.examQuestions.examId, row.e.id));
-    const right = qs.filter((q) => isCorrect(q.kind, q.answer, row.a.answers[q.id])).length;
-    const score = qs.length ? Math.round((right / qs.length) * 100) : 0;
+    const max = qs.reduce((n, q) => n + q.points, 0);
+    const got = qs.filter((q) => isCorrect(q.kind, q.answer, row.a.answers[q.id])).reduce((n, q) => n + q.points, 0);
+    const score = max ? Math.round((got / max) * 100) : 0;
     const finishedAt = new Date(Math.min(Date.now(), deadlineOf(row.a.startedAt, row.e.durationMin).getTime()));
-    const [done] = await tx.update(t.examAttempts).set({ finishedAt, scorePercent: score })
+    const [done] = await tx.update(t.examAttempts).set({ finishedAt, scorePercent: score, scorePoints: got, maxPoints: max })
       .where(eq(t.examAttempts.id, attemptId)).returning();
-    if (score >= row.e.passPercent && row.e.xp > 0) {
-      await tx.insert(t.xpEvents).values({
-        userId: row.a.userId, amount: row.e.xp, reason: `Экзамен «${row.e.title}» сдан`, sourceKey: `exam:${row.e.id}`,
-      }).onConflictDoNothing();
-    }
-    return done;
+    return { done, passed: score >= row.e.passPercent, exam: row.e };
   });
+  if (!done) return null;
+  if ("passed" in done) {
+    if (done.passed && done.exam.xp > 0) {
+      await award(done.done.userId, { xp: done.exam.xp, reason: `Экзамен «${done.exam.title}» сдан`, sourceKey: `exam:${done.exam.id}` });
+    } else {
+      await touchActivity(done.done.userId);
+      await celebrate(await checkAchievements(done.done.userId));
+    }
+    return done.done;
+  }
+  return done;
 }
 
 /** Экзамены, доступные пользователю: без курса — всем, с курсом — потокам этого курса. Персонал видит всё. */
@@ -91,11 +101,8 @@ export async function accessibleExams(user: CurrentUser) {
   if (user.role !== "student") {
     return db.select().from(t.exams).orderBy(asc(t.exams.title));
   }
-  const courseIds = user.groupId
-    ? (await db.select({ id: t.groupCourses.courseId }).from(t.groupCourses)
-      .innerJoin(t.courses, eq(t.courses.id, t.groupCourses.courseId))
-      .where(and(eq(t.groupCourses.groupId, user.groupId), eq(t.courses.published, true)))).map((r) => r.id)
-    : [];
+  // Курсы потока — напрямую и из программ обучения (кроме ещё закрытых в программе)
+  const courseIds = user.groupId ? (await getMyCourses(user)).filter((c) => !c.lockedBy).map((c) => c.id) : [];
   return db.select().from(t.exams)
     .where(and(eq(t.exams.published, true), courseIds.length ? or(isNull(t.exams.courseId), inArray(t.exams.courseId, courseIds)) : isNull(t.exams.courseId)))
     .orderBy(asc(t.exams.title));

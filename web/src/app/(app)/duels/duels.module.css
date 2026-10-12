@@ -1,0 +1,30 @@
+.list { display: flex; flex-direction: column; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 6px; border-top: 1px solid var(--line2); color: var(--ink2); border-radius: 12px; }
+.row:first-child { border-top: 0; }
+.row:hover { background: var(--green-tint); color: var(--ink); }
+.rowBody { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.win { background: var(--green); color: #fff; }
+.lose { background: #FBE9E7; color: #B42318; }
+.turn { background: var(--warn-soft); color: var(--warn); }
+.muted { background: #F0F1EF; color: var(--muted); }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 28px; height: 6px; border-radius: 3px; background: #E3E7E2; }
+.dots .ans { background: var(--green-soft); }
+.dots .cur { background: var(--green); }
+.prompt { font-size: 22px; font-weight: 600; line-height: 1.35; white-space: pre-line; }
+.opts { display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
+.opt { text-align: left; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: #fff; font-size: 16px; color: var(--ink); }
+.opt:hover { border-color: #C9CFC8; }
+.sel { border-color: var(--green); background: var(--green-tint); }
+.invite, .result { align-items: center; text-align: center; padding: 32px; }
+.versus { display: flex; align-items: center; gap: 18px; font-size: 28px; }
+.result h1 { font-size: 30px; font-weight: 700; }
+.board { display: flex; align-items: center; gap: 28px; }
+.board > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.big { font-size: 44px; font-weight: 700; line-height: 1; }
+.vs { font-size: 40px; color: var(--muted); }
+.review { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line2); }
+.okMark, .badMark { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.okMark { background: var(--green-soft); color: var(--green); }
+.badMark { background: var(--warn-soft); color: var(--warn); }

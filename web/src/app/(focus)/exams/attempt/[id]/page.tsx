@@ -19,7 +19,9 @@ export default async function AttemptPage({ params }: PageProps<"/exams/attempt/
   const row = await loadAttempt(id, user.id);
   if (!row) notFound();
   const { deadline } = row;
-  const questions = await db.select().from(t.examQuestions).where(eq(t.examQuestions.examId, row.e.id)).orderBy(asc(t.examQuestions.position));
+  const ordered = await db.select().from(t.examQuestions).where(eq(t.examQuestions.examId, row.e.id)).orderBy(asc(t.examQuestions.position));
+  // Порядок вопросов у каждой попытки свой, но стабильный при перезагрузке
+  const questions = row.e.shuffleQuestions ? seededShuffle(ordered, id) : ordered;
 
   if (!row.a.finishedAt) {
     return (
@@ -31,7 +33,7 @@ export default async function AttemptPage({ params }: PageProps<"/exams/attempt/
         // Правильные ответы в браузер не отправляем; порядок для «order» перемешан стабильно
         questions={questions.map((q) => ({
           id: q.id, kind: q.kind, prompt: q.prompt,
-          options: q.kind === "order" ? seededShuffle(q.options, id + q.id) : q.options,
+          options: q.kind === "order" || row.e.shuffleOptions ? seededShuffle(q.options, id + q.id) : q.options,
         }))}
       />
     );
@@ -41,6 +43,8 @@ export default async function AttemptPage({ params }: PageProps<"/exams/attempt/
   const score = row.a.scorePercent ?? 0;
   const passed = score >= row.e.passPercent;
   const right = questions.filter((q) => isCorrect(q.kind, q.answer, row.a.answers[q.id])).length;
+  const points = row.a.scorePoints ?? null, maxPoints = row.a.maxPoints ?? null;
+  const showPoints = maxPoints !== null && maxPoints !== questions.length;
   const minutes = Math.max(1, Math.round((row.a.finishedAt.getTime() - row.a.startedAt.getTime()) / 60000));
   const label = (q: (typeof questions)[number], ids: string[] | undefined) =>
     ids?.length ? ids.map((v) => q.options.find((o) => o.id === v)?.text ?? "?").join(q.kind === "order" ? " → " : "; ") : "нет ответа";
@@ -54,7 +58,8 @@ export default async function AttemptPage({ params }: PageProps<"/exams/attempt/
           <span style={{ fontSize: 18, fontWeight: 600 }}>{passed ? "Сдан" : "Не сдан"}</span>
         </div>
         <span className="small">
-          {right} из {questions.length} {plural(questions.length, "вопроса", "вопросов", "вопросов")} верно · проходной {row.e.passPercent}% ·{" "}
+          {right} из {questions.length} {plural(questions.length, "вопроса", "вопросов", "вопросов")} верно
+          {showPoints ? ` · ${points} из ${maxPoints} баллов` : ""} · проходной {row.e.passPercent}% ·{" "}
           {minutes} мин{passed && row.e.xp ? ` · +${row.e.xp} XP за первую сдачу` : ""}
         </span>
         <div className="row">
@@ -63,8 +68,8 @@ export default async function AttemptPage({ params }: PageProps<"/exams/attempt/
         </div>
       </section>
 
-      <section className="card">
-        <div className="card-h"><h2>Разбор</h2></div>
+      {row.e.review !== "score" && <section className="card">
+        <div className="card-h"><h2>Разбор</h2>{row.e.review === "mistakes" && <span className="small muted">правильные ответы преподаватель решил не показывать</span>}</div>
         {questions.map((q, i) => {
           const ok = isCorrect(q.kind, q.answer, row.a.answers[q.id]);
           return (
@@ -75,12 +80,14 @@ export default async function AttemptPage({ params }: PageProps<"/exams/attempt/
               <div style={{ minWidth: 0 }}>
                 <b style={{ fontWeight: 600, whiteSpace: "pre-line" }}>{i + 1}. {q.prompt}</b>
                 <div className="small" style={{ marginTop: 6 }}><span className="muted">Ваш ответ:</span> {label(q, row.a.answers[q.id])}</div>
-                {!ok && <div className="small" style={{ marginTop: 2 }}><span className="muted">Правильно:</span> <b style={{ fontWeight: 600 }}>{label(q, q.answer)}</b></div>}
+                {!ok && row.e.review === "full" && <div className="small" style={{ marginTop: 2 }}><span className="muted">Правильно:</span> <b style={{ fontWeight: 600 }}>{label(q, q.answer)}</b></div>}
+                {row.e.review === "full" && q.explanation && <div className="small" style={{ marginTop: 6, whiteSpace: "pre-line" }}><span className="muted">Объяснение:</span> {q.explanation}</div>}
+                {showPoints && <div className="small muted" style={{ marginTop: 2 }}>{ok ? q.points : 0} из {q.points} {plural(q.points, "балла", "баллов", "баллов")}</div>}
               </div>
             </div>
           );
         })}
-      </section>
+      </section>}
     </div>
   );
 }

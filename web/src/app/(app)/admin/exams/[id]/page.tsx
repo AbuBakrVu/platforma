@@ -53,10 +53,10 @@ export default async function ExamEditor({ params, searchParams }: PageProps<"/a
             <summary className="row" style={{ cursor: "pointer", listStyle: "none", flexWrap: "nowrap", alignItems: "flex-start" }}>
               <b style={{ fontWeight: 600, width: 34, flex: "none" }}>{i + 1}.</b>
               <span style={{ flex: 1, minWidth: 0 }}>{q.prompt}
-                <span className="small muted"> · {KIND[q.kind]}, вариантов {q.options.length}</span></span>
+                <span className="small muted"> · {KIND[q.kind]}, вариантов {q.options.length}, {q.points} {q.points === 1 ? "балл" : q.points < 5 ? "балла" : "баллов"}</span></span>
               <Icon name="edit" size={18} className="muted" />
             </summary>
-            <div style={{ marginTop: 16 }}><QuestionForm examId={id} q={{ id: q.id, kind: q.kind, prompt: q.prompt, optionsText: toEditorText(q.kind, q.options, q.answer) }} /></div>
+            <div style={{ marginTop: 16 }}><QuestionForm examId={id} q={{ id: q.id, kind: q.kind, prompt: q.prompt, optionsText: toEditorText(q.kind, q.options, q.answer), points: q.points, explanation: q.explanation }} /></div>
           </details>
           <div className="row" style={{ justifyContent: "flex-end" }}>
             <form action={moveQuestion.bind(null, id, q.id, -1)}><button className="btn sm" aria-label="Выше" disabled={i === 0}><Icon name="up" size={16} /></button></form>
