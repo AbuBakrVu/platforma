@@ -8,6 +8,7 @@ import { TopBar } from "@/components/TopBar";
 import { Icon, type IconName } from "@/components/Icon";
 import { CompleteButton } from "./CompleteButton";
 import { StepView } from "./StepView";
+import { LessonComments } from "@/components/community/LessonComments";
 import s from "./lesson.module.css";
 
 const KIND_ICON: Record<keyof typeof KIND_LABEL, IconName> = { theory: "doc", practice: "flask", lab: "term" };
@@ -113,6 +114,7 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
           )}
         </section>
 
+        <div className={s.main}>
         <article className={`card ${s.article}`}>
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 18 }}>
             <div className="row">
@@ -173,6 +175,8 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
             </div>
           </div>
         </article>
+        <LessonComments lessonId={lessonId} user={user} />
+        </div>
       </div>
     </>
   );

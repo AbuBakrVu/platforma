@@ -26,7 +26,7 @@
 .lt { flex: 1; min-width: 0; }
 .ok { color: var(--green); }
 
-.article { flex: 999 1 480px; min-width: 0; padding: 28px 32px; gap: 0; }
+.article { min-width: 0; padding: 28px 32px; gap: 0; }
 .h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 18px; }
 .foot { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line2); }
 @media (max-width: 640px) { .article { padding: 22px 18px; } }
@@ -52,3 +52,4 @@
 .fileList span small { color: var(--muted); font-size: 12px; }
 .lockedL { color: var(--muted); cursor: default; }
 .lockedL:hover { background: none; color: var(--muted); }
+.main { flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }

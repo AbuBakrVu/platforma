@@ -7,6 +7,7 @@ const TABS = [
   { href: "/admin", label: "Обзор", admin: false },
   { href: "/admin/groups", label: "Потоки", admin: true },
   { href: "/admin/users", label: "Люди и приглашения", admin: true },
+  { href: "/admin/mentors", label: "Наставники", admin: true },
   { href: "/admin/review", label: "Проверка", admin: false },
   { href: "/admin/gradebook", label: "Журнал оценок", admin: false },
   { href: "/admin/courses", label: "Курсы", admin: false },

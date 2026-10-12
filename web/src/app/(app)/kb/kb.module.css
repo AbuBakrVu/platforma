@@ -1,0 +1,14 @@
+.layout { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.article h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+.article :global(.prose) { max-width: 760px; }
+.tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tree .tree { padding-left: 14px; border-left: 1px solid var(--line2); margin-left: 8px; }
+.tree a { display: block; padding: 7px 10px; border-radius: 10px; color: var(--ink2); font-size: 14px; }
+.tree a:hover { background: var(--green-tint); color: var(--ink); }
+.tree a.on { background: var(--green-soft); color: var(--green); font-weight: 600; }
+.tree small { color: var(--muted); font-weight: 400; }
+.hit { display: flex; flex-direction: column; gap: 4px; padding: 12px 8px; border-top: 1px solid var(--line2); border-radius: 10px; color: var(--ink2); }
+.hit:hover { background: var(--green-tint); }
+.hit b { color: var(--ink); }

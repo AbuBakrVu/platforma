@@ -4,9 +4,9 @@ export type Uploaded = { id: string; name: string; mime: string; size: number; p
 export type UploadedPackage = { id: string; title: string; kind: string };
 
 /** Загрузка файла на /api/upload с прогрессом (fetch прогресс отправки не показывает — поэтому XHR) */
-export function upload<T = Uploaded>(file: File, courseId: string, opts: { kind?: "package" | "course" | "avatar" | "submission"; stepId?: string; onProgress?: (pct: number) => void } = {}) {
+export function upload<T = Uploaded>(file: File, courseId: string, opts: { kind?: "package" | "course" | "avatar" | "submission"; stepId?: string; access?: "public"; onProgress?: (pct: number) => void } = {}) {
   return new Promise<T>((resolve, reject) => {
-    const q = new URLSearchParams({ courseId, name: file.name, ...(opts.kind ? { kind: opts.kind } : {}), ...(opts.stepId ? { stepId: opts.stepId } : {}) });
+    const q = new URLSearchParams({ courseId, name: file.name, ...(opts.kind ? { kind: opts.kind } : {}), ...(opts.stepId ? { stepId: opts.stepId } : {}), ...(opts.access ? { access: opts.access } : {}) });
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `/api/upload?${q}`);
     xhr.upload.onprogress = (e) => e.lengthComputable && opts.onProgress?.(Math.round((e.loaded / e.total) * 100));

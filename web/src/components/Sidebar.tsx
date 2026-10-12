@@ -17,6 +17,12 @@ const MAIN: { href: string; label: string; icon: IconName }[] = [
   { href: "/exams", label: "Пробные экзамены", icon: "exam" },
   { href: "/rating", label: "Рейтинг", icon: "cup" },
 ];
+const SOCIAL: typeof MAIN = [
+  { href: "/messages", label: "Сообщения", icon: "mail" },
+  { href: "/forum", label: "Форум", icon: "users" },
+  { href: "/news", label: "Объявления", icon: "bell" },
+  { href: "/kb", label: "База знаний", icon: "doc" },
+];
 const EXTRA: typeof MAIN = [
   { href: "/certificates", label: "Сертификаты", icon: "cert" },
   { href: "/shop", label: "Магазин", icon: "shop" },
@@ -24,7 +30,10 @@ const EXTRA: typeof MAIN = [
 
 const ROLE = { student: "Студент", teacher: "Преподаватель", admin: "Администратор" } as const;
 
-type Game = { level: number; title: string; pct: number; coins: number; streak: number; streakToday: boolean; quests: number; duels: number };
+type Game = {
+  level: number; title: string; pct: number; coins: number; streak: number; streakToday: boolean; quests: number; duels: number;
+  unread: number; mentees: number;
+};
 
 export function Sidebar({ name, role, group, due = 0, avatar, game }: {
   name: string; role: keyof typeof ROLE; group?: string | null; due?: number;
@@ -38,6 +47,7 @@ export function Sidebar({ name, role, group, due = 0, avatar, game }: {
       {l.label}
       {l.href === "/review" && due > 0 && <span className="badge" aria-label={`${due} к повторению`}>{due}</span>}
       {l.href === "/quests" && game.quests > 0 && <span className="badge" aria-label={`${game.quests} награды можно забрать`}>{game.quests}</span>}
+      {l.href === "/messages" && game.unread > 0 && <span className="badge" aria-label={`${game.unread} непрочитанных`}>{game.unread}</span>}
       {l.href === "/duels" && game.duels > 0 && <span className="badge" aria-label={`${game.duels} дуэли ждут вашего хода`}>{game.duels}</span>}
     </Link>
   );
@@ -58,6 +68,11 @@ export function Sidebar({ name, role, group, due = 0, avatar, game }: {
         <span className="game-st" title="Монеты">🪙{game.coins}</span>
       </Link>
       <div className="nav">{MAIN.map(item)}</div>
+      <div className="sep" />
+      <div className="nav">
+        {SOCIAL.map(item)}
+        {game.mentees > 0 && item({ href: "/mentees", label: "Подопечные", icon: "person-check" })}
+      </div>
       <div className="sep" />
       <div className="nav">
         {EXTRA.map(item)}

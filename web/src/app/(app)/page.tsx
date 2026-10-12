@@ -5,6 +5,7 @@ import { dayKey, fmtDay, fmtTime, fmtWeekday, greeting, KIND_LABEL, plural } fro
 import { TopBar } from "@/components/TopBar";
 import { Icon } from "@/components/Icon";
 import { GameStrip } from "@/components/game/GameStrip";
+import { DashboardSocial } from "@/components/community/DashboardSocial";
 import s from "./dashboard.module.css";
 
 export default async function Dashboard() {
@@ -57,6 +58,7 @@ export default async function Dashboard() {
       </div>
 
       {user.role === "student" && <GameStrip user={user} />}
+      <DashboardSocial user={user} />
 
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))" }}>
         {next && outline ? (

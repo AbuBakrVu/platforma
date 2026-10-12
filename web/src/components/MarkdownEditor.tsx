@@ -27,8 +27,10 @@ const TOOLS: Tool[] = [
 ];
 
 /** Редактор Markdown с панелью инструментов, загрузкой картинок и живым предпросмотром */
-export function MarkdownEditor({ value, onChange, courseId, label = "Текст", minHeight = 380, compact = false }: {
+export function MarkdownEditor({ value, onChange, courseId, label = "Текст", minHeight = 380, compact = false, publicUploads = false }: {
   value: string; onChange: (v: string) => void; courseId: string; label?: string; minHeight?: number; compact?: boolean;
+  /** Картинки доступны всем вошедшим (база знаний), а не только студентам курса */
+  publicUploads?: boolean;
 }) {
   const id = useId();
   const area = useRef<HTMLTextAreaElement>(null);
@@ -57,7 +59,7 @@ export function MarkdownEditor({ value, onChange, courseId, label = "Текст"
       if (!f.type.startsWith("image/")) continue;
       setBusy(`Загружаю ${f.name}…`);
       try {
-        const up = await upload(f, courseId);
+        const up = await upload(f, courseId, publicUploads ? { access: "public" } : {});
         insert({ block: true, run: () => ["![", f.name.replace(/\.\w+$/, ""), `](/api/files/${up.id})`] });
       } catch (e) {
         alert((e as Error).message);

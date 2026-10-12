@@ -1,0 +1,6 @@
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); }
+.head { display: flex; gap: 12px; align-items: center; }
+.head > div { display: flex; flex-direction: column; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink2); }
+.warn { color: var(--warn); font-weight: 600; }
+.course { display: grid; grid-template-columns: 1fr 120px 40px; gap: 10px; align-items: center; }
