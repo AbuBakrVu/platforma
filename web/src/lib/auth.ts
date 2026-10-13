@@ -6,6 +6,7 @@ import { cache } from "react";
 import { eq, and, gt, lt, or, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { hashPassword, verifyPassword } from "@/db/password";
+import { mailEnabled } from "./mail";
 import { ALL_PERMS, isStaff, isStaffRole, TEACHER_DEFAULT, type Perm } from "./permissions";
 
 export { hashPassword, verifyPassword };
@@ -81,6 +82,7 @@ export const getUser = cache(async () => {
       external: schema.users.external,
       accessRoleId: schema.users.accessRoleId,
       lastSeenAt: schema.users.lastSeenAt,
+      emailVerified: schema.users.emailVerified,
       impersonatorId: schema.sessions.impersonatorId,
     })
     .from(schema.sessions)
@@ -101,7 +103,7 @@ export const getUser = cache(async () => {
   }
   return {
     id: row.id, name: row.name, email: row.email, role: row.role, groupId: row.groupId, external: row.external,
-    accessRoleId: row.accessRoleId, impersonatorId: row.impersonatorId, perms,
+    accessRoleId: row.accessRoleId, impersonatorId: row.impersonatorId, perms, emailVerified: row.emailVerified,
   };
 });
 
@@ -113,6 +115,8 @@ export type Learner = { id: string; role: CurrentUser["role"]; groupId: string |
 export async function requireUser(opts: { parents?: boolean } = {}) {
   const user = await getUser();
   if (!user) redirect("/login");
+  // Новая регистрация: сначала подтвердить почту кодом (если почта на сервере настроена)
+  if (!user.emailVerified && !user.impersonatorId && mailEnabled()) redirect("/verify");
   if (user.role === "parent" && !opts.parents) redirect("/parent");
   return user;
 }

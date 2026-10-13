@@ -21,6 +21,23 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     user.groupId ? getLeaderboard(user.groupId, null) : Promise.resolve([]),
   ]);
 
+  // Зарегистрировался сам и ещё не добавлен в поток — курсов пока нет
+  if (!user.groupId && !user.external && courses.length === 0) {
+    return (
+      <>
+        <div className="title"><h1>{greeting()}, {user.name.split(/\s+/)[0]}</h1></div>
+        <section className="card" style={{ alignItems: "flex-start" }}>
+          <h2 style={{ fontSize: 20 }}>Вы зарегистрированы 🎉</h2>
+          <p className="muted" style={{ margin: 0, lineHeight: 1.6 }}>
+            Администратор учебного центра добавит вас в учебный поток — после этого здесь появятся ваши курсы, расписание и задания.
+            Обычно это происходит после оплаты обучения. Если долго ничего не меняется — напишите нам.
+          </p>
+          <Link href="/messages" className="btn"><Icon name="mail" size={18} />Написать в учебный центр</Link>
+        </section>
+      </>
+    );
+  }
+
   // Текущий курс — незавершённый, в котором ученик занимался последним
   const open = courses.filter((c) => c.done < c.total && !c.lockedBy)
     .sort((a, b) => (b.lastAt ? +new Date(b.lastAt) : 0) - (a.lastAt ? +new Date(a.lastAt) : 0));

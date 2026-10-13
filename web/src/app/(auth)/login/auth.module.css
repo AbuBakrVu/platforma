@@ -171,3 +171,12 @@
   .forms form { padding: 28px 32px; }
   .submit { margin-top: auto; }
 }
+
+/* Одна форма входа (без сдвига панелей) */
+.single { padding: 22px 18px; display: flex; flex-direction: column; gap: 12px; }
+.switch a { font-weight: 600; }
+.forgot { align-self: center; font-size: 14px; font-weight: 500; }
+a.tab { color: var(--muted); }
+@media (min-width: 690px) {
+  .single { flex: 1 1 auto; min-width: 0; padding: 28px 32px; }
+}

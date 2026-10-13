@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { and, asc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { demoCounts } from "@/db/demo";
 import { removeDemo } from "@/app/(app)/admin/actions";
 import { can, type getUser } from "@/lib/auth";
 import { unreadTotal } from "@/lib/chats";
 import { dayKey, fmtDate, fmtTime, greeting, plural } from "@/lib/format";
+import { fmtPhone } from "@/lib/phone";
 import { Confirm } from "./Buttons";
 import { Icon, type IconName } from "./Icon";
 import s from "./staff-home.module.css";
@@ -20,7 +21,7 @@ const bounds = () => ({ now: new Date(), from: new Date(Date.now() - DAY), to: n
 export async function StaffHome({ user, removed }: { user: Staff; removed: boolean }) {
   const w = bounds();
   const none = Promise.resolve([] as never[]);
-  const [toReview, events, [orders], unread, drafts, idle, demo] = await Promise.all([
+  const [toReview, events, [orders], unread, drafts, idle, demo, fresh] = await Promise.all([
     can(user, "review")
       ? db.select({ id: t.submissions.id, at: t.submissions.submittedAt, who: t.users.name, lesson: t.lessons.title })
         .from(t.submissions).innerJoin(t.users, eq(t.users.id, t.submissions.userId))
@@ -46,11 +47,18 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
         .orderBy(sql`${t.users.lastSeenAt} asc nulls first`).limit(8)
       : none,
     user.role === "admin" ? demoCounts(db) : null,
+    // Зарегистрировались сами и ждут, когда их добавят в поток
+    can(user, "people")
+      ? db.select({ id: t.users.id, name: t.users.name, phone: t.users.phone, at: t.users.createdAt }).from(t.users)
+        .where(and(eq(t.users.role, "student"), isNull(t.users.groupId), eq(t.users.external, false), eq(t.users.demo, false)))
+        .orderBy(desc(t.users.createdAt)).limit(10)
+      : none,
   ]);
   const today = dayKey(w.now);
   const todays = events.filter((e) => dayKey(e.at) === today && e.kind !== "deadline");
 
   const tiles: { n: number; label: string; href: string; icon: IconName; show: boolean }[] = [
+    { n: fresh.length, label: plural(fresh.length, "новый ученик без потока", "новых ученика без потока", "новых учеников без потока"), href: "#fresh", icon: "person-add", show: fresh.length > 0 },
     { n: toReview.length, label: plural(toReview.length, "работа ждёт проверки", "работы ждут проверки", "работ ждут проверки"), href: "/admin/review", icon: "check", show: can(user, "review") },
     { n: todays.length, label: plural(todays.length, "занятие сегодня", "занятия сегодня", "занятий сегодня"), href: "/admin/schedule", icon: "cal", show: can(user, "schedule") },
     { n: unread, label: plural(unread, "новое сообщение", "новых сообщения", "новых сообщений"), href: "/messages", icon: "mail", show: true },
@@ -86,6 +94,18 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
           <Link key={a.label} href={a.href} className="btn"><Icon name={a.icon} size={18} />{a.label}</Link>
         ))}
       </div>
+
+      {fresh.length > 0 && (
+        <section className="card" id="fresh">
+          <div className="card-h"><h2>Новые регистрации</h2><span className="small muted">добавьте в поток — тогда они увидят курсы</span></div>
+          {fresh.map((u) => (
+            <Link key={u.id} href={`/admin/people/${u.id}#account`} className={s.line}>
+              <span><b>{u.name}</b>{u.phone ? ` · ${fmtPhone(u.phone)}` : ""}</span>
+              <span className="small muted">{fmtDate(u.at)} · выбрать поток →</span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       <div className={s.cols}>
         {can(user, "review") && (

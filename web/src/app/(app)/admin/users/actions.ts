@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normPhone } from "@/lib/phone";
 import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { db, schema as t } from "@/db";
@@ -42,13 +43,20 @@ export async function deleteInvite(id: string) {
   revalidatePath("/admin/users");
 }
 
-export async function updateUser(id: string, form: FormData) {
+export async function updateUser(id: string, form: FormData): Promise<void> {
   const me = await requirePerm("people");
   const role = asRole(str(form, "role"), ROLES);
-  // Себе роль не меняем, чтобы не остаться без администратора
+  const email = str(form, "email").toLowerCase();
+  const phoneRaw = str(form, "phone");
+  const phone = phoneRaw ? normPhone(phoneRaw) : null;
+  // Себе роль не меняем, чтобы не остаться без администратора; почту и телефон — только если поля есть в форме
   await db.update(t.users)
-    .set({ groupId: uuidOrNull(str(form, "groupId")), ...(id === me.id ? {} : { role }) })
-    .where(eq(t.users.id, id));
+    .set({
+      groupId: uuidOrNull(str(form, "groupId")), ...(id === me.id ? {} : { role }),
+      ...(form.has("email") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { email } : {}),
+      ...(form.has("phone") && (phone || !phoneRaw) ? { phone } : {}),
+    })
+    .where(eq(t.users.id, id)).catch(() => {}); // занятая почта или телефон — оставляем как было
   revalidatePath("/admin/users");
   revalidatePath(`/admin/people/${id}`);
 }

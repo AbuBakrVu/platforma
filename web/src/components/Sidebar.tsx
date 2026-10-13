@@ -17,6 +17,8 @@ type Item = {
   perm?: Perm;
   /** Пункт подсвечен и на этих адресах */
   also?: string[];
+  /** Только для администратора */
+  admin?: boolean;
 };
 type Group = { title?: string; items: Item[] };
 
@@ -66,6 +68,7 @@ const STAFF: Group[] = [
     { href: "/news", label: "Объявления", icon: "bell" },
     { href: "/kb", label: "База знаний", icon: "doc" },
   ] },
+  { items: [{ href: "/admin/settings", label: "Настройки", icon: "settings", admin: true }] },
 ];
 
 const PARENT: Group[] = [{ items: [
@@ -104,7 +107,7 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
     due, quests: game.quests, unread: game.unread, duels: game.duels, review: staffCounts.review, orders: staffCounts.orders,
   };
   const isOn = (l: Item) => (l.href === "/" ? path === "/" : [l.href, ...(l.also ?? [])].some((h) => path.startsWith(h)));
-  const visible = (l: Item) => (!l.perm || perms.includes(l.perm))
+  const visible = (l: Item) => (!l.perm || perms.includes(l.perm)) && (!l.admin || role === "admin")
     && !(external && INTERNAL.has(l.href)) && (l.href !== "/labs" || labs);
 
   const groups = (kind === "parent" ? PARENT : staff ? STAFF : STUDENT).map((g) => ({
