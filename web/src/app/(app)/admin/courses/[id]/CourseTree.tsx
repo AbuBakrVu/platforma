@@ -8,7 +8,7 @@ import { KIND_LABEL } from "@/lib/format";
 import { addLesson, deleteSection, moveLesson, moveSection, reorderCourse, updateSection } from "../actions";
 import s from "../../admin.module.css";
 
-type Lesson = { id: string; title: string; kind: keyof typeof KIND_LABEL; steps: number; draft: string | null };
+type Lesson = { id: string; title: string; kind: keyof typeof KIND_LABEL; steps: number; empty: boolean; draft: string | null };
 type Section = { id: string; title: string; opensAt: string; parentSkills: string; lessons: Lesson[] };
 type Drag = { type: "section" | "lesson"; id: string } | null;
 
@@ -89,19 +89,24 @@ export function CourseTree({ courseId, sections: initial }: { courseId: string; 
             </span>
             <form action={updateSection.bind(null, courseId, sec.id)} className="row" style={{ flex: "1 1 400px", alignItems: "flex-end" }}>
               <div className="field" style={{ flex: "1 1 220px" }}>
-                <label htmlFor={`s-${sec.id}`}>Раздел {String(i + 1).padStart(2, "0")}</label>
+                <label htmlFor={`s-${sec.id}`}>Раздел {i + 1}</label>
                 <input id={`s-${sec.id}`} name="title" defaultValue={sec.title} className="ctl" style={{ fontWeight: 600 }} required />
               </div>
-              <div className="field" style={{ flex: "0 1 210px" }}>
-                <label htmlFor={`so-${sec.id}`}>Открывается</label>
-                <input id={`so-${sec.id}`} name="opensAt" type="datetime-local" defaultValue={sec.opensAt} className="ctl" />
-              </div>
               <Submit className="btn sm">Сохранить</Submit>
-              <div className="field" style={{ flex: "1 1 100%" }}>
-                <label htmlFor={`sp-${sec.id}`}>Для родителей: что ребёнок сможет после раздела</label>
-                <input id={`sp-${sec.id}`} name="parentSkills" defaultValue={sec.parentSkills} className="ctl"
-                  placeholder="Например: «Сам запускает программу на удалённом компьютере и проверяет, что она работает»" />
-              </div>
+              <details className={s.more} style={{ flex: "1 1 100%" }}>
+                <summary>Дата открытия и текст для родителей{sec.opensAt ? " · дата задана" : ""}</summary>
+                <div className="form">
+                  <div className="field" style={{ maxWidth: 260 }}>
+                    <label htmlFor={`so-${sec.id}`}>Раздел открывается</label>
+                    <input id={`so-${sec.id}`} name="opensAt" type="datetime-local" defaultValue={sec.opensAt} className="ctl" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`sp-${sec.id}`}>Для родителей: что ребёнок сможет после раздела</label>
+                    <input id={`sp-${sec.id}`} name="parentSkills" defaultValue={sec.parentSkills} className="ctl"
+                      placeholder="Например: «Сам запускает программу на удалённом компьютере и проверяет, что она работает»" />
+                  </div>
+                </div>
+              </details>
             </form>
             <div className="row" style={{ flexWrap: "nowrap" }}>
               <form action={moveSection.bind(null, courseId, sec.id, -1)}><button className="btn sm" aria-label="Раздел выше" disabled={i === 0}><Icon name="up" size={16} /></button></form>
@@ -133,6 +138,7 @@ export function CourseTree({ courseId, sections: initial }: { courseId: string; 
                 </span>
                 <span className="tag grey">{KIND_LABEL[l.kind]}</span>
                 <Link href={`/admin/courses/${courseId}/lessons/${l.id}`} className={s.itemTitle}>{l.title}</Link>
+                {l.empty && <span className="tag warn">пустой — напишите текст</span>}
                 {l.draft && <span className="tag warn">{l.draft}</span>}
                 <span className="small muted">{l.steps} {l.steps === 1 ? "шаг" : l.steps >= 2 && l.steps <= 4 ? "шага" : "шагов"}</span>
                 <form action={moveLesson.bind(null, courseId, l.id, -1)}><button className="btn sm" aria-label="Урок выше" disabled={j === 0}><Icon name="up" size={16} /></button></form>
@@ -144,13 +150,10 @@ export function CourseTree({ courseId, sections: initial }: { courseId: string; 
 
           <form action={addLesson.bind(null, courseId, sec.id)} className="row" style={{ alignItems: "flex-end" }}>
             <div className="field" style={{ flex: "1 1 240px" }}>
-              <label htmlFor={`nl-${sec.id}`}>Новый урок</label>
+              <label htmlFor={`nl-${sec.id}`}>Новый урок в разделе</label>
               <input id={`nl-${sec.id}`} name="title" className="ctl" placeholder="Название урока" required />
             </div>
-            <select name="kind" className="ctl" style={{ width: 150 }} aria-label="Тип урока" defaultValue="theory">
-              <option value="theory">Теория</option><option value="practice">Практика</option><option value="lab">Лаба</option>
-            </select>
-            <Submit className="btn"><Icon name="plus" size={18} />Добавить</Submit>
+            <Submit className="btn"><Icon name="plus" size={18} />Добавить урок</Submit>
           </form>
         </section>
       ))}

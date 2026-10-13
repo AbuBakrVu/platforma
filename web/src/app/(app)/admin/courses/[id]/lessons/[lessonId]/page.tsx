@@ -15,6 +15,7 @@ import {
 import { StepEditor, type FileInfo } from "./StepEditor";
 import { StepList } from "./StepList";
 import s from "./steps.module.css";
+import a from "../../../../admin.module.css";
 
 export const metadata = { title: "Урок · управление" };
 
@@ -49,7 +50,7 @@ export default async function LessonEditor({ params, searchParams }: PageProps<"
     .then((rows) => rows.map(({ st, lib }) => ({ ...st, lib, content: lib?.content ?? st.content })));
   const current = steps.find((x) => x.id === sp.step) ?? steps[0] ?? null;
 
-  const [revisions, usedIn, targets] = await Promise.all([
+  const [revisions, usedIn, targets, order] = await Promise.all([
     current
       ? db.select({ id: t.stepRevisions.id, at: t.stepRevisions.createdAt, who: t.users.name })
         .from(t.stepRevisions).leftJoin(t.users, eq(t.users.id, t.stepRevisions.authorId))
@@ -63,7 +64,12 @@ export default async function LessonEditor({ params, searchParams }: PageProps<"
     db.select({ id: t.sections.id, title: t.sections.title, course: t.courses.title, courseId: t.courses.id })
       .from(t.sections).innerJoin(t.courses, eq(t.courses.id, t.sections.courseId))
       .orderBy(asc(t.courses.title), asc(t.sections.position)),
+    // Порядок уроков курса — для кнопки «Следующий урок»
+    db.select({ id: t.lessons.id, title: t.lessons.title }).from(t.lessons)
+      .innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
+      .where(eq(t.sections.courseId, id)).orderBy(asc(t.sections.position), asc(t.lessons.position)),
   ]);
+  const next = order[order.findIndex((x) => x.id === lessonId) + 1] ?? null;
 
   let files: Record<string, FileInfo> = {};
   let packages: { id: string; title: string; kind: string }[] = [];
@@ -86,42 +92,53 @@ export default async function LessonEditor({ params, searchParams }: PageProps<"
         <Link href={`/admin/courses/${id}`}>{row.course.title}</Link><span>/</span>
         <span>{row.section.title}</span><span>/</span><b>{lesson.title}</b>
       </div>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <Link href={`/admin/courses/${id}`} className="btn sm"><Icon name="left" size={16} />К курсу</Link>
+        <div className="row">
+          {row.course.published && lesson.published && (
+            <Link href={`/courses/${row.course.slug}/${lesson.id}`} className="btn sm"><Icon name="eye" size={16} />Как видит ученик</Link>
+          )}
+          {next && <Link href={`/admin/courses/${id}/lessons/${next.id}`} className="btn sm">Следующий урок: {next.title}<Icon name="right" size={16} /></Link>}
+        </div>
+      </div>
       {saved && <div className="ok-box" role="status">Урок сохранён.</div>}
       {sp.restored && <div className="ok-box" role="status">Шаг возвращён к выбранной версии.</div>}
       {sp.saved === "copy" && <div className="ok-box" role="status">Это копия урока. Она сохранена черновиком — студенты её не видят, пока не снимете отметку.</div>}
 
       <form action={updateLesson.bind(null, id, lessonId)} className="card form">
-        <div className="form-row">
-          <div className="field"><label htmlFor="l-title">Название урока</label>
+        <div className="row" style={{ alignItems: "flex-end" }}>
+          <div className="field" style={{ flex: "1 1 320px" }}><label htmlFor="l-title">Название урока</label>
             <input id="l-title" name="title" defaultValue={lesson.title} className="ctl" required /></div>
-          <div className="field"><label htmlFor="l-kind">Тип</label>
-            <select id="l-kind" name="kind" defaultValue={lesson.kind} className="ctl">
-              <option value="theory">Теория</option><option value="practice">Практика</option><option value="lab">Лабораторная</option>
-            </select></div>
-          <div className="field"><label htmlFor="l-layout">Показ шагов</label>
-            <select id="l-layout" name="layout" defaultValue={lesson.layout} className="ctl">
-              <option value="steps">По одному шагу</option><option value="longread">Лонгрид — всё на одной странице</option>
-            </select></div>
-          <div className="field"><label htmlFor="l-min">Минут</label>
-            <input id="l-min" name="durationMin" type="number" min={1} max={600} defaultValue={lesson.durationMin} className="ctl" /></div>
-          <div className="field"><label htmlFor="l-xp">XP за урок</label>
-            <input id="l-xp" name="xp" type="number" min={0} max={10000} defaultValue={lesson.xp} className="ctl" /></div>
-        </div>
-        <div className="row" style={{ alignItems: "flex-end", gap: 20 }}>
-          <label className="check"><input type="checkbox" name="published" defaultChecked={lesson.published} />
-            Опубликован — снимите отметку, чтобы урок стал черновиком</label>
-          <div className="field" style={{ flex: "0 1 230px" }}>
-            <label htmlFor="l-pub">Опубликовать с <span className="muted">(необязательно)</span></label>
-            <input id="l-pub" name="publishAt" type="datetime-local" defaultValue={toZonedInput(lesson.publishAt)} className="ctl" />
-          </div>
+          <Submit pending="Сохраняю…" className="btn">Сохранить</Submit>
           <PubStatus published={lesson.published} publishAt={lesson.publishAt} />
         </div>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <Submit pending="Сохраняю…" className="btn">Сохранить урок</Submit>
-          {row.course.published && (
-            <Link href={`/courses/${row.course.slug}/${lesson.id}`} className="btn"><Icon name="eye" size={18} />Открыть как студент</Link>
-          )}
-        </div>
+        <details className={a.more}>
+          <summary>Настройки урока: тип, показ шагов, время, XP, черновик</summary>
+          <div className="form">
+            <div className="form-row">
+              <div className="field"><label htmlFor="l-kind">Тип</label>
+                <select id="l-kind" name="kind" defaultValue={lesson.kind} className="ctl">
+                  <option value="theory">Теория</option><option value="practice">Практика</option><option value="lab">Лабораторная</option>
+                </select></div>
+              <div className="field"><label htmlFor="l-layout">Показ шагов</label>
+                <select id="l-layout" name="layout" defaultValue={lesson.layout} className="ctl">
+                  <option value="steps">По одному шагу</option><option value="longread">Лонгрид — всё на одной странице</option>
+                </select></div>
+              <div className="field"><label htmlFor="l-min">Минут</label>
+                <input id="l-min" name="durationMin" type="number" min={1} max={600} defaultValue={lesson.durationMin} className="ctl" /></div>
+              <div className="field"><label htmlFor="l-xp">XP за урок</label>
+                <input id="l-xp" name="xp" type="number" min={0} max={10000} defaultValue={lesson.xp} className="ctl" /></div>
+            </div>
+            <div className="row" style={{ alignItems: "flex-end", gap: 20 }}>
+              <label className="check"><input type="checkbox" name="published" defaultChecked={lesson.published} />
+                Урок виден ученикам — снимите отметку, чтобы скрыть его как черновик</label>
+              <div className="field" style={{ flex: "0 1 230px" }}>
+                <label htmlFor="l-pub">Показать только с <span className="muted">(необязательно)</span></label>
+                <input id="l-pub" name="publishAt" type="datetime-local" defaultValue={toZonedInput(lesson.publishAt)} className="ctl" />
+              </div>
+            </div>
+          </div>
+        </details>
       </form>
 
       <div className={s.layout}>
@@ -131,7 +148,7 @@ export default async function LessonEditor({ params, searchParams }: PageProps<"
             ? <StepList courseId={id} lessonId={lessonId} current={current?.id ?? null}
                 steps={steps.map((x) => ({ id: x.id, kind: x.kind, title: x.title }))} />
             : <p className="empty small">Пока пусто. Добавьте первый шаг.</p>}
-          <span className="small muted">Добавить шаг</span>
+          <span className="small muted">{steps.length ? "Добавить ещё шаг" : "Добавить шаг"}</span>
           <div className={s.add}>
             {STEP_KINDS.map((k) => (
               <form key={k} action={addStep.bind(null, id, lessonId, k)}>
@@ -191,19 +208,23 @@ export default async function LessonEditor({ params, searchParams }: PageProps<"
         </div>
       </div>
 
-      <form action={copyLesson.bind(null, id, lessonId)} className="card row" style={{ alignItems: "flex-end" }}>
-        <div className="field" style={{ flex: "1 1 320px" }}>
-          <label htmlFor="copy-to">Скопировать урок со всеми шагами в раздел</label>
-          <select id="copy-to" name="sectionId" className="ctl" defaultValue={row.section.id}>
-            {targets.map((x) => <option key={x.id} value={x.id}>{x.course} → {x.title}</option>)}
-          </select>
+      <details className={`card ${a.more}`}>
+        <summary>Ещё: скопировать или удалить урок</summary>
+        <div className="form">
+          <form action={copyLesson.bind(null, id, lessonId)} className="row" style={{ alignItems: "flex-end" }}>
+            <div className="field" style={{ flex: "1 1 320px" }}>
+              <label htmlFor="copy-to">Скопировать урок со всеми шагами в раздел</label>
+              <select id="copy-to" name="sectionId" className="ctl" defaultValue={row.section.id}>
+                {targets.map((x) => <option key={x.id} value={x.id}>{x.course} → {x.title}</option>)}
+              </select>
+            </div>
+            <Submit className="btn"><Icon name="copy" size={18} />Скопировать</Submit>
+          </form>
+          <form action={deleteLesson.bind(null, id, lessonId)}>
+            <Confirm className="btn danger" message={`Удалить урок «${lesson.title}»?`}><Icon name="trash" size={18} />Удалить урок</Confirm>
+          </form>
         </div>
-        <Submit className="btn"><Icon name="copy" size={18} />Скопировать</Submit>
-      </form>
-
-      <form action={deleteLesson.bind(null, id, lessonId)}>
-        <Confirm className="btn danger" message={`Удалить урок «${lesson.title}»?`}><Icon name="trash" size={18} />Удалить урок</Confirm>
-      </form>
+      </details>
     </>
   );
 }
