@@ -5,6 +5,8 @@ import s from "../login/auth.module.css";
 import p from "../pages.module.css";
 
 export const metadata = { title: "Политика конфиденциальности" };
+// Текст берётся из базы — страницу собираем на каждый запрос, а не при сборке образа (базы там нет)
+export const dynamic = "force-dynamic";
 
 /** Публичная страница: открывается и без входа (ссылка из формы регистрации) */
 export default async function PrivacyPage() {
