@@ -69,11 +69,14 @@
 - React 19 сбрасывает форму после server action: формы массового назначения пересоздавать через `key` от данных.
 - Пути с переменными в `storage.ts`/`transfer.ts` помечены `/*turbopackIgnore: true*/`, иначе сборка тащит загрузки в standalone.
 - Время в рендере (`Date.now()`) линтер запрещает — выносить в функции модуля.
+- Страница, которая читает базу, но не трогает cookies/searchParams (например, публичная `/privacy`), собирается заранее при
+  `next build` — в Docker базы нет, сборка падает. Ставить `export const dynamic = "force-dynamic"`. Проверка перед PR:
+  `DATABASE_URL=postgres://build:build@localhost:5999/build npx next build` (база недоступна, как в Docker).
 
 ## Локальная разработка и проверка
 - Postgres 16 через brew, `web/.env.local` (DATABASE_URL, SEED_DEMO_PASSWORD, LAB_* для лабораторий).
 - `.claude/launch.json`: `web` (порт 3100) и `labs` (порт **3210**, режим `local`; порт 3200 занят другим приложением пользователя).
-- Проверки перед PR: `npx tsc --noEmit`, `npm run lint`, `rm -rf .next && npm run build`, миграции и сид на чистой базе
+- Проверки перед PR: `npx tsc --noEmit`, `npm run lint`, `rm -rf .next && npm run build` (лучше с недоступной базой, см. грабли), миграции и сид на чистой базе
   (`createdb platforma_fresh_test` → migrate → seed → `dropdb`).
 - Тестовый вход без паролей: создать сессию SQL-ом (токен → sha256 в `sessions.id`) и поставить cookie `session` через JS.
   Защищённую (httpOnly) cookie, выданную сервером, JS не перезапишет — сначала «Выйти».
