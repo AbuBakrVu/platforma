@@ -103,7 +103,7 @@ type Ctx = {
 };
 
 function TextEditor({ c, set, courseId }: Ctx & { c: TextContent }) {
-  return <MarkdownEditor value={c.md} onChange={(md) => set<"text">({ md })} courseId={courseId} label="Текст шага (Markdown)" />;
+  return <MarkdownEditor value={c.md} onChange={(md) => set<"text">({ md })} courseId={courseId} label="Текст шага" />;
 }
 
 /** Кнопка загрузки с прогрессом */
