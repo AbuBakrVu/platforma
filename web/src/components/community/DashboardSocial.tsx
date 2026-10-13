@@ -12,7 +12,7 @@ import s from "./dashboard-social.module.css";
 
 const recent = (d: Date) => Date.now() - d.getTime() < 14 * 864e5;
 
-/** На «Обзоре»: свежие объявления и наставник студента */
+/** На «Обзоре»: свежие объявления и наставник ученика */
 export async function DashboardSocial({ user }: { user: CurrentUser }) {
   const [news, [mentor]] = await Promise.all([
     newsFor(user, 5),

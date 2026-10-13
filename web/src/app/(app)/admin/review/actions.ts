@@ -35,7 +35,7 @@ export async function reviewSubmission(id: string, decision: "accepted" | "retur
 
   if (decision === "accepted") {
     await saveStepProgress(row.sub.userId, row.step.id, true, { submissionId: id, score });
-    // Награда студенту; праздник он увидит не здесь (это действие проверяющего)
+    // Награда ученику; праздник он увидит не здесь (это действие проверяющего)
     await award(row.sub.userId, { xp: a.xp, reason: `Задание в уроке «${row.lesson.title}» принято`, sourceKey: `assignment:${row.step.id}`, notify: false });
   }
   revalidatePath("/admin/review", "layout");

@@ -45,7 +45,7 @@ export async function directChat(me: Learner, otherId: string) {
   return chat;
 }
 
-/** Доступ к чату: участник личного; для чата потока — студенты потока и персонал (участие добавляется само) */
+/** Доступ к чату: участник личного; для чата потока — ученики потока и персонал (участие добавляется само) */
 export async function openChat(me: Learner, chatId: string) {
   const [c] = await db.select().from(t.chats).where(eq(t.chats.id, chatId));
   if (!c) return null;

@@ -9,7 +9,7 @@ import { extractZip, parsePackage } from "@/lib/packages";
 import { importCourse } from "@/lib/transfer";
 import { filePath, isOffice, mimeOf, packageDir, removeFile, saveStream } from "@/lib/storage";
 
-/** Студенты загружают только аватар и файлы к домашнему заданию */
+/** Ученики загружают только аватар и файлы к домашнему заданию */
 const SUBMISSION_MB = Number(process.env.MAX_SUBMISSION_MB ?? 200);
 
 async function studentUpload(req: Request, user: CurrentUser, q: URLSearchParams, name: string) {

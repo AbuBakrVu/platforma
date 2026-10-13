@@ -36,7 +36,7 @@ const TOOLS: Tool[] = [
  */
 export function MarkdownEditor({ value, onChange, courseId, label = "Текст", minHeight = 380, compact = false, publicUploads = false }: {
   value: string; onChange: (v: string) => void; courseId: string; label?: string; minHeight?: number; compact?: boolean;
-  /** Картинки доступны всем вошедшим (база знаний), а не только студентам курса */
+  /** Картинки доступны всем вошедшим (база знаний), а не только ученикам курса */
   publicUploads?: boolean;
 }) {
   const id = useId();

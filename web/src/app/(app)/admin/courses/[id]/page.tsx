@@ -165,7 +165,7 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
       </details>
 
       <form action={deleteCourse.bind(null, id)}>
-        <Confirm className="btn danger" message={`Удалить курс «${course.title}» целиком? Прогресс студентов по нему тоже удалится.`}>
+        <Confirm className="btn danger" message={`Удалить курс «${course.title}» целиком? Прогресс учеников по нему тоже удалится.`}>
           <Icon name="trash" size={18} />Удалить курс
         </Confirm>
       </form>

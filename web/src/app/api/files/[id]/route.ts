@@ -15,7 +15,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/files/[id]">) {
   if (!id) return new Response("Не найдено", { status: 404 });
   const [f] = await db.select().from(t.uploads).where(eq(t.uploads.id, id));
   if (!f) return new Response("Не найдено", { status: 404 });
-  // Аватары видят все вошедшие; работы студентов — только автор и персонал
+  // Аватары видят все вошедшие; работы учеников — только автор и персонал
   if (f.access === "public") return serveFile(req, filePath(f.id), { mime: f.mime, name: f.name, cache: "private, max-age=86400" });
   if (f.access === "private" && !isStaff(user) && f.createdBy !== user.id) return new Response("Не найдено", { status: 404 });
   // PDF-копия документа доступна тем же, кому доступен исходный файл

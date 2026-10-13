@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   if (!g || !c) return new Response("Не найдено", { status: 404 });
   const { columns, rows } = await gradebook(groupId, courseId);
   const data: (string | number | null)[][] = [
-    ["Студент", "Email", ...columns.map((col) => col.title)],
+    ["Ученик", "Email", ...columns.map((col) => col.title)],
     ...rows.map((r) => [r.student.name, r.student.email, ...columns.map((col) => {
       const cell = r.cells[col.key];
       // Проценты — числом (удобно считать в Excel), остальное — как в таблице

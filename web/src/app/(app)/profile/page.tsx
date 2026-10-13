@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { ACHIEVEMENTS, userAchievements } from "@/lib/achievements";
@@ -15,8 +16,14 @@ import s from "./profile.module.css";
 
 export const metadata = { title: "Профиль" };
 
-export default async function ProfilePage() {
+const TABS = { me: "Обо мне", awards: "Достижения", look: "Внешний вид" } as const;
+
+export default async function ProfilePage({ searchParams }: PageProps<"/profile">) {
   const user = await requireUser({ parents: true });
+  // Игровые части (уровни, достижения, рамки) — только у ученика
+  const learner = user.role === "student";
+  const sp = (await searchParams).tab;
+  const tab: keyof typeof TABS = learner && typeof sp === "string" && sp in TABS ? (sp as keyof typeof TABS) : "me";
   const [[me], xp, coins, streak, got, frames] = await Promise.all([
     db.select().from(t.users).where(eq(t.users.id, user.id)),
     totalXp(user.id), getCoins(user.id), getStreak(user.id), userAchievements(user.id), unlockedFrames(user.id),
@@ -33,21 +40,29 @@ export default async function ProfilePage() {
         <div className={s.heroText}>
           <h1>{me.name}</h1>
           <span className="muted">{me.email}</span>
-          <div className={s.level}>
+          {learner && <div className={s.level}>
             <b>Уровень {lv.level} · {lv.title}</b>
             <div className="bar" style={{ width: 260 }}><i style={{ width: `${lv.pct}%` }} /></div>
             <span className="small muted">{xp} / {lv.to} XP до {lv.level + 1}-го уровня</span>
-          </div>
+          </div>}
         </div>
-        <div className={s.stats}>
+        {learner && <div className={s.stats}>
           <div><b>🔥 {streak.streak}</b><span>серия</span></div>
           <div><b>🪙 {coins}</b><span>монет</span></div>
           <div><b>{league.icon} {league.name}</b><span>лига</span></div>
           <div><b>🏅 {got.length}</b><span>наград</span></div>
-        </div>
+        </div>}
       </section>
 
-      <div className={s.grid}>
+      {learner && (
+        <nav className="seg" aria-label="Разделы профиля">
+          {Object.entries(TABS).map(([k, v]) => (
+            <Link key={k} href={k === "me" ? "/profile" : `/profile?tab=${k}`} className={tab === k ? "on" : undefined} aria-current={tab === k ? "page" : undefined}>{v}</Link>
+          ))}
+        </nav>
+      )}
+
+      {(tab === "look" || !learner) && (
         <section className="card">
           <div className="card-h"><h2>Аватар</h2></div>
           <AvatarUpload has={!!me.avatarId} />
@@ -59,6 +74,7 @@ export default async function ProfilePage() {
               ))}
             </form>
           )}
+          {learner && <>
           <span className="small muted">Рамка — открывается уровнем или в магазине</span>
           <form className={s.frames}>
             <button formAction={setFrame.bind(null, null)} className={`${s.frame} ${!me.frame ? s.on : ""}`}>
@@ -75,8 +91,11 @@ export default async function ProfilePage() {
               );
             })}
           </form>
+          </>}
         </section>
+      )}
 
+      {tab === "me" && learner && (
         <section className="card">
           <div className="card-h"><h2>Уровни</h2></div>
           <ol className={s.levels}>
@@ -87,9 +106,9 @@ export default async function ProfilePage() {
             ))}
           </ol>
         </section>
-      </div>
+      )}
 
-      <section className="card">
+      {tab === "awards" && <section className="card">
         <div className="card-h"><h2>Достижения</h2><span className="small muted">{got.length} из {ACHIEVEMENTS.length}</span></div>
         <div className={s.badges}>
           {ACHIEVEMENTS.map((a) => {
@@ -106,7 +125,7 @@ export default async function ProfilePage() {
             );
           })}
         </div>
-      </section>
+      </section>}
     </>
   );
 }

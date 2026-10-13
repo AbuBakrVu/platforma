@@ -24,7 +24,7 @@ export async function getXp(userId: string) {
   return r.xp;
 }
 
-/** Рейтинг потока: студенты по сумме XP за период (since = null — за всё время) */
+/** Рейтинг потока: ученики по сумме XP за период (since = null — за всё время) */
 export async function getLeaderboard(groupId: string, since: Date | null) {
   const xp = sql<number>`coalesce(sum(${t.xpEvents.amount}), 0)::int`;
   const rows = await db
@@ -141,7 +141,7 @@ export async function getMyCourses(user: Learner) {
   return rows.map((c) => ({ ...c, lockedBy: mine.has(c.id) ? null : locks.get(c.id) ?? null }));
 }
 
-/** Студенту доступны опубликованные курсы его потока (напрямую или из программы), кроме ещё закрытых в программе; персоналу — все */
+/** Ученику доступны опубликованные курсы его потока (напрямую или из программы), кроме ещё закрытых в программе; персоналу — все */
 export async function canAccessCourse(user: Learner, course: { id: string; published: boolean; publishAt: Date | null }) {
   if (isStaff(user)) return true;
   if (!isLive(course) || user.role !== "student") return false;
@@ -189,7 +189,7 @@ export async function getCourseOutline(slug: string, user: Learner) {
   const now = new Date();
   const sections: {
     id: string; title: string; position: number; locked: boolean; opensAt: Date | null;
-    /** draft — урок не виден студентам (показывается только персоналу) */
+    /** draft — урок не виден ученикам (показывается только персоналу) */
     /** locked — последовательный курс: урок откроется, когда пройден предыдущий */
     lessons: { id: string; title: string; kind: "theory" | "practice" | "lab"; done: boolean; draft: boolean; locked: boolean }[];
   }[] = [];
@@ -205,7 +205,7 @@ export async function getCourseOutline(slug: string, user: Learner) {
     if (draft && !isStaff(user)) continue;
     s.lessons.push({ id: r.lessonId, title: r.lessonTitle!, kind: r.kind!, done: r.done, draft, locked: false });
   }
-  // Последовательное прохождение: всё после первого непройденного урока закрыто (для студентов)
+  // Последовательное прохождение: всё после первого непройденного урока закрыто (для учеников)
   if (course.sequential && !isStaff(user)) {
     let gap = false;
     for (const sec of sections.filter((x) => !x.locked)) {

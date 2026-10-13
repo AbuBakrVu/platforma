@@ -39,7 +39,7 @@ export default async function Mentees() {
   return (
     <>
       <TopBar xp={xp} left={<b>Подопечные</b>} />
-      <div className="title"><h1>Подопечные</h1><p>Студенты, которым вы наставник: прогресс, активность и быстрая связь.</p></div>
+      <div className="title"><h1>Подопечные</h1><p>Ученики, которым вы наставник: прогресс, активность и быстрая связь.</p></div>
       {cards.length === 0 && <section className="card"><p className="empty">У вас пока нет подопечных — их назначает администратор.</p></section>}
       <div className={s.grid}>
         {cards.map(({ m, courses, level, week, streak, last, pending }) => {

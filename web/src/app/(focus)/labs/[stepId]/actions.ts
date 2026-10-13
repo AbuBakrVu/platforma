@@ -70,7 +70,7 @@ export async function terminalAccess(stepId: string) {
   return { path: `${terminalBase()}/lab-ws/${s.id}`, token: terminalToken(s.id) };
 }
 
-/** Проверить задания скриптами в среде студента. Код выхода 0 — задание выполнено. */
+/** Проверить задания скриптами в среде ученика. Код выхода 0 — задание выполнено. */
 export async function checkLab(stepId: string) {
   const { user, lab: l, row } = await lab(stepId);
   const s = await activeSession(user.id, stepId);

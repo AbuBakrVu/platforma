@@ -1,4 +1,5 @@
 import { asc, sql } from "drizzle-orm";
+import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { plural } from "@/lib/format";
@@ -22,6 +23,7 @@ export default async function GroupsPage() {
 
   return (
     <>
+      <PeopleTabs />
       <div className="title"><h1>Потоки</h1><p>Учебные группы: у каждого потока свои курсы, расписание и рейтинг</p></div>
 
       <section className="card">
@@ -45,9 +47,9 @@ export default async function GroupsPage() {
             </form>
             <div className="row">
               {g.demo && <span className="tag warn">демо</span>}
-              <span className="small muted">{g.students} {plural(g.students, "студент", "студента", "студентов")}</span>
+              <span className="small muted">{g.students} {plural(g.students, "ученик", "ученика", "учеников")}</span>
               <form action={deleteGroup.bind(null, g.id)}>
-                <Confirm className="btn sm danger" message={`Удалить поток «${g.name}»? Студенты останутся, но без потока; расписание потока удалится.`}>
+                <Confirm className="btn sm danger" message={`Удалить поток «${g.name}»? Ученики останутся, но без потока; расписание потока удалится.`}>
                   <Icon name="trash" size={16} />Удалить
                 </Confirm>
               </form>

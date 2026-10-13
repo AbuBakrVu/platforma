@@ -1,4 +1,5 @@
 import { asc, sql } from "drizzle-orm";
+import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { PERMS, TEACHER_DEFAULT, type Perm } from "@/lib/permissions";
@@ -29,8 +30,9 @@ export default async function Roles() {
 
   return (
     <>
+      <PeopleTabs />
       <div className="title"><h1>Роли и права</h1>
-        <p>Роль назначается сотруднику (роль «Персонал») в его профиле. Без роли сотрудник работает как преподаватель.</p></div>
+        <p>Роль доступа назначается сотруднику в его карточке (Люди → открыть человека). Без роли сотрудник работает как преподаватель.</p></div>
 
       <section className="card">
         <div className="card-h"><h2>Преподаватель (по умолчанию)</h2><span className="small muted">{plain} сотр.</span></div>

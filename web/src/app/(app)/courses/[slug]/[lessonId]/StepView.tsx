@@ -20,7 +20,7 @@ export type StepRow = { id: string; kind: StepKind; title: string; content: Reco
 const inline = (s: string) => md.parseInline(s, { async: false });
 const size = (n: number) => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} КБ` : `${(n / 1048576).toFixed(1)} МБ`);
 
-/** Содержимое шага для студента */
+/** Содержимое шага для ученика */
 export async function StepView({ step, user }: { step: StepRow; user: CurrentUser }) {
   switch (step.kind) {
     case "text": {

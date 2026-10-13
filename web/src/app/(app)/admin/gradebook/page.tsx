@@ -8,7 +8,7 @@ import s from "./gradebook.module.css";
 
 export const metadata = { title: "Журнал оценок" };
 
-/** Журнал оценок: студенты потока × оцениваемые элементы курса, выгрузка в Excel */
+/** Журнал оценок: ученики потока × оцениваемые элементы курса, выгрузка в Excel */
 export default async function Gradebook({ searchParams }: PageProps<"/admin/gradebook">) {
   await requirePerm("gradebook");
   const sp = await searchParams;
@@ -22,7 +22,7 @@ export default async function Gradebook({ searchParams }: PageProps<"/admin/grad
 
   return (
     <>
-      <div className="title"><h1>Журнал оценок</h1><p>Прогресс, экзамены, задания и лабораторные по каждому студенту потока.</p></div>
+      <div className="title"><h1>Журнал оценок</h1><p>Прогресс, экзамены, задания и лабораторные по каждому ученику потока.</p></div>
       <section className="card">
         <form className="row" style={{ alignItems: "flex-end" }}>
           <div className="field" style={{ flex: "1 1 200px" }}><label htmlFor="g">Поток</label>
@@ -38,7 +38,7 @@ export default async function Gradebook({ searchParams }: PageProps<"/admin/grad
           {data.rows.length ? (
             <div className={s.wrap}>
               <table className={s.table}>
-                <thead><tr><th>Студент</th>{data.columns.map((c) => <th key={c.key} title={c.title}>{c.title}</th>)}</tr></thead>
+                <thead><tr><th>Ученик</th>{data.columns.map((c) => <th key={c.key} title={c.title}>{c.title}</th>)}</tr></thead>
                 <tbody>
                   {data.rows.map((r) => (
                     <tr key={r.student.id}>
@@ -54,7 +54,7 @@ export default async function Gradebook({ searchParams }: PageProps<"/admin/grad
                 </tbody>
               </table>
             </div>
-          ) : <p className="empty">В потоке нет студентов.</p>}
+          ) : <p className="empty">В потоке нет учеников.</p>}
           <p className="small muted" style={{ margin: 0 }}>
             Экзамен — лучшая попытка. Итог — средний процент по экзаменам, заданиям, лабам и вопросам в уроках
             (если их нет — процент пройденных уроков).

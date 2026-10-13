@@ -119,3 +119,26 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 .mention{color:var(--green);font-weight:600;background:var(--green-tint);border-radius:5px;padding:0 3px}
 .imp-bar{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:8px 16px;background:#7A3E06;color:#FFF3E3;font-size:14px}
 .imp-bar .btn{height:32px;background:#fff}
+
+/* Меню: заголовки групп, телефонная версия */
+.nav-t{padding:6px 14px 2px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#8A918B}
+.side .nav + .nav{border-top:1px solid var(--line);padding-top:10px}
+.side-x,.mbar,.mtabs,.side-back{display:none}
+.app.staff .top .pill:has(.xp-ic){display:none}
+@media (max-width:860px){
+  .app{display:block;padding:0 0 84px}
+  .main{padding:12px 12px 24px}
+  .mbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:30;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
+  .mbar b{flex:1;font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side{position:fixed;top:0;bottom:0;left:0;z-index:60;width:min(320px,86vw);max-width:none;border-radius:0 var(--r) var(--r) 0;overflow-y:auto;
+    transform:translateX(-105%);transition:transform .2s ease;visibility:hidden}
+  .side.open{transform:none;visibility:visible}
+  .side-x{display:flex;flex:none}
+  .side-back{display:block;position:fixed;inset:0;z-index:50;background:rgba(14,22,17,.35)}
+  .mtabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .mtabs a,.mtabs button{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border:0;background:none;border-radius:12px;color:var(--muted);font-size:11.5px;font-weight:500}
+  .mtabs a.on{color:var(--green);background:var(--green-tint)}
+  .mtabs .badge{position:absolute;top:0;left:calc(50% + 6px);margin:0}
+  .top .crumbs:has(> :only-child){display:none}
+  .top{justify-content:flex-end}
+}

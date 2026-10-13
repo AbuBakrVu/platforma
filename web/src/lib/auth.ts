@@ -126,17 +126,17 @@ export async function requireStaff() {
   return user;
 }
 
-/** Конкретное право; без него — на главную «Управления» */
+/** Конкретное право; без него — на главную */
 export async function requirePerm(p: Perm) {
   const user = await requireStaff();
-  if (!can(user, p)) redirect("/admin");
+  if (!can(user, p)) redirect("/");
   return user;
 }
 
 /** Только администратор: удаление демо-данных и т.п. */
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== "admin") redirect("/admin");
+  if (user.role !== "admin") redirect("/");
   return user;
 }
 

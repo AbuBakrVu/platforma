@@ -10,7 +10,7 @@ import { isStaff } from "@/lib/permissions";
 
 export const metadata = { title: "Лаборатории" };
 
-/** Все лабораторные из курсов студента */
+/** Все лабораторные из курсов ученика */
 export default async function LabsPage() {
   const user = await requireUser();
   const [labs, xp] = await Promise.all([getMyLabs(user), getXp(user.id)]);
@@ -22,7 +22,7 @@ export default async function LabsPage() {
         <p>Практика в настоящем терминале: у каждого своя учебная машина, которую можно сломать и сбросить одной кнопкой.</p>
       </div>
       {!labsEnabled() && isStaff(user) && (
-        <div className="notice">Сервис лабораторий на сервере не включён — студенты увидят задания, но не смогут запустить среду. Как включить — в README, раздел «Лаборатории».</div>
+        <div className="notice">Сервис лабораторий на сервере не включён — ученики увидят задания, но не смогут запустить среду. Как включить — в README, раздел «Лаборатории».</div>
       )}
       <section className="card">
         {labs.length ? (

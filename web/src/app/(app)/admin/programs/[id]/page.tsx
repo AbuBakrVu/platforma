@@ -93,7 +93,7 @@ export default async function ProgramEditor({ params }: PageProps<"/admin/progra
                 ))}
               </div>
             ) : <p className="empty">Сначала создайте поток.</p>}
-            <span className="small muted">Курсы программы станут доступны студентам отмеченных потоков — отдельно назначать их потоку не нужно.</span>
+            <span className="small muted">Курсы программы станут доступны ученикам отмеченных потоков — отдельно назначать их потоку не нужно.</span>
             {groups.length > 0 && <div><Submit className="btn sm">Сохранить потоки</Submit></div>}
           </form>
         ) : (

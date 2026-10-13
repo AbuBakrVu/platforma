@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { hashPassword, requirePerm } from "@/lib/auth";
@@ -49,6 +50,7 @@ export async function updateUser(id: string, form: FormData) {
     .set({ groupId: uuidOrNull(str(form, "groupId")), ...(id === me.id ? {} : { role }) })
     .where(eq(t.users.id, id));
   revalidatePath("/admin/users");
+  revalidatePath(`/admin/people/${id}`);
 }
 
 export async function setPassword(id: string, form: FormData) {
@@ -60,10 +62,12 @@ export async function setPassword(id: string, form: FormData) {
     await tx.delete(t.sessions).where(eq(t.sessions.userId, id)); // выйти на всех устройствах
   });
   revalidatePath("/admin/users");
+  redirect(`/admin/people/${id}?saved=password`);
 }
 
 export async function deleteUser(id: string) {
   const me = await requirePerm("people");
   await db.delete(t.users).where(and(eq(t.users.id, id), ne(t.users.id, me.id)));
   revalidatePath("/admin/users");
+  redirect("/admin/users");
 }

@@ -8,6 +8,8 @@ import { getCoins, getStreak, levelOf, totalXp } from "@/lib/gamify";
 import { dailyQuests } from "@/lib/quests";
 import { unreadTotal } from "@/lib/chats";
 import { Sidebar } from "@/components/Sidebar";
+import { labsEnabled } from "@/lib/labs";
+import { isStaff } from "@/lib/permissions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser({ parents: true });
@@ -21,6 +23,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     unreadTotal(user.id),
     db.select({ n: sql<number>`count(*)::int` }).from(t.mentorships).where(eq(t.mentorships.mentorId, user.id)),
   ]);
+  // Счётчики рабочих разделов сотрудника: работы на проверке, заказы магазина к выдаче
+  const staff = isStaff(user);
+  const [[review], [orders]] = await Promise.all([
+    staff && user.perms.includes("review")
+      ? db.select({ n: sql<number>`count(*)::int` }).from(t.submissions).where(eq(t.submissions.status, "submitted")) : [{ n: 0 }],
+    staff && user.perms.includes("shop")
+      ? db.select({ n: sql<number>`count(*)::int` }).from(t.purchases).where(eq(t.purchases.status, "new")) : [{ n: 0 }],
+  ]);
   const lv = levelOf(xp);
   const game = {
     level: lv.level, title: lv.title, pct: lv.pct, coins, streak: streak.streak, streakToday: streak.today,
@@ -29,8 +39,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <>
     {user.impersonatorId && <ImpersonationBar name={user.name} />}
-    <div className="app">
-      <Sidebar name={user.name} role={user.role} group={group} due={due} avatar={me} game={game} external={user.external} impersonating={!!user.impersonatorId} />
+    <div className={`app ${staff ? "staff" : ""}`}>
+      <Sidebar name={user.name} role={user.role} group={group} due={due} avatar={me} game={game} external={user.external}
+        impersonating={!!user.impersonatorId} perms={user.perms} staffCounts={{ review: review.n, orders: orders.n }} labs={labsEnabled()} />
       <main className="main">{children}</main>
       <Celebrate />
     </div>

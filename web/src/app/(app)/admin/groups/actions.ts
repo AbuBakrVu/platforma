@@ -22,7 +22,7 @@ export async function renameGroup(id: string, form: FormData) {
 
 export async function deleteGroup(id: string) {
   await requirePerm("people");
-  await db.delete(t.groups).where(eq(t.groups.id, id)); // студенты остаются без потока
+  await db.delete(t.groups).where(eq(t.groups.id, id)); // ученики остаются без потока
   revalidatePath("/admin/groups");
 }
 

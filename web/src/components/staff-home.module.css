@@ -1,0 +1,16 @@
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+@media (max-width: 860px) { .tile { padding: 16px; } .tile b { font-size: 30px; } }
+.tile { gap: 4px; color: var(--ink2); }
+.tile:hover { color: var(--ink); box-shadow: 0 1px 6px rgba(20, 30, 20, .08); }
+.tile > svg { color: var(--muted); }
+.tile b { font-size: 38px; font-weight: 600; letter-spacing: -.03em; line-height: 1.1; color: var(--ink); }
+.tile span { font-size: 14px; color: var(--muted); }
+.hot > svg { color: var(--warn); }
+.hot b { color: var(--warn); }
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); align-items: start; }
+.line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line2); color: var(--ink2); }
+.line:first-of-type { border-top: 0; }
+.line:hover { color: var(--green); }
+.line > span:first-child { min-width: 0; }
+.line b { font-weight: 600; }
+.line > span:last-child { flex: none; }

@@ -135,7 +135,7 @@ export default async function RatingPage({ searchParams }: PageProps<"/rating">)
       <div className="top">
         <div className="title">
           <h1>Рейтинг</h1>
-          <p>Поток {group} · {rows.length} {plural(rows.length, "студент", "студента", "студентов")}. XP начисляются за уроки, лабы, задания и экзамены.</p>
+          <p>Поток {group} · {rows.length} {plural(rows.length, "ученик", "ученика", "учеников")}. XP начисляются за уроки, лабы, задания и экзамены.</p>
         </div>
         {nav}
       </div>
@@ -154,7 +154,7 @@ export default async function RatingPage({ searchParams }: PageProps<"/rating">)
         <section className="card">
           <div style={{ overflowX: "auto" }}>
             <table className={s.table}>
-              <thead><tr><th>#</th><th>Студент</th><th>XP</th></tr></thead>
+              <thead><tr><th>#</th><th>Ученик</th><th>XP</th></tr></thead>
               <tbody>
                 {rest.map((r) => {
                   const mine = r.id === user.id;

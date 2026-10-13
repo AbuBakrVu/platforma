@@ -8,9 +8,11 @@ import { GameStrip } from "@/components/game/GameStrip";
 import { DashboardSocial } from "@/components/community/DashboardSocial";
 import s from "./dashboard.module.css";
 import { isStaff } from "@/lib/permissions";
+import { StaffHome } from "@/components/StaffHome";
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const user = await requireUser();
+  if (isStaff(user)) return <StaffHome user={user} removed={typeof (await searchParams).removed === "string"} />;
   const [xp, courses, events, att, board] = await Promise.all([
     getXp(user.id),
     getMyCourses(user),
@@ -19,7 +21,7 @@ export default async function Dashboard() {
     user.groupId ? getLeaderboard(user.groupId, null) : Promise.resolve([]),
   ]);
 
-  // Текущий курс — незавершённый, в котором студент занимался последним
+  // Текущий курс — незавершённый, в котором ученик занимался последним
   const open = courses.filter((c) => c.done < c.total && !c.lockedBy)
     .sort((a, b) => (b.lastAt ? +new Date(b.lastAt) : 0) - (a.lastAt ? +new Date(a.lastAt) : 0));
   const current = open[0] ?? courses.find((c) => !c.lockedBy);
@@ -40,7 +42,7 @@ export default async function Dashboard() {
 
   return (
     <>
-      <TopBar left={<span>Обзор</span>} xp={xp}>
+      <TopBar left={<span>Главная</span>} xp={xp}>
         {todays[0]?.meetingUrl && (
           <a className="btn dark" href={todays[0].meetingUrl} target="_blank" rel="noreferrer">
             <span className={s.play}><Icon name="right" size={14} /></span>
@@ -58,7 +60,7 @@ export default async function Dashboard() {
         </p>
       </div>
 
-      {!isStaff(user) && <GameStrip user={user} />}
+      <GameStrip user={user} />
       <DashboardSocial user={user} />
 
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))" }}>
@@ -72,7 +74,7 @@ export default async function Dashboard() {
           <Link href="/courses" className={s.continue}>
             <span className={s.label}>Курсы</span>
             <span className={s.nextTitle}>{current ? "Курс пройден" : "Выберите курс"}</span>
-            <span className={s.nextMeta}>Все навыки →</span>
+            <span className={s.nextMeta}>Все курсы →</span>
           </Link>
         )}
         <div className={`card ${s.stat}`}>
