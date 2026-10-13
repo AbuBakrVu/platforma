@@ -34,8 +34,22 @@ export function StepEditor({ courseId, step, files: initialFiles, packages: init
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    // Переходы по ссылкам и другие формы страницы (добавить шаг, сохранить урок) beforeunload не ловит — спрашиваем сами
+    const ask = (e: Event) => {
+      if (!confirm("Шаг не сохранён. Уйти без сохранения?")) { e.preventDefault(); e.stopPropagation(); }
+    };
+    const click = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]");
+      if (a && !a.getAttribute("target") && !a.hasAttribute("download") && !e.defaultPrevented) ask(e);
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    document.addEventListener("click", click, true);
+    document.addEventListener("submit", ask, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", click, true);
+      document.removeEventListener("submit", ask, true);
+    };
   }, [dirty]);
 
   const set = <K extends StepKind>(patch: Partial<StepContent[K]>) => {

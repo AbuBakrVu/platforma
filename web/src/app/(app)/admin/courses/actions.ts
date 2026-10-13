@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, asc, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { freeSlug } from "@/lib/courses";
-import { bool, dateTime, int, slugify, str } from "@/lib/form";
+import { bool, dateTime, int, slugify, str, uuidOrNull } from "@/lib/form";
 import { TZ } from "@/lib/format";
 import { parseStep, STEP_KINDS, STEP_LABEL, type StepKind } from "@/lib/steps";
 
@@ -24,15 +24,81 @@ const touch = (courseId: string) => {
   revalidatePath("/", "layout");
 };
 
+/**
+ * План курса из текста: строка с «-», «*», «•» или «1.» в начале — урок, остальные строки — разделы.
+ * Уроки до первого раздела попадают в раздел «Раздел 1». Пустой план — один пустой раздел.
+ */
+function parsePlan(text: string) {
+  const plan: { title: string; lessons: string[] }[] = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const lesson = line.match(/^(?:[-*•–—]|\d+[.)])\s*(.+)$/);
+    if (lesson) {
+      if (!plan.length) plan.push({ title: "Раздел 1", lessons: [] });
+      plan.at(-1)!.lessons.push(lesson[1].trim().slice(0, 200));
+    } else {
+      plan.push({ title: line.replace(/:$/, "").slice(0, 200), lessons: [] });
+    }
+  }
+  return plan.length ? plan.slice(0, 100) : [{ title: "Раздел 1", lessons: [] }];
+}
+
+/** Записать курс потокам: ровно отмеченные (id из name="group") */
+async function setCourseGroups(courseId: string, form: FormData) {
+  const ids = form.getAll("group").map(String).map(uuidOrNull).filter((x): x is string => !!x);
+  await db.transaction(async (tx) => {
+    await tx.delete(t.groupCourses).where(ids.length
+      ? and(eq(t.groupCourses.courseId, courseId), notInArray(t.groupCourses.groupId, ids))
+      : eq(t.groupCourses.courseId, courseId));
+    if (ids.length) {
+      const valid = await tx.select({ id: t.groups.id }).from(t.groups).where(inArray(t.groups.id, ids));
+      if (valid.length) await tx.insert(t.groupCourses).values(valid.map((g) => ({ groupId: g.id, courseId }))).onConflictDoNothing();
+    }
+  });
+}
+
+/** Создать курс одной формой: название, потоки и план (разделы и уроки). Курс — черновик до кнопки «Опубликовать». */
 export async function createCourse(form: FormData) {
   const me = await requirePerm("courses");
   const title = str(form, "title");
   if (!title) return;
-  const [c] = await db.insert(t.courses).values({
-    title, slug: await freeSlug(slugify(title)), description: str(form, "description"), published: false,
-  }).returning({ id: t.courses.id });
-  await log(c.id, me.id, "Создал курс");
-  redirect(`/admin/courses/${c.id}`);
+  const plan = parsePlan(str(form, "plan"));
+  const id = await db.transaction(async (tx) => {
+    const [c] = await tx.insert(t.courses).values({
+      title, slug: await freeSlug(slugify(title)), description: str(form, "description"), published: false,
+    }).returning({ id: t.courses.id });
+    for (const [i, sec] of plan.entries()) {
+      const [s] = await tx.insert(t.sections).values({ courseId: c.id, title: sec.title, position: i + 1 }).returning({ id: t.sections.id });
+      if (!sec.lessons.length) continue;
+      const ls = await tx.insert(t.lessons).values(sec.lessons.map((l, j) => ({ sectionId: s.id, title: l, position: j + 1 })))
+        .returning({ id: t.lessons.id });
+      await tx.insert(t.lessonSteps).values(ls.map((l) => ({ lessonId: l.id, kind: "text" as const, position: 1, content: parseStep("text", {}) })));
+    }
+    return c.id;
+  });
+  await setCourseGroups(id, form);
+  const lessons = plan.reduce((n, x) => n + x.lessons.length, 0);
+  await log(id, me.id, lessons ? `Создал курс: ${plan.length} разд., ${lessons} ур.` : "Создал курс");
+  revalidatePath("/admin/groups");
+  redirect(`/admin/courses/${id}?new=1`);
+}
+
+/** Опубликовать курс или вернуть в черновик (отдельная кнопка, а не галочка в форме) */
+export async function publishCourse(id: string, published: boolean) {
+  const me = await requirePerm("courses");
+  await db.update(t.courses).set({ published }).where(eq(t.courses.id, id));
+  await log(id, me.id, published ? "Курс: опубликовал" : "Курс: снял с публикации");
+  touch(id);
+}
+
+/** Потоки, которые проходят курс (с карточки «Готовность» курса) */
+export async function updateCourseGroups(id: string, form: FormData) {
+  const me = await requirePerm("courses");
+  await setCourseGroups(id, form);
+  await log(id, me.id, "Изменил потоки курса");
+  revalidatePath("/admin/groups");
+  touch(id);
 }
 
 export async function updateCourse(id: string, form: FormData) {
@@ -41,19 +107,16 @@ export async function updateCourse(id: string, form: FormData) {
   if (!title) return;
   const [old] = await db.select().from(t.courses).where(eq(t.courses.id, id));
   if (!old) return;
-  const published = bool(form, "published");
   const publishAt = dateTime(form, "publishAt");
   await db.update(t.courses).set({
     title,
     slug: await freeSlug(slugify(str(form, "slug") || title), id),
     description: str(form, "description"),
-    published,
     publishAt,
     sequential: bool(form, "sequential"),
     parentDescription: str(form, "parentDescription").slice(0, 2000),
   }).where(eq(t.courses.id, id));
   const what = [
-    old.published !== published && (published ? "опубликовал" : "снял с публикации"),
     String(old.publishAt) !== String(publishAt) && (publishAt ? "назначил публикацию" : "убрал отложенную публикацию"),
     old.title !== title && `переименовал в «${title}»`,
     old.sequential !== bool(form, "sequential") && (bool(form, "sequential") ? "включил последовательное прохождение" : "выключил последовательное прохождение"),
@@ -121,6 +184,8 @@ export async function addLesson(courseId: string, sectionId: string, form: FormD
     .where(eq(t.lessons.sectionId, sectionId));
   const [l] = await db.insert(t.lessons).values({ sectionId, title, kind: asKind(str(form, "kind")), position: m.p + 1 })
     .returning({ id: t.lessons.id });
+  // Сразу шаг «Текст» — можно начинать писать без лишнего клика
+  await db.insert(t.lessonSteps).values({ lessonId: l.id, kind: "text", position: 1, content: parseStep("text", {}) });
   await log(courseId, me.id, `Добавил урок «${title}»`);
   touch(courseId);
   redirect(`/admin/courses/${courseId}/lessons/${l.id}`);
