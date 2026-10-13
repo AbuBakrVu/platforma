@@ -12,6 +12,8 @@ import { TopBar } from "@/components/TopBar";
 import { unlockedFrames } from "@/lib/unlocks";
 import { setAvatarColor, setFrame } from "./actions";
 import { AvatarUpload } from "./AvatarUpload";
+import { AccountForm } from "./AccountForm";
+import { fmtPhone } from "@/lib/phone";
 import s from "./profile.module.css";
 
 export const metadata = { title: "Профиль" };
@@ -92,6 +94,13 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
             })}
           </form>
           </>}
+        </section>
+      )}
+
+      {tab === "me" && (
+        <section className="card">
+          <div className="card-h"><h2>Телефон и пароль</h2></div>
+          <AccountForm phone={fmtPhone(me.phone)} email={me.email} />
         </section>
       )}
 

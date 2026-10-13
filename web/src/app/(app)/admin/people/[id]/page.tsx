@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime } from "@/lib/format";
 import { uuidOrNull } from "@/lib/form";
 import { getCoins, getStreak, levelOf, totalXp } from "@/lib/gamify";
 import { ROLE_LABEL } from "@/lib/permissions";
+import { fmtPhone } from "@/lib/phone";
 import { getAttendanceStats, getMyCourses } from "@/lib/queries";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -19,6 +20,16 @@ import {
 import s from "../people.module.css";
 
 export const metadata = { title: "Профиль пользователя" };
+
+/** 2010-05-17 → «17.05.2010 (15 лет)» */
+function fmtBirth(d: string) {
+  const [y, m, day] = d.split("-").map(Number);
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < day)) age--;
+  const yrs = age % 10 === 1 && age % 100 !== 11 ? "год" : [2, 3, 4].includes(age % 10) && ![12, 13, 14].includes(age % 100) ? "года" : "лет";
+  return `${String(day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} (${age} ${yrs})`;
+}
 
 /** Всё о человеке на одной странице: учёба, оценки, задания, посещаемость, награды, связи, журнал */
 export default async function Person({ params, searchParams }: PageProps<"/admin/people/[id]">) {
@@ -84,7 +95,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
         <Avatar user={user} size={72} />
         <div className={s.heroText}>
           <h1>{user.name}</h1>
-          <span className="muted">{user.email}</span>
+          <span className="muted">{user.email}{user.phone ? ` · ${fmtPhone(user.phone)}` : ""}{!user.emailVerified && <span className="tag warn" style={{ marginLeft: 6 }}>почта не подтверждена</span>}</span>
           <div className="row">
             <span className="tag">{ROLE_LABEL[user.role]}</span>
             {user.external && <span className="tag grey">внешний</span>}
@@ -164,7 +175,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
         {manage && (
           <section className="card" id="account" style={{ scrollMarginTop: 16 }}>
             <div className="card-h"><h2>Учётная запись</h2></div>
-            <form action={updateUser.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }} key={`${user.role}-${user.groupId}`}>
+            <form action={updateUser.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }} key={`${user.role}-${user.groupId}-${user.email}-${user.phone}`}>
               <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-role">Роль</label>
                 <select id="u-role" name="role" defaultValue={user.role} className="ctl" disabled={user.id === me.id}>
                   {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -174,6 +185,10 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
                   <option value="">Без потока</option>
                   {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select></div>
+              <div className="field" style={{ flex: "1 1 200px" }}><label htmlFor="u-email">Почта</label>
+                <input id="u-email" name="email" type="email" defaultValue={user.email} className="ctl" /></div>
+              <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-phone">Телефон</label>
+                <input id="u-phone" name="phone" type="tel" defaultValue={fmtPhone(user.phone)} className="ctl" placeholder="+7 700 123 45 67" /></div>
               <Submit className="btn sm">Сохранить</Submit>
             </form>
             <form action={setPassword.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }}>
@@ -198,6 +213,19 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
               </select>
               <Submit className="btn sm">Сохранить</Submit>
             </form>
+          </section>
+        )}
+
+        {(user.birthDate || user.parentName || user.consentAt) && (
+          <section className="card">
+            <div className="card-h"><h2>Личные данные</h2></div>
+            {user.birthDate && <div className={s.line}><span>Дата рождения</span><span>{fmtBirth(user.birthDate)}</span></div>}
+            {user.parentName && (
+              <div className={s.line}><span>Родитель (указан при регистрации)</span>
+                <span>{user.parentName} · {fmtPhone(user.parentPhone)}{user.parentEmail ? ` · ${user.parentEmail}` : ""}</span></div>
+            )}
+            <div className={s.line}><span>Согласие на обработку данных</span>
+              <span>{user.consentAt ? `${fmtDate(user.consentAt)}${user.consentByParent ? " · от родителя" : ""}` : "до введения согласий"}</span></div>
           </section>
         )}
 
@@ -244,7 +272,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
               <>
                 {invites.map((i) => (
                   <div key={i.id} className={s.line}><span className="mono">{i.code}</span><span className="small muted">приглашение для родителя · до {i.expiresAt ? fmtDate(i.expiresAt) : "—"}</span>
-                    <Copy text={`/login?code=${i.code}`} label="Ссылка" /></div>
+                    <Copy text={`/register?code=${i.code}`} label="Ссылка" /></div>
                 ))}
                 <form action={inviteParent.bind(null, user.id)}><Submit className="btn sm">Пригласить родителя</Submit></form>
                 {parentsAll.length > 0 && (

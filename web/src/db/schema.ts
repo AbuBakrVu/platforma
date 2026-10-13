@@ -1,6 +1,7 @@
 import {
-  type AnyPgColumn, pgTable, pgEnum, uuid, text, integer, timestamp, boolean, jsonb, primaryKey, index, uniqueIndex,
+  type AnyPgColumn, pgTable, pgEnum, uuid, text, integer, timestamp, boolean, jsonb, primaryKey, index, uniqueIndex, date,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /** student — ученик, teacher — персонал (права уточняет accessRole), admin — всё, parent — родитель ученика */
 export const roleEnum = pgEnum("role", ["student", "teacher", "admin", "parent"]);
@@ -52,8 +53,41 @@ export const users = pgTable("users", {
   accessRoleId: uuid("access_role_id"),
   /** Для родителя — тоже; когда последний раз заходил */
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  /** Телефон в виде +77001234567 — для входа и связи */
+  phone: text("phone"),
+  /** Почта подтверждена кодом. Самостоятельная регистрация ставит false до ввода кода. */
+  emailVerified: boolean("email_verified").notNull().default(true),
+  birthDate: date("birth_date", { mode: "string" }),
+  /** Для несовершеннолетнего: родитель (законный представитель) */
+  parentName: text("parent_name"),
+  parentPhone: text("parent_phone"),
+  parentEmail: text("parent_email"),
+  /** Согласие на обработку персональных данных: когда и дано ли родителем за ребёнка */
+  consentAt: timestamp("consent_at", { withTimezone: true }),
+  consentByParent: boolean("consent_by_parent").notNull().default(false),
   createdAt: createdAt(),
-}, (t) => [uniqueIndex("users_email_idx").on(t.email)]);
+}, (t) => [
+  uniqueIndex("users_email_idx").on(t.email),
+  uniqueIndex("users_phone_idx").on(t.phone).where(sql`${t.phone} is not null`),
+]);
+
+/** Одноразовые коды: подтверждение почты и сброс пароля */
+export const authCodes = pgTable("auth_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"verify" | "reset">().notNull(),
+  codeHash: text("code_hash").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("auth_codes_user_idx").on(t.userId, t.kind)]);
+
+/** Настройки платформы, которые меняет администратор (название организации, политика конфиденциальности) */
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Коды приглашений: без кода зарегистрироваться нельзя */
 export const invites = pgTable("invites", {

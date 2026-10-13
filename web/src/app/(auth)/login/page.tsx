@@ -8,10 +8,12 @@ export const metadata = { title: "Вход" };
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getUser()) redirect("/");
   const { mode, code } = await searchParams;
-  const invite = typeof code === "string" ? code : "";
+  // Старые ссылки-приглашения /register?code=… и ?mode=signup ведут на регистрацию
+  if (typeof code === "string" && code) redirect(`/register?code=${encodeURIComponent(code)}`);
+  if (mode === "signup") redirect("/register");
   return (
     <main className={s.page}>
-      <AuthCard initial={mode === "signup" || invite ? "signup" : "signin"} code={invite} />
+      <AuthCard />
     </main>
   );
 }

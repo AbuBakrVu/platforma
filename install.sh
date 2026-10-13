@@ -81,6 +81,38 @@ else
   OFFICE=0
 fi
 
+# ——— Почта (подтверждение регистрации, сброс пароля, приглашения родителям) ———
+echo
+say "Почта: платформа отправляет коды подтверждения, восстановление пароля и приглашения родителям."
+MAIL_ASK=Y
+if [ -n "${SMTP_HOST:-}" ]; then
+  ok "Почта уже настроена: $SMTP_USER через $SMTP_HOST"
+  ask_yn "Изменить настройки почты?" N || MAIL_ASK=N
+fi
+if [ "$MAIL_ASK" = Y ]; then
+  if ask_yn "Настроить почту сейчас? (без неё регистрация без подтверждения, пароль сбрасывает администратор)" Y; then
+    echo "  1) Яндекс 360 / Яндекс Почта   2) Gmail   3) Mail.ru   4) Другой SMTP-сервер"
+    read -r -p "Почтовый сервис [1]: " m || true
+    case ${m:-1} in
+      2) SMTP_HOST=smtp.gmail.com; SMTP_PORT=465; warn "Gmail: нужен «пароль приложения» (Аккаунт Google → Безопасность → Пароли приложений)" ;;
+      3) SMTP_HOST=smtp.mail.ru; SMTP_PORT=465; warn "Mail.ru: нужен «пароль для внешнего приложения» в настройках безопасности" ;;
+      4) read -r -p "Адрес SMTP-сервера: " SMTP_HOST || true; read -r -p "Порт [465]: " SMTP_PORT || true; SMTP_PORT=${SMTP_PORT:-465} ;;
+      *) SMTP_HOST=smtp.yandex.ru; SMTP_PORT=465; warn "Яндекс: нужен «пароль приложения» (id.yandex.ru → Безопасность → Пароли приложений → Почта)" ;;
+    esac
+    while :; do
+      read -r -p "Почтовый ящик, с которого отправлять (например, no-reply@вашдомен.kz): " SMTP_USER || true
+      SMTP_USER=$(printf '%s' "$SMTP_USER" | xargs)
+      [[ $SMTP_USER =~ $EMAIL_RE ]] && break
+      warn "Это не похоже на адрес почты"
+    done
+    read -r -s -p "Пароль приложения для этого ящика: " SMTP_PASS; echo
+    SMTP_PASS=$(printf '%s' "$SMTP_PASS" | tr -d '[:space:]')
+    SMTP_FROM=$SMTP_USER
+  else
+    SMTP_HOST=; SMTP_PORT=; SMTP_USER=; SMTP_PASS=; SMTP_FROM=
+  fi
+fi
+
 # ——— Порт и пароль базы ———
 port_busy() { ss -Htln 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"; }
 
@@ -152,6 +184,11 @@ LAB_SECRET=${LAB_SECRET:-}
 LAB_PORT=${LAB_PORT:-3200}
 SEED_DEMO=$SEED_DEMO
 SEED_DEMO_PASSWORD=${SEED_DEMO_PASSWORD:-}
+SMTP_HOST=${SMTP_HOST:-}
+SMTP_PORT=${SMTP_PORT:-}
+SMTP_USER=${SMTP_USER:-}
+SMTP_PASS='${SMTP_PASS:-}'
+SMTP_FROM=${SMTP_FROM:-}
 EOF
 umask 022
 ok ".env записан (доступ только root)"

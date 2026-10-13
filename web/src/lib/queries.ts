@@ -125,8 +125,8 @@ export async function getMyCourses(user: Learner) {
 
   const visible = live(t.courses.published, t.courses.publishAt);
   const mine = await personalCourses(user.id);
-  // Внешний ученик — только выданные курсы; без потока — все опубликованные (как раньше)
-  if (user.external) {
+  // Внешний ученик и ученик без потока — только выданные лично; персонал — все опубликованные
+  if (user.external || (!user.groupId && user.role === "student")) {
     if (!mine.size) return [];
     return (await base.where(and(visible, inArray(t.courses.id, [...mine])))).map((c) => ({ ...c, lockedBy: null as string | null }));
   }

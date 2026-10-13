@@ -64,6 +64,13 @@
       "when": 1791836998711,
       "tag": "0008_roles_parents",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791877835989,
+      "tag": "0009_signup_auth",
+      "breakpoints": true
     }
   ]
 }

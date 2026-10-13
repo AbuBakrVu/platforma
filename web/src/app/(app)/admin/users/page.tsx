@@ -5,6 +5,7 @@ import { requirePerm } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/permissions";
 import Link from "next/link";
 import { fmtDate } from "@/lib/format";
+import { fmtPhone } from "@/lib/phone";
 import { Confirm, Copy } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
 import { deleteInvite } from "./actions";
@@ -29,7 +30,8 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
   const gf = typeof sp.group === "string" ? sp.group : "";
 
   const where: SQL[] = [];
-  if (q) where.push(or(ilike(t.users.name, `%${q}%`), ilike(t.users.email, `%${q}%`))!);
+  const qPhone = q.replace(/\D/g, "");
+  if (q) where.push(or(ilike(t.users.name, `%${q}%`), ilike(t.users.email, `%${q}%`), ...(qPhone.length >= 4 ? [ilike(t.users.phone, `%${qPhone}%`)] : []))!);
   if (gf === "none") where.push(isNull(t.users.groupId));
   else if (gf) where.push(eq(t.users.groupId, gf));
 
@@ -79,7 +81,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                     <td className="muted">{inv.note}</td>
                     <td>
                       <div className="row" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
-                        <Copy text={`/login?code=${inv.code}`} label="Ссылка" />
+                        <Copy text={`/register?code=${inv.code}`} label="Ссылка" />
                         <form action={deleteInvite.bind(null, inv.id)}>
                           <Confirm className="btn sm danger" message={`Отозвать код ${inv.code}?`}><Icon name="trash" size={16} /></Confirm>
                         </form>
@@ -98,7 +100,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         <div className="card-h" style={{ flexWrap: "wrap" }}>
           <h2>Пользователи <span className="small muted">{users.length}</span></h2>
           <form className="row" role="search">
-            <input name="q" defaultValue={q} className="ctl" placeholder="Имя или email" aria-label="Поиск" style={{ width: 220 }} />
+            <input name="q" defaultValue={q} className="ctl" placeholder="Имя, почта или телефон" aria-label="Поиск" style={{ width: 220 }} />
             <select name="group" defaultValue={gf} className="ctl" aria-label="Поток" style={{ width: 180 }}>
               <option value="">Все потоки</option>
               <option value="none">Без потока</option>
@@ -117,7 +119,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                     <Link href={`/admin/people/${u.id}`} style={{ fontWeight: 600, color: "var(--ink)" }}>{u.name}</Link>{u.id === me.id && <span className="small muted"> · вы</span>}
                     {u.external && <span className="tag grey" style={{ marginLeft: 6 }}>внешний</span>}
                     {u.demo && <span className="tag warn" style={{ marginLeft: 6 }}>демо</span>}
-                    <div className="small muted">{u.email}</div>
+                    <div className="small muted">{u.email}{u.phone ? ` · ${fmtPhone(u.phone)}` : ""}</div>
                   </td>
                   <td>{ROLE[u.role]}</td>
                   <td>{u.groupId ? groupName.get(u.groupId) : <span className="muted">—</span>}</td>
