@@ -44,6 +44,8 @@
 - `queries.ts` — доступ к курсам (`getMyCourses`, `canAccessCourse`, программы, личные курсы внешних учеников, блокировки), структура курса.
   Функции доступа принимают узкий тип `Learner` (id, role, groupId, external).
 - `steps.ts` — типы шагов урока; `markdown.ts` — Markdown для персонала (KaTeX, вставки);
+  `md-visual.ts` — мост Markdown ↔ визуальный редактор (`components/VisualEditor.tsx`, Tiptap). Новые конструкции Markdown
+  добавлять в оба файла, иначе визуальный режим их потеряет (или пометить в `visualUnsupported`);
   **`user-md.ts` — безопасный Markdown для текстов пользователей** (комментарии, форум, чат) — использовать его для всего, что пишут ученики.
 - `gamify.ts` (`award()` — единая точка начисления XP/монет), `achievements.ts`, `leagues.ts`, `quests.ts`, `shop.ts`, `duels.ts`.
 - `community.ts`, `chats.ts`, `news.ts`, `kb.ts`, `parents.ts`, `labs.ts`, `packages.ts` (SCORM), `transfer.ts` (экспорт курса), `storage.ts`.

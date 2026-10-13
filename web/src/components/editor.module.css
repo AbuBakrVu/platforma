@@ -5,3 +5,37 @@
 .toolbar { display: flex; flex-wrap: wrap; gap: 4px; }
 .tool { min-width: 34px; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink2); font-size: 13px; font-weight: 600; }
 .tool:hover { background: var(--green-tint); border-color: #CDD2CB; }
+.tool { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.tool.on { background: var(--green-soft); border-color: var(--green); color: var(--green-d); }
+.tool:disabled { opacity: .4; cursor: default; }
+.sep { width: 1px; align-self: stretch; margin: 4px 4px; background: var(--line); }
+.dot { width: 10px; height: 10px; border-radius: 3px; background: var(--green); flex: none; }
+.dot.warning, .dot.important { background: var(--warn); }
+.dot.note { background: #9AA59E; }
+.modes { display: inline-flex; border: 1px solid var(--line); border-radius: 18px; padding: 2px; background: #fff; }
+.modes button { height: 30px; padding: 0 12px; border: 0; border-radius: 16px; background: none; font-size: 13px; font-weight: 500; color: var(--muted); }
+.modes button.on { background: var(--green); color: #fff; }
+
+/* Поле визуального редактора выглядит как урок у ученика */
+.visual { max-width: none; border: 1px solid var(--line); border-radius: var(--r-s); padding: 16px 18px; background: #fff; outline: none; overflow-wrap: anywhere; }
+.visual:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-tint); }
+.visual :global(p.is-editor-empty:first-child)::before { content: attr(data-placeholder); float: left; height: 0; color: #A3ABA5; pointer-events: none; }
+.visual :global(aside.callout)::before { content: attr(data-label); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--green); }
+.visual :global(aside.callout.warning)::before, .visual :global(aside.callout.important)::before { color: var(--warn); }
+.visual :global(aside.callout.note) { background: #F4F5F3; border-color: #9AA59E; }
+.visual :global(aside.callout.note)::before { color: var(--muted); }
+.visual :global(.vis-math) { cursor: pointer; border-radius: 6px; }
+.visual :global(.vis-math:hover) { background: var(--green-tint); }
+.visual :global(.vis-video) { display: flex; flex-direction: column; gap: 4px; margin: 0 0 14px; padding: 14px 16px; border-radius: var(--r-s); background: var(--dark2); color: #D7E4DA; font-size: 14px; }
+.visual :global(.vis-video span) { color: #9DB3A4; word-break: break-all; }
+.visual :global(.ProseMirror-selectednode) { outline: 2px solid var(--green); outline-offset: 2px; }
+.visual :global(ul[data-type="taskList"]) { list-style: none; padding-left: 4px; }
+.visual :global(ul[data-type="taskList"] li) { display: flex; gap: 8px; align-items: flex-start; }
+.visual :global(ul[data-type="taskList"] li > label) { margin-top: 3px; }
+.visual :global(ul[data-type="taskList"] li > div) { flex: 1; }
+.visual :global(ul[data-type="taskList"] input) { accent-color: var(--green); }
+.visual :global(table) { table-layout: fixed; width: 100%; }
+.visual :global(td p), .visual :global(th p) { margin: 0; }
+.visual :global(.selectedCell) { background: var(--green-soft); }
+.visual :global(img.ProseMirror-selectednode) { outline-offset: 0; }
+.sticky { position: sticky; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 6px; padding: 8px 0; background: #fff; }
