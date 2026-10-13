@@ -41,8 +41,8 @@ export default async function ExamEditor({ params, searchParams }: PageProps<"/a
         <form action={updateExam.bind(null, id)} className="form">
           <ExamFields exam={exam} courses={courses} />
           <label className="check"><input type="checkbox" name="published" defaultChecked={exam.published} />
-            Опубликован — студенты видят экзамен и могут начать попытку</label>
-          {exam.published && questions.length === 0 && <div className="notice">В экзамене нет вопросов — студенты не смогут его начать.</div>}
+            Опубликован — ученики видят экзамен и могут начать попытку</label>
+          {exam.published && questions.length === 0 && <div className="notice">В экзамене нет вопросов — ученики не смогут его начать.</div>}
           <div><Submit>Сохранить</Submit></div>
         </form>
       </section>

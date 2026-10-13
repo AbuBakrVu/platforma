@@ -92,7 +92,7 @@ export const courses = pgTable("courses", {
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   published: boolean("published").notNull().default(true),
-  /** Отложенная публикация: опубликованный курс виден студентам только с этого момента */
+  /** Отложенная публикация: опубликованный курс виден ученикам только с этого момента */
   publishAt: timestamp("publish_at", { withTimezone: true }),
   /** Последовательное прохождение: урок открывается, когда пройден предыдущий */
   sequential: boolean("sequential").notNull().default(false),
@@ -151,7 +151,7 @@ export const lessons = pgTable("lessons", {
   kind: lessonKindEnum("kind").notNull().default("theory"),
   /** steps — по одному шагу на экране, longread — все шаги одной страницей */
   layout: lessonLayoutEnum("layout").notNull().default("steps"),
-  /** false — черновик: студенты урок не видят */
+  /** false — черновик: ученики урок не видят */
   published: boolean("published").notNull().default(true),
   /** Отложенная публикация урока */
   publishAt: timestamp("publish_at", { withTimezone: true }),
@@ -216,7 +216,7 @@ export const courseMaterials = pgTable("course_materials", {
   createdAt: createdAt(),
 }, (t) => [index("course_materials_idx").on(t.courseId, t.position)]);
 
-/** Учебная среда студента: контейнер с терминалом для шага «Лаба» */
+/** Учебная среда ученика: контейнер с терминалом для шага «Лаба» */
 export const labSessions = pgTable("lab_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -244,14 +244,14 @@ export const stepProgress = pgTable("step_progress", {
 /** Загруженные файлы. Сами файлы лежат в UPLOAD_DIR, доступ — через /api/files/<id> */
 export const uploads = pgTable("uploads", {
   id: uuid("id").primaryKey().defaultRandom(),
-  /** Курс, к которому относится файл: студент видит файл, только если у него есть доступ к курсу */
+  /** Курс, к которому относится файл: ученик видит файл, только если у него есть доступ к курсу */
   courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   mime: text("mime").notNull(),
   size: integer("size").notNull(),
   /** PDF-копия офисного документа для просмотра в браузере */
   pdfId: uuid("pdf_id"),
-  /** Доступ: course — по курсу; private — только автору и персоналу (работы студентов); public — всем вошедшим (аватары) */
+  /** Доступ: course — по курсу; private — только автору и персоналу (работы учеников); public — всем вошедшим (аватары) */
   access: text("access").notNull().default("course"),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
@@ -272,7 +272,7 @@ export const packages = pgTable("packages", {
   createdAt: createdAt(),
 });
 
-/** Состояние пакета у студента: данные cmi.* (SCORM) или документы state API (xAPI) */
+/** Состояние пакета у ученика: данные cmi.* (SCORM) или документы state API (xAPI) */
 export const packageState = pgTable("package_state", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   packageId: uuid("package_id").notNull().references(() => packages.id, { onDelete: "cascade" }),
@@ -400,12 +400,12 @@ export const certificates = pgTable("certificates", {
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("certificates_number_idx").on(t.number)]);
 
-/** Работа студента по шагу «Задание»: текст и файлы, проверка по рубрике */
+/** Работа ученика по шагу «Задание»: текст и файлы, проверка по рубрике */
 export const submissions = pgTable("submissions", {
   id: uuid("id").primaryKey().defaultRandom(),
   stepId: uuid("step_id").notNull().references(() => lessonSteps.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  /** Номер попытки: после «на доработку» студент отправляет новую */
+  /** Номер попытки: после «на доработку» ученик отправляет новую */
   attempt: integer("attempt").notNull().default(1),
   text: text("text").notNull().default(""),
   files: jsonb("files").$type<{ uploadId: string; name: string; size: number }[]>().notNull().default([]),
@@ -510,7 +510,7 @@ export const teams = pgTable("teams", {
   createdAt: createdAt(),
 });
 
-/** Студент — максимум в одной команде */
+/** Ученик — максимум в одной команде */
 export const teamMembers = pgTable("team_members", {
   teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -1,4 +1,4 @@
-.strip { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+.strip { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
 .tile { flex-direction: row; align-items: center; gap: 14px; padding: 16px 18px; color: var(--ink); }
 .tile:hover { color: var(--ink); box-shadow: 0 2px 10px rgba(20, 40, 25, .07); }
 .text { display: flex; flex-direction: column; min-width: 0; }
@@ -11,3 +11,4 @@
   background: conic-gradient(var(--green) 0 var(--p), #E6E9E5 0); }
 .ring::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
 .ring b { position: relative; z-index: 1; font-size: 12px; }
+@media (max-width: 860px) { .tile { padding: 12px; gap: 10px; } .emoji { font-size: 26px; } .ring { width: 44px; height: 44px; } .text b { font-size: 16px; } }

@@ -5,7 +5,7 @@ import { slugify } from "./form";
 
 export type KbNode = { id: string; slug: string; title: string; published: boolean; children: KbNode[] };
 
-/** Дерево статей; студентам — только опубликованные */
+/** Дерево статей; ученикам — только опубликованные */
 export async function kbTree(staff: boolean) {
   const rows = await db.select({ id: t.kbArticles.id, slug: t.kbArticles.slug, title: t.kbArticles.title, parentId: t.kbArticles.parentId, published: t.kbArticles.published })
     .from(t.kbArticles).where(staff ? undefined : eq(t.kbArticles.published, true)).orderBy(asc(t.kbArticles.position), asc(t.kbArticles.title));

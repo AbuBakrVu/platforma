@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
@@ -7,7 +8,7 @@ import { setMentors } from "./actions";
 
 export const metadata = { title: "Наставники" };
 
-/** Назначение наставников: преподаватель, сотрудник или опытный студент из другого потока */
+/** Назначение наставников: преподаватель, сотрудник или опытный ученик из другого потока */
 export default async function Mentors({ searchParams }: PageProps<"/admin/mentors">) {
   await requirePerm("people");
   const groups = await db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name));
@@ -23,8 +24,9 @@ export default async function Mentors({ searchParams }: PageProps<"/admin/mentor
 
   return (
     <>
+      <PeopleTabs />
       <div className="title"><h1>Наставники</h1>
-        <p>Наставник видит прогресс подопечных на странице «Подопечные» и может писать им в сообщениях. Наставником может быть преподаватель, сотрудник или старший студент.</p></div>
+        <p>Наставник видит прогресс подопечных на странице «Подопечные» и может писать им в сообщениях. Наставником может быть преподаватель, сотрудник или старший ученик.</p></div>
       <section className="card">
         <form className="row" style={{ alignItems: "flex-end" }}>
           <div className="field"><label htmlFor="mg">Поток</label>
@@ -39,12 +41,12 @@ export default async function Mentors({ searchParams }: PageProps<"/admin/mentor
                 <select name={`mentor_${st.id}`} defaultValue={st.mentor ?? ""} className="ctl" style={{ maxWidth: 340 }} aria-label={`Наставник: ${st.name}`}>
                   <option value="">— без наставника —</option>
                   {options.filter((o) => o.id !== st.id).map((o) => (
-                    <option key={o.id} value={o.id}>{o.name} · {o.role === "student" ? `студент${o.group ? `, ${o.group}` : ""}` : o.role === "admin" ? "администратор" : "преподаватель"}</option>
+                    <option key={o.id} value={o.id}>{o.name} · {o.role === "student" ? `ученик${o.group ? `, ${o.group}` : ""}` : o.role === "admin" ? "администратор" : "преподаватель"}</option>
                   ))}
                 </select></td></tr>
             ))}
           </tbody></table></div>
-          {students.length > 0 ? <div><Submit>Сохранить</Submit></div> : <p className="empty">В потоке нет студентов.</p>}
+          {students.length > 0 ? <div><Submit>Сохранить</Submit></div> : <p className="empty">В потоке нет учеников.</p>}
         </form>
       </section>
     </>

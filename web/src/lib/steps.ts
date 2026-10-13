@@ -14,7 +14,7 @@ export type VideoContent = {
   subtitles: Subtitle[];
   /** Оглавление: строки «0:00 Введение» */
   chapters: string;
-  /** Водяной знак с именем и почтой студента */
+  /** Водяной знак с именем и почтой ученика */
   watermark: boolean;
   /** Урок не засчитается, пока видео не досмотрено */
   required: boolean;
@@ -139,13 +139,13 @@ export function parseStep<K extends StepKind>(kind: K, raw: unknown): StepConten
   return parsers[kind]() as StepContent[K];
 }
 
-/** Лаба для браузера студента: без скриптов проверки и подготовки */
+/** Лаба для браузера ученика: без скриптов проверки и подготовки */
 export type PublicLab = { tasks: Omit<LabTask, "check">[]; ttlMin: number; required: boolean };
 export function publicLab(l: LabContent): PublicLab {
   return { tasks: l.tasks.map(({ id, title, md, hint }) => ({ id, title, md, hint })), ttlMin: l.ttlMin, required: l.required };
 }
 
-/** Вопрос без правильных ответов — то, что можно отдать в браузер студента */
+/** Вопрос без правильных ответов — то, что можно отдать в браузер ученика */
 export type PublicQuiz = Omit<QuizContent, "answer" | "accepted" | "explanation">;
 export function publicQuiz(q: QuizContent): PublicQuiz {
   return { kind: q.kind, prompt: q.prompt, options: q.options, required: q.required };

@@ -50,7 +50,7 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
       <TopBar
         xp={xp}
         left={<>
-          <Link href="/courses">Навыки</Link><span>/</span>
+          <Link href="/courses">Мои курсы</Link><span>/</span>
           <Link href={`/courses/${slug}`}>{outline.course.title}</Link><span>/</span>
           <b>{row.section.title}</b>
         </>}
@@ -125,7 +125,7 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/c
           </div>
           <h1 className={s.h1}>{row.lesson.title}</h1>
           {!isLive(row.lesson) && (
-            <div className="notice small" style={{ marginBottom: 16 }}>Черновик или отложенная публикация — студенты этот урок пока не видят.</div>
+            <div className="notice small" style={{ marginBottom: 16 }}>Черновик или отложенная публикация — ученики этот урок пока не видят.</div>
           )}
 
           {!longread && steps.length > 1 && (

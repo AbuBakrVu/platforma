@@ -1,6 +1,6 @@
 /**
  * Минимальное LRS (xAPI 1.0.3) для пакетов xAPI (Tin Can) и cmi5: statements, state и profile API.
- * Авторизация — Basic <packageId>:<token>, токен выдаётся студенту при запуске пакета (package_state.token).
+ * Авторизация — Basic <packageId>:<token>, токен выдаётся ученику при запуске пакета (package_state.token).
  * Завершение (verb completed / passed) отмечает шаг урока пройденным.
  */
 import { randomUUID } from "node:crypto";

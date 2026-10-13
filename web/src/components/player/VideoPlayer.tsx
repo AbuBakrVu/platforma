@@ -29,7 +29,7 @@ const store = {
 
 /**
  * Плеер уроков: скорость, качество, субтитры, главы, продолжение с места остановки,
- * водяной знак с именем студента, без кнопки скачивания. Досмотр (90%) засчитывает шаг.
+ * водяной знак с именем ученика, без кнопки скачивания. Досмотр (90%) засчитывает шаг.
  */
 export function VideoPlayer({ stepId, sources, tracks, chapters, watermark, startAt = 0, watchedPct = 0 }: {
   stepId: string; sources: Source[]; tracks: Track[]; chapters: Chapter[];

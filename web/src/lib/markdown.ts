@@ -1,7 +1,7 @@
 /**
  * Markdown уроков: GFM (таблицы, списки задач) + формулы KaTeX ($…$ и $$…$$),
  * вставка видео строкой @[video](ссылка) и выноски > [!NOTE] / [!TIP] / [!WARNING].
- * Один и тот же рендер — в предпросмотре редактора и у студента.
+ * Один и тот же рендер — в предпросмотре редактора и у ученика.
  */
 import { Marked, type TokenizerAndRendererExtension } from "marked";
 import katex from "katex";

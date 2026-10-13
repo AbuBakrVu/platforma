@@ -31,7 +31,7 @@ export default async function ReviewQueue({ searchParams }: PageProps<"/admin/re
 
   return (
     <>
-      <div className="title"><h1>Проверка работ</h1><p>Домашние задания студентов: оцените по критериям и примите или верните на доработку.</p></div>
+      <div className="title"><h1>Проверка работ</h1><p>Домашние задания учеников: оцените по критериям и примите или верните на доработку.</p></div>
       {sp.done && <div className="ok-box" role="status">{sp.done === "accepted" ? "Работа принята." : "Работа возвращена на доработку."} {status === "submitted" && !rows.length ? "Очередь пуста." : ""}</div>}
       <nav className="seg" aria-label="Статус">
         {(Object.keys(STATUS) as (keyof typeof STATUS)[]).map((k) => (
@@ -42,7 +42,7 @@ export default async function ReviewQueue({ searchParams }: PageProps<"/admin/re
         {rows.length ? (
           <div className="tbl-wrap">
             <table className="tbl">
-              <thead><tr><th>Студент</th><th>Задание</th><th>Отправлено</th><th>{status === "submitted" ? "" : "Баллы"}</th><th /></tr></thead>
+              <thead><tr><th>Ученик</th><th>Задание</th><th>Отправлено</th><th>{status === "submitted" ? "" : "Баллы"}</th><th /></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>

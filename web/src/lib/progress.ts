@@ -13,7 +13,7 @@ export async function saveStepProgress(userId: string, stepId: string, done: boo
     });
 }
 
-/** Состояние пакета у студента; создаёт запись с токеном для xAPI при первом запуске */
+/** Состояние пакета у ученика; создаёт запись с токеном для xAPI при первом запуске */
 export async function packageStateFor(userId: string, packageId: string) {
   const [row] = await db.insert(t.packageState)
     .values({ userId, packageId, token: randomBytes(24).toString("base64url") })

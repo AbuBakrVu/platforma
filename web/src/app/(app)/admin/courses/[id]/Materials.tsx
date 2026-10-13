@@ -43,7 +43,7 @@ export function Materials({ courseId, items, lessons }: { courseId: string; item
         </label>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        Чек-листы, шпаргалки, исходники. Материалы курса студент видит рядом с программой курса, материалы урока — под уроком.
+        Чек-листы, шпаргалки, исходники. Материалы курса ученик видит рядом с программой курса, материалы урока — под уроком.
         Можно скачать всё одним архивом.
       </p>
       {busy && <span className="small muted" role="status">{busy}</span>}

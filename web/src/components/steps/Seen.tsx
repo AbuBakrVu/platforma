@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { markSeen } from "@/app/(app)/courses/[slug]/[lessonId]/actions";
 
-/** Отмечает текстовый шаг или документ просмотренным, когда студент до него долистал */
+/** Отмечает текстовый шаг или документ просмотренным, когда ученик до него долистал */
 export function Seen({ stepId }: { stepId: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

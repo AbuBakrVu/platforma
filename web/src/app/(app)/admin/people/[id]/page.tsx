@@ -10,7 +10,9 @@ import { getCoins, getStreak, levelOf, totalXp } from "@/lib/gamify";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { getAttendanceStats, getMyCourses } from "@/lib/queries";
 import { Avatar } from "@/components/Avatar";
+import { Icon } from "@/components/Icon";
 import { Confirm, Copy, Submit } from "@/components/Buttons";
+import { deleteUser, setPassword, updateUser } from "../../users/actions";
 import {
   grantCourse, inviteParent, linkChild, linkParent, revokeCourse, setAccessRole, setExternal, startImpersonation, unlinkParent,
 } from "../actions";
@@ -19,9 +21,9 @@ import s from "../people.module.css";
 export const metadata = { title: "Профиль пользователя" };
 
 /** Всё о человеке на одной странице: учёба, оценки, задания, посещаемость, награды, связи, журнал */
-export default async function Person({ params }: PageProps<"/admin/people/[id]">) {
+export default async function Person({ params, searchParams }: PageProps<"/admin/people/[id]">) {
   const me = await requireStaff();
-  if (!can(me, "gradebook") && !can(me, "people")) redirect("/admin");
+  if (!can(me, "gradebook") && !can(me, "people")) redirect("/");
   const id = uuidOrNull((await params).id);
   const [u] = id ? await db.select({ u: t.users, group: t.groups.name }).from(t.users).leftJoin(t.groups, eq(t.groups.id, t.users.groupId)).where(eq(t.users.id, id)) : [];
   if (!u) notFound();
@@ -29,7 +31,9 @@ export default async function Person({ params }: PageProps<"/admin/people/[id]">
   const student = user.role === "student";
   const manage = can(me, "people");
 
-  const [roles, allCourses, personal, parents, children, mentor, audit, invites, parentsAll, studentsAll] = await Promise.all([
+  const saved = (await searchParams).saved;
+  const [groups, roles, allCourses, personal, parents, children, mentor, audit, invites, parentsAll, studentsAll] = await Promise.all([
+    db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
     db.select({ id: t.accessRoles.id, name: t.accessRoles.name }).from(t.accessRoles).orderBy(asc(t.accessRoles.name)),
     db.select({ id: t.courses.id, title: t.courses.title }).from(t.courses).orderBy(asc(t.courses.title)),
     db.select({ courseId: t.userCourses.courseId, until: t.userCourses.until, title: t.courses.title }).from(t.userCourses)
@@ -74,6 +78,7 @@ export default async function Person({ params }: PageProps<"/admin/people/[id]">
   return (
     <>
       <div className="crumbs"><Link href="/admin/users">Люди</Link><span>/</span><b>{user.name}</b></div>
+      {saved === "password" && <div className="ok-box" role="status">Пароль изменён. Человек вышел на всех устройствах — пусть войдёт с новым паролем.</div>}
 
       <section className={`card ${s.hero}`}>
         <Avatar user={user} size={72} />
@@ -89,6 +94,7 @@ export default async function Person({ params }: PageProps<"/admin/people/[id]">
           <span className="small muted">Зарегистрирован {fmtDate(user.createdAt)} · {user.lastSeenAt ? `был(а) ${fmtDateTime(user.lastSeenAt)}` : "ещё не заходил(а)"}</span>
         </div>
         <div className="row">
+          {manage && <a href="#account" className="btn"><Icon name="settings" size={18} />Роль, поток, пароль</a>}
           {student && <Link href={`/parent/${user.id}`} className="btn">👪 Как видит родитель</Link>}
           {canImpersonate && <form action={startImpersonation.bind(null, user.id)}><button className="btn">👁 Войти как {ROLE_LABEL[user.role].toLowerCase()}</button></form>}
         </div>
@@ -155,6 +161,33 @@ export default async function Person({ params }: PageProps<"/admin/people/[id]">
       )}
 
       <div className={s.grid}>
+        {manage && (
+          <section className="card" id="account" style={{ scrollMarginTop: 16 }}>
+            <div className="card-h"><h2>Учётная запись</h2></div>
+            <form action={updateUser.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }} key={`${user.role}-${user.groupId}`}>
+              <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-role">Роль</label>
+                <select id="u-role" name="role" defaultValue={user.role} className="ctl" disabled={user.id === me.id}>
+                  {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select></div>
+              <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-group">Поток</label>
+                <select id="u-group" name="groupId" defaultValue={user.groupId ?? ""} className="ctl">
+                  <option value="">Без потока</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select></div>
+              <Submit className="btn sm">Сохранить</Submit>
+            </form>
+            <form action={setPassword.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }}>
+              <div className="field" style={{ flex: "1 1 200px" }}><label htmlFor="u-pw">Новый пароль <span className="muted">(не короче 8 символов)</span></label>
+                <input id="u-pw" name="password" type="password" minLength={8} required className="ctl" autoComplete="new-password" /></div>
+              <Submit className="btn sm">Задать пароль</Submit>
+            </form>
+            {user.id !== me.id && (
+              <form action={deleteUser.bind(null, user.id)}>
+                <Confirm className="btn sm danger" message={`Удалить пользователя ${user.name}? Его прогресс и XP тоже удалятся.`}>Удалить пользователя</Confirm>
+              </form>
+            )}
+          </section>
+        )}
         {user.role === "teacher" && manage && (
           <section className="card">
             <div className="card-h"><h2>Роль доступа</h2><Link href="/admin/roles" className="small">Роли и права →</Link></div>

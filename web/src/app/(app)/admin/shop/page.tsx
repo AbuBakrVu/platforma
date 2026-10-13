@@ -45,7 +45,7 @@ export default async function AdminShop() {
 
   return (
     <>
-      <div className="title"><h1>Магазин и игра</h1><p>Товары за монеты, заказы студентов. Челленджи и команды — на соседней вкладке.</p></div>
+      <div className="title"><h1>Магазин и игра</h1><p>Товары за монеты, заказы учеников. Челленджи и команды — на соседней вкладке.</p></div>
       <nav className="seg"><Link href="/admin/shop" className="on">Магазин</Link><Link href="/admin/game">Челленджи и команды</Link></nav>
 
       <section className="card">

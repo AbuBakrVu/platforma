@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { TopBar } from "@/components/TopBar";
 import s from "./courses.module.css";
 
-export const metadata = { title: "Навыки" };
+export const metadata = { title: "Мои курсы" };
 
 type Course = Awaited<ReturnType<typeof getMyCourses>>[number];
 
@@ -38,8 +38,8 @@ export default async function CoursesPage() {
 
   return (
     <>
-      <TopBar left={<b>Навыки</b>} xp={xp} />
-      <div className="title"><h1>Навыки</h1><p>{programs.length ? "Программы и курсы вашего потока" : "Курсы вашего потока"}</p></div>
+      <TopBar left={<b>Мои курсы</b>} xp={xp} />
+      <div className="title"><h1>Мои курсы</h1><p>{programs.length ? "Программы и курсы вашего потока" : "Курсы вашего потока"}</p></div>
 
       {programs.map((p) => {
         const list = p.courseIds.map((id) => byId.get(id)).filter((c): c is Course => !!c);

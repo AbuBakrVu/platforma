@@ -42,7 +42,7 @@ export async function deleteTeam(id: string) {
   touch();
 }
 
-/** Команды студентов: поле team_<userId> = id команды или пусто */
+/** Команды учеников: поле team_<userId> = id команды или пусто */
 export async function setTeams(form: FormData) {
   await requirePerm("shop");
   const pairs = [...form.entries()].filter(([k]) => k.startsWith("team_")).map(([k, v]) => [uuidOrNull(k.slice(5)), uuidOrNull(String(v))] as const);

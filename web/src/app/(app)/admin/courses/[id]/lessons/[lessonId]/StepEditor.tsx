@@ -171,7 +171,7 @@ function VideoEditor({ c, set, courseId, files, addFile }: Ctx & { c: VideoConte
           ))}
           <UploadButton courseId={courseId} accept="video/mp4,video/webm,video/quicktime" label="Загрузить видео (mp4, webm)"
             onDone={(f) => { addFile(f); set<"video">({ files: [...c.files, { uploadId: f.id, label: c.files.length ? "" : "Авто" }] }); }} />
-          <span className="small muted">Первым ставьте лучшее качество. Студент сможет переключать качество в плеере.</span>
+          <span className="small muted">Первым ставьте лучшее качество. Ученик сможет переключать качество в плеере.</span>
         </div>
       )}
 
@@ -203,7 +203,7 @@ function VideoEditor({ c, set, courseId, files, addFile }: Ctx & { c: VideoConte
       </div>
 
       <label className="check"><input type="checkbox" checked={c.watermark} onChange={(e) => set<"video">({ watermark: e.target.checked })} />
-        Водяной знак с именем и почтой студента (защита от записи экрана и пересылки)</label>
+        Водяной знак с именем и почтой ученика (защита от записи экрана и пересылки)</label>
       <label className="check"><input type="checkbox" checked={c.required} onChange={(e) => set<"video">({ required: e.target.checked })} />
         Обязательно досмотреть — без этого урок не засчитается</label>
     </>
@@ -229,11 +229,11 @@ function FileEditor({ c, set, courseId, files, addFile }: Ctx & { c: FileContent
           onDone={(x) => { addFile(x); set<"file">({ uploadId: x.id }); }} />
         {f && !viewable && (
           <span className="notice small">
-            Этот формат в браузере не открывается — студент сможет только скачать файл.
+            Этот формат в браузере не открывается — ученик сможет только скачать файл.
             Сохраните его в PDF или включите конвертер документов (CONVERTER_URL, см. README).
           </span>
         )}
-        {f?.pdfId && <span className="small muted">Документ сконвертирован в PDF — студент увидит его прямо на странице.</span>}
+        {f?.pdfId && <span className="small muted">Документ сконвертирован в PDF — ученик увидит его прямо на странице.</span>}
       </div>
       <label className="check"><input type="checkbox" checked={c.allowDownload} onChange={(e) => set<"file">({ allowDownload: e.target.checked })} />
         Показывать кнопку «Скачать»</label>
@@ -299,7 +299,7 @@ function CardsEditor({ c, set }: Ctx & { c: CardsContent }) {
   return (
     <>
       <p className="small muted" style={{ margin: 0 }}>
-        Студент переворачивает карточки и отмечает, помнит ли ответ. Дальше карточки сами возвращаются
+        Ученик переворачивает карточки и отмечает, помнит ли ответ. Дальше карточки сами возвращаются
         на повторение в разделе «Повторение» — через день, неделю, месяц (интервальное повторение).
       </p>
       {c.cards.map((card, i) => (
@@ -398,7 +398,7 @@ function LabEditor({ c, set, courseId }: Ctx & { c: LabContent }) {
   return (
     <>
       <p className="small muted" style={{ margin: 0 }}>
-        Каждый студент получает свой контейнер с терминалом. Скрипт подготовки выполняется при запуске среды,
+        Каждый ученик получает свой контейнер с терминалом. Скрипт подготовки выполняется при запуске среды,
         у каждого задания — скрипт проверки: код выхода 0 значит «выполнено». Шаг засчитывается, когда выполнены все задания.
       </p>
       <div className="field" style={{ maxWidth: 360 }}>
@@ -430,7 +430,7 @@ function LabEditor({ c, set, courseId }: Ctx & { c: LabContent }) {
         Привилегированный режим — для Kubernetes (k3s) и Docker внутри среды</label>
       {c.privileged && (
         <div className="notice small">
-          Привилегированный контейнер почти не отделён от сервера: студент с root-доступом в нём может добраться до хоста.
+          Привилегированный контейнер почти не отделён от сервера: ученик с root-доступом в нём может добраться до хоста.
           Включайте только если сервис лабораторий работает на отдельной машине (см. README, «Лаборатории»).
         </div>
       )}
@@ -480,7 +480,7 @@ function AssignmentEditor({ c, set, courseId }: Ctx & { c: AssignmentContent }) 
   return (
     <>
       <p className="small muted" style={{ margin: 0 }}>
-        Студент отправляет ответ текстом и/или файлами. Работа попадает в «Управление → Проверка»: вы ставите баллы по критериям,
+        Ученик отправляет ответ текстом и/или файлами. Работа попадает в раздел «Проверка заданий»: вы ставите баллы по критериям,
         пишете комментарий и принимаете работу или возвращаете на доработку.
       </p>
       <MarkdownEditor value={c.md} onChange={(md) => set<"assignment">({ md })} courseId={courseId} label="Условие задания" minHeight={200} />
@@ -496,7 +496,7 @@ function AssignmentEditor({ c, set, courseId }: Ctx & { c: AssignmentContent }) 
             <span className={s.num}>{i + 1}</span>
             <input className="ctl" value={x.title} placeholder="Например, Код работает" aria-label={`Критерий ${i + 1}`}
               onChange={(e) => upd(x.id, { title: e.target.value })} />
-            <input className="ctl" value={x.description} placeholder="Пояснение для студента" aria-label={`Пояснение к критерию ${i + 1}`}
+            <input className="ctl" value={x.description} placeholder="Пояснение для ученика" aria-label={`Пояснение к критерию ${i + 1}`}
               onChange={(e) => upd(x.id, { description: e.target.value })} />
             <input className="ctl" type="number" min={1} max={100} style={{ width: 90 }} value={x.max} aria-label={`Баллы за критерий ${i + 1}`}
               onChange={(e) => upd(x.id, { max: Math.max(1, Number(e.target.value) || 1) })} />

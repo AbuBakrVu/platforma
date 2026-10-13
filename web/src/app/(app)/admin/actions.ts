@@ -10,5 +10,5 @@ export async function removeDemo() {
   await requireAdmin();
   const r = await removeDemoData(db);
   revalidatePath("/", "layout");
-  redirect(`/admin?removed=${r.users}-${r.groups}-${r.courses}-${r.exams}`);
+  redirect(`/?removed=${r.users}-${r.groups}-${r.courses}-${r.exams}`);
 }

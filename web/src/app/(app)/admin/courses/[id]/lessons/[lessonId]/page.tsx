@@ -103,7 +103,7 @@ export default async function LessonEditor({ params, searchParams }: PageProps<"
       </div>
       {saved && <div className="ok-box" role="status">Урок сохранён.</div>}
       {sp.restored && <div className="ok-box" role="status">Шаг возвращён к выбранной версии.</div>}
-      {sp.saved === "copy" && <div className="ok-box" role="status">Это копия урока. Она сохранена черновиком — студенты её не видят, пока не снимете отметку.</div>}
+      {sp.saved === "copy" && <div className="ok-box" role="status">Это копия урока. Она сохранена черновиком — ученики её не видят, пока не снимете отметку.</div>}
 
       <form action={updateLesson.bind(null, id, lessonId)} className="card form">
         <div className="row" style={{ alignItems: "flex-end" }}>

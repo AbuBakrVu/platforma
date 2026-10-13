@@ -31,7 +31,7 @@ export function terminalToken(sessionId: string) {
 /** Адрес WebSocket терминала: LAB_WS_URL (для разработки) или /lab-ws на том же домене через прокси */
 export const terminalBase = () => process.env.LAB_WS_URL ?? "";
 
-/** Действующая сессия студента для шага (не остановлена и не истекла) */
+/** Действующая сессия ученика для шага (не остановлена и не истекла) */
 export type LabSession = typeof t.labSessions.$inferSelect;
 
 export async function activeSession(userId: string, stepId: string): Promise<LabSession | null> {

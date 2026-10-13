@@ -21,7 +21,7 @@ export function weekOf(day = isoDay()) {
   return addDays(day, -dow);
 }
 
-/** Участники лиги — студенты; группы лиг общие для всей платформы */
+/** Участники лиги — ученики; группы лиг общие для всей платформы */
 async function standings(league: number, week: string) {
   const from = dayStart(week), to = dayStart(addDays(week, 7));
   const xp = sql<number>`coalesce(sum(${t.xpEvents.amount}), 0)::int`;

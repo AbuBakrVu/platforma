@@ -25,7 +25,7 @@ export const ROLE_PRESETS: { name: string; description: string; perms: Perm[] }[
   { name: "Наблюдатель", description: "Только просмотр журнала оценок", perms: ["gradebook"] },
 ];
 
-export const ROLE_LABEL = { student: "Ученик", teacher: "Персонал", admin: "Администратор", parent: "Родитель" } as const;
+export const ROLE_LABEL = { student: "Ученик", teacher: "Сотрудник", admin: "Администратор", parent: "Родитель" } as const;
 
 /** Персонал: преподаватель (с любой ролью доступа) или администратор */
 export const isStaffRole = (role: string) => role === "teacher" || role === "admin";

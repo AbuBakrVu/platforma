@@ -1,7 +1,7 @@
 /**
  * Демо-данные. Запуск: npm run db:seed (повторный запуск ничего не дублирует —
  * если поток DevOps-24 уже есть, скрипт выходит). npm run db:seed -- --reset — очистить базу и заполнить заново.
- * Вход демо-студента: demo@platforma.local / пароль из SEED_DEMO_PASSWORD (по умолчанию в .env.example).
+ * Вход демо-ученика: demo@platforma.local / пароль из SEED_DEMO_PASSWORD (по умолчанию в .env.example).
  */
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -172,7 +172,7 @@ await db.insert(t.lessonSteps).values({
 const allLessons = await db.select().from(t.lessons);
 const byId = new Map(allLessons.map((l) => [l.id, l]));
 
-// Студенты потока. Пароли случайные: входить под ними не нужно.
+// Ученики потока. Пароли случайные: входить под ними не нужно.
 const NAMES = [
   "Данияр Садыков", "Мадина Ахметова", "Тимур Жунусов", "Ерлан Беков", "Алия Нурланова",
   "Руслан Кенжебаев", "Жанна Мусина", "Бахыт Токтаров", "Олжас Ибраев", "Сабина Алиева", "Арман Серикбаев",
@@ -261,5 +261,5 @@ await db.insert(t.examQuestions).values(EXAM.map((q, i) => {
   return { examId: exam.id, position: i + 1, kind: q.kind, prompt: q.prompt, options, answer };
 }));
 
-console.log(`Готово: поток ${group.name}, ${everyone.length} студентов, курсы ${k8s.course.title} и ${docker.course.title}`);
+console.log(`Готово: поток ${group.name}, ${everyone.length} учеников, курсы ${k8s.course.title} и ${docker.course.title}`);
 await client.end();

@@ -52,7 +52,7 @@ export default async function AttendancePage({ params, searchParams }: PageProps
               ))}
             </div>
           </fieldset>
-        )) : <p className="empty">В потоке нет студентов.</p>}
+        )) : <p className="empty">В потоке нет учеников.</p>}
         {students.length > 0 && <div><Submit pending="Сохраняю…">Сохранить</Submit></div>}
       </form>
     </>

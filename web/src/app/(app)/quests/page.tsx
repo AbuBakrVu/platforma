@@ -10,7 +10,7 @@ import { Submit } from "@/components/Buttons";
 import { claimChallenge, claimQuest, setDailyGoal } from "./actions";
 import s from "./quests.module.css";
 
-export const metadata = { title: "Задания" };
+export const metadata = { title: "Задания дня" };
 
 const GOALS = [{ xp: 10, name: "Лёгкая" }, { xp: 30, name: "Обычная" }, { xp: 50, name: "Серьёзная" }, { xp: 100, name: "Интенсив" }];
 
@@ -25,8 +25,8 @@ export default async function QuestsPage() {
 
   return (
     <>
-      <TopBar xp={xp} left={<b>Задания</b>} />
-      <div className="title"><h1>Задания</h1><p>Цель на день, задания дня и челленджи — за них дают XP и монеты.</p></div>
+      <TopBar xp={xp} left={<b>Задания дня</b>} />
+      <div className="title"><h1>Задания дня</h1><p>Цель на день, задания дня и челленджи — за них дают XP и монеты.</p></div>
 
       <div className={s.top}>
         <section className="card">

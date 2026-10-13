@@ -78,7 +78,7 @@ export default async function ReviewItem({ params, searchParams }: PageProps<"/a
               </div>
             )}
             <div className="field">
-              <label htmlFor="fb">Комментарий студенту</label>
+              <label htmlFor="fb">Комментарий ученику</label>
               <textarea id="fb" name="feedback" className="ctl" defaultValue={sub.feedback} disabled={!open}
                 placeholder="Что получилось, что доработать" style={{ minHeight: 110 }} />
             </div>

@@ -101,7 +101,7 @@ export async function reviewCard(stepId: string, cardId: string, grade: Grade) {
   revalidatePath("/", "layout");
 }
 
-/** Отправить работу по заданию. Файлы уже загружены студентом (kind=submission). */
+/** Отправить работу по заданию. Файлы уже загружены учеником (kind=submission). */
 export async function submitAssignment(stepId: string, text: string, fileIds: string[]) {
   const user = await requireUser();
   const row = await getStepForUser(stepId, user);

@@ -6,7 +6,7 @@ import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 
-/** Наставники студентов: поле mentor_<studentId> = id наставника или пусто */
+/** Наставники учеников: поле mentor_<studentId> = id наставника или пусто */
 export async function setMentors(form: FormData) {
   await requirePerm("people");
   const pairs = [...form.entries()].filter(([k]) => k.startsWith("mentor_"))
