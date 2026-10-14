@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "./Avatar";
 import { isStaffRole, type Perm } from "@/lib/permissions";
+import type { Feature, Features } from "@/lib/features-list";
 import { Icon, type IconName } from "./Icon";
 import { signOut } from "@/app/(auth)/login/actions";
 
@@ -17,8 +18,12 @@ type Item = {
   perm?: Perm;
   /** Пункт подсвечен и на этих адресах */
   also?: string[];
+  /** …но не на этих (более точный пункт рядом) */
+  not?: string[];
   /** Только для администратора */
   admin?: boolean;
+  /** Раздел, который администратор может выключить в «Настройках» */
+  feature?: Feature;
 };
 type Group = { title?: string; items: Item[] };
 
@@ -27,7 +32,7 @@ const STUDENT: Group[] = [
   { items: [
     { href: "/", label: "Главная", icon: "home" },
     { href: "/courses", label: "Мои курсы", short: "Курсы", icon: "skills" },
-    { href: "/schedule", label: "Расписание", icon: "cal" },
+    { href: "/schedule", label: "Расписание", icon: "cal", feature: "schedule" },
     { href: "/review", label: "Повторение", icon: "cards", badge: "due" },
     { href: "/exams", label: "Пробные экзамены", icon: "exam" },
     { href: "/labs", label: "Лаборатории", icon: "term" },
@@ -50,7 +55,8 @@ const STUDENT: Group[] = [
 const STAFF: Group[] = [
   { items: [{ href: "/", label: "Главная", icon: "home" }] },
   { title: "Обучение", items: [
-    { href: "/admin/courses", label: "Курсы", icon: "skills", perm: "courses" },
+    { href: "/admin/courses", label: "Курсы", icon: "skills", perm: "courses", not: ["/admin/courses/new"] },
+    { href: "/admin/courses/new", label: "Создать курс", icon: "plus", perm: "courses" },
     { href: "/admin/programs", label: "Программы", icon: "flag", perm: "courses" },
     { href: "/admin/library", label: "Библиотека", icon: "cards", perm: "courses" },
     { href: "/admin/exams", label: "Пробные экзамены", icon: "exam", perm: "courses" },
@@ -58,7 +64,7 @@ const STAFF: Group[] = [
   { title: "Ученики", items: [
     { href: "/admin/review", label: "Проверка заданий", short: "Проверка", icon: "check", perm: "review", badge: "review" },
     { href: "/admin/gradebook", label: "Журнал оценок", icon: "doc", perm: "gradebook" },
-    { href: "/admin/schedule", label: "Расписание", icon: "cal", perm: "schedule" },
+    { href: "/admin/schedule", label: "Расписание", icon: "cal", perm: "schedule", feature: "schedule" },
     { href: "/admin/users", label: "Люди и потоки", icon: "users", perm: "people", also: ["/admin/groups", "/admin/roles", "/admin/mentors", "/admin/people"] },
     { href: "/admin/shop", label: "Магазин и игра", icon: "shop", perm: "shop", badge: "orders", also: ["/admin/game"] },
   ] },
@@ -93,10 +99,10 @@ type Game = {
   unread: number; mentees: number;
 };
 
-export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staffCounts, labs, external = false, impersonating = false }: {
+export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staffCounts, labs, features, external = false, impersonating = false }: {
   name: string; role: keyof typeof ROLE; group?: string | null; due?: number; external?: boolean; impersonating?: boolean;
   avatar: { avatarId: string | null; avatarColor: string | null; frame: string | null }; game: Game;
-  perms: readonly string[]; staffCounts: { review: number; orders: number }; labs: boolean;
+  perms: readonly string[]; staffCounts: { review: number; orders: number }; labs: boolean; features: Features;
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -107,8 +113,9 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
   const counts: Record<Badge, number> = {
     due, quests: game.quests, unread: game.unread, duels: game.duels, review: staffCounts.review, orders: staffCounts.orders,
   };
-  const isOn = (l: Item) => (l.href === "/" ? path === "/" : [l.href, ...(l.also ?? [])].some((h) => path.startsWith(h)));
-  const visible = (l: Item) => (!l.perm || perms.includes(l.perm)) && (!l.admin || role === "admin")
+  const isOn = (l: Item) => (l.href === "/" ? path === "/"
+    : [l.href, ...(l.also ?? [])].some((h) => path.startsWith(h)) && !(l.not ?? []).some((h) => path.startsWith(h)));
+  const visible = (l: Item) => (!l.perm || perms.includes(l.perm)) && (!l.admin || role === "admin") && (!l.feature || features[l.feature])
     && !(external && INTERNAL.has(l.href)) && (l.href !== "/labs" || labs);
 
   const groups = (kind === "parent" ? PARENT : staff ? STAFF : STUDENT).map((g) => ({
@@ -116,7 +123,7 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
     items: [
       ...g.items.filter(visible),
       // Подопечные — у наставника (ученика или сотрудника)
-      ...(g.title === (staff ? "Ученики" : "Общение") && game.mentees > 0 ? [{ href: "/mentees", label: "Подопечные", icon: "person-check" as const }] : []),
+      ...(g.title === (staff ? "Ученики" : "Общение") && game.mentees > 0 && features.mentors ? [{ href: "/mentees", label: "Подопечные", icon: "person-check" as const }] : []),
     ],
   })).filter((g) => g.items.length);
 

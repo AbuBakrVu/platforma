@@ -1,3 +1,5 @@
+import { featureOn } from "@/lib/features";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { db, schema as t } from "@/db";
@@ -12,6 +14,7 @@ export const metadata = { title: "Расписание · управление" 
 const KIND = { lecture: "Лекция", practice: "Практика", deadline: "Дедлайн" } as const;
 
 export default async function AdminSchedule({ searchParams }: PageProps<"/admin/schedule">) {
+  if (!(await featureOn("schedule"))) redirect("/"); // раздел выключен в «Настройках»
   await requirePerm("schedule");
   const sp = await searchParams;
   const [groups, courses] = await Promise.all([

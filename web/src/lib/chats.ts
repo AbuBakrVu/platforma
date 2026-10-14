@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { Learner } from "./auth";
+import { featureOn } from "./features";
 import { isStaff, isStaffRole } from "@/lib/permissions";
 
 /** Чат потока создаётся при первом обращении */
@@ -50,6 +51,7 @@ export async function openChat(me: Learner, chatId: string) {
   const [c] = await db.select().from(t.chats).where(eq(t.chats.id, chatId));
   if (!c) return null;
   if (c.kind === "group") {
+    if (!(await featureOn("groupChat"))) return null; // чат потока выключен в «Настройках»
     if (!isStaff(me) && c.groupId !== me.groupId) return null;
     await db.insert(t.chatMembers).values({ chatId: c.id, userId: me.id, lastReadAt: new Date(0) }).onConflictDoNothing();
     return c;
@@ -60,9 +62,11 @@ export async function openChat(me: Learner, chatId: string) {
 
 /** Список чатов: собеседник или название потока, последнее сообщение, непрочитанные */
 export async function myChats(me: Learner) {
-  if (me.groupId) await openChat(me, (await groupChat(me.groupId)).id);
+  const groupOn = await featureOn("groupChat");
+  if (groupOn && me.groupId) await openChat(me, (await groupChat(me.groupId)).id);
   const mine = await db.select({ chat: t.chats, lastReadAt: t.chatMembers.lastReadAt }).from(t.chatMembers)
-    .innerJoin(t.chats, eq(t.chats.id, t.chatMembers.chatId)).where(eq(t.chatMembers.userId, me.id))
+    .innerJoin(t.chats, eq(t.chats.id, t.chatMembers.chatId))
+    .where(and(eq(t.chatMembers.userId, me.id), groupOn ? undefined : eq(t.chats.kind, "direct")))
     .orderBy(desc(t.chats.lastMessageAt));
   if (!mine.length) return [];
   const ids = mine.map((m) => m.chat.id);
@@ -91,9 +95,12 @@ export async function myChats(me: Learner) {
 }
 
 export async function unreadTotal(userId: string) {
+  const groupOn = await featureOn("groupChat");
   const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(t.messages)
     .innerJoin(t.chatMembers, and(eq(t.chatMembers.chatId, t.messages.chatId), eq(t.chatMembers.userId, userId)))
-    .where(and(ne(t.messages.userId, userId), gt(t.messages.createdAt, t.chatMembers.lastReadAt), isNull(t.messages.deletedAt)));
+    .innerJoin(t.chats, eq(t.chats.id, t.messages.chatId))
+    .where(and(ne(t.messages.userId, userId), gt(t.messages.createdAt, t.chatMembers.lastReadAt), isNull(t.messages.deletedAt),
+      groupOn ? undefined : eq(t.chats.kind, "direct")));
   return r.n;
 }
 

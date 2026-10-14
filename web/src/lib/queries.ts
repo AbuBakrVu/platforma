@@ -111,6 +111,7 @@ export async function getMyCourses(user: Learner) {
       id: t.courses.id,
       slug: t.courses.slug,
       title: t.courses.title,
+      coverId: t.courses.coverId,
       total: sql<number>`count(${t.lessons.id})::int`,
       done: sql<number>`count(${t.lessonProgress.lessonId})::int`,
       lastAt: sql<Date | null>`max(${t.lessonProgress.completedAt})`,

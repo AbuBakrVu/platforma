@@ -5,6 +5,7 @@ import { demoCounts } from "@/db/demo";
 import { removeDemo } from "@/app/(app)/admin/actions";
 import { can, type getUser } from "@/lib/auth";
 import { unreadTotal } from "@/lib/chats";
+import { featureOn } from "@/lib/features";
 import { dayKey, fmtDate, fmtTime, greeting, plural } from "@/lib/format";
 import { fmtPhone } from "@/lib/phone";
 import { Confirm } from "./Buttons";
@@ -20,6 +21,7 @@ const bounds = () => ({ now: new Date(), from: new Date(Date.now() - DAY), to: n
 /** Главная сотрудника: что ждёт его сегодня, по его правам */
 export async function StaffHome({ user, removed }: { user: Staff; removed: boolean }) {
   const w = bounds();
+  const sched = await featureOn("schedule");
   const none = Promise.resolve([] as never[]);
   const [toReview, events, [orders], unread, drafts, idle, demo, fresh] = await Promise.all([
     can(user, "review")
@@ -28,7 +30,7 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
         .innerJoin(t.lessonSteps, eq(t.lessonSteps.id, t.submissions.stepId)).innerJoin(t.lessons, eq(t.lessons.id, t.lessonSteps.lessonId))
         .where(eq(t.submissions.status, "submitted")).orderBy(asc(t.submissions.submittedAt))
       : none,
-    can(user, "schedule")
+    (sched && can(user, "schedule"))
       ? db.select({ id: t.scheduleEvents.id, title: t.scheduleEvents.title, at: t.scheduleEvents.startsAt, kind: t.scheduleEvents.kind, group: t.groups.name, url: t.scheduleEvents.meetingUrl })
         .from(t.scheduleEvents).innerJoin(t.groups, eq(t.groups.id, t.scheduleEvents.groupId))
         .where(and(gte(t.scheduleEvents.startsAt, w.from), lte(t.scheduleEvents.startsAt, w.to))).orderBy(asc(t.scheduleEvents.startsAt))
@@ -60,22 +62,22 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
   const tiles: { n: number; label: string; href: string; icon: IconName; show: boolean }[] = [
     { n: fresh.length, label: plural(fresh.length, "новый ученик без потока", "новых ученика без потока", "новых учеников без потока"), href: "#fresh", icon: "person-add", show: fresh.length > 0 },
     { n: toReview.length, label: plural(toReview.length, "работа ждёт проверки", "работы ждут проверки", "работ ждут проверки"), href: "/admin/review", icon: "check", show: can(user, "review") },
-    { n: todays.length, label: plural(todays.length, "занятие сегодня", "занятия сегодня", "занятий сегодня"), href: "/admin/schedule", icon: "cal", show: can(user, "schedule") },
+    { n: todays.length, label: plural(todays.length, "занятие сегодня", "занятия сегодня", "занятий сегодня"), href: "/admin/schedule", icon: "cal", show: (sched && can(user, "schedule")) },
     { n: unread, label: plural(unread, "новое сообщение", "новых сообщения", "новых сообщений"), href: "/messages", icon: "mail", show: true },
     { n: orders.n, label: plural(orders.n, "заказ к выдаче", "заказа к выдаче", "заказов к выдаче"), href: "/admin/shop", icon: "shop", show: can(user, "shop") },
   ];
   const actions: { label: string; href: string; icon: IconName; show: boolean }[] = [
-    { label: "Создать курс", href: "/admin/courses", icon: "plus", show: can(user, "courses") },
+    { label: "Создать курс", href: "/admin/courses/new", icon: "plus", show: can(user, "courses") },
     { label: "Пригласить людей", href: "/admin/users?invite=1", icon: "person-add", show: can(user, "people") },
     { label: "Написать объявление", href: "/news", icon: "bell", show: can(user, "news") },
-    { label: "Добавить занятие", href: "/admin/schedule", icon: "cal", show: can(user, "schedule") },
+    { label: "Добавить занятие", href: "/admin/schedule", icon: "cal", show: (sched && can(user, "schedule")) },
   ];
 
   return (
     <>
       <div className="title">
         <h1>{greeting()}, {user.name.split(/\s+/)[0]}</h1>
-        <p>{todays.length ? `Сегодня: ${todays.map((e) => `${e.title} в ${fmtTime(e.at)}`).join(", ")}` : "Сегодня занятий нет"}</p>
+        <p>{!sched ? "Что сделать сегодня" : todays.length ? `Сегодня: ${todays.map((e) => `${e.title} в ${fmtTime(e.at)}`).join(", ")}` : "Сегодня занятий нет"}</p>
       </div>
       {removed && <div className="ok-box" role="status">Демо-данные удалены.</div>}
 
@@ -120,7 +122,7 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
           </section>
         )}
 
-        {can(user, "schedule") && (
+        {(sched && can(user, "schedule")) && (
           <section className="card">
             <div className="card-h"><h2>Ближайшие занятия</h2><Link href="/admin/schedule" className="small">Расписание →</Link></div>
             {events.filter((e) => e.at >= w.now || dayKey(e.at) === today).slice(0, 6).map((e) => (

@@ -132,6 +132,8 @@ export const courses = pgTable("courses", {
   sequential: boolean("sequential").notNull().default(false),
   /** Для родителей: о курсе простыми словами, без терминов */
   parentDescription: text("parent_description").notNull().default(""),
+  /** Обложка карточки курса (картинка из загрузок) */
+  coverId: uuid("cover_id"),
   demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("courses_slug_idx").on(t.slug)]);

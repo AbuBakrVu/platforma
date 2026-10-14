@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { PubStatus } from "@/components/PubStatus";
 import { addSection, deleteCourse, publishCourse, updateCourse, updateCourseGroups } from "../actions";
 import { CourseTree } from "./CourseTree";
+import { CoverEditor } from "./CoverEditor";
 import { Materials } from "./Materials";
 import s from "../../admin.module.css";
 
@@ -116,6 +117,7 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
             <div className="field"><label htmlFor="c-desc">Описание</label>
               <input id="c-desc" name="description" defaultValue={course.description} className="ctl" /></div>
           </div>
+          <CoverEditor courseId={id} title={course.title} coverId={course.coverId} />
           <details className={s.more}>
             <summary>Дополнительные настройки: адрес, дата публикации, порядок прохождения, текст для родителей</summary>
             <div className="form">

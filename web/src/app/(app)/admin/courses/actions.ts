@@ -487,3 +487,16 @@ export async function moveMaterial(courseId: string, id: string, dir: -1 | 1) {
   });
   touch(courseId);
 }
+
+/** Обложка карточки курса: картинка, уже загруженная в этот курс через /api/upload; null — убрать */
+export async function setCourseCover(courseId: string, uploadId: string | null) {
+  const me = await requirePerm("courses");
+  if (uploadId) {
+    const [u] = await db.select({ mime: t.uploads.mime }).from(t.uploads)
+      .where(and(eq(t.uploads.id, uploadId), eq(t.uploads.courseId, courseId)));
+    if (!u?.mime.startsWith("image/")) return;
+  }
+  await db.update(t.courses).set({ coverId: uploadId }).where(eq(t.courses.id, courseId));
+  await log(courseId, me.id, uploadId ? "Сменил обложку курса" : "Убрал обложку курса");
+  touch(courseId);
+}

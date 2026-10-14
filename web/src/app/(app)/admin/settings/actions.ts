@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { mailEnabled, sendMail } from "@/lib/mail";
 import { setSetting } from "@/lib/settings";
+import { FEATURES, setFeatures, type Features } from "@/lib/features";
 
 export async function saveSettings(form: FormData) {
   await requireAdmin();
@@ -12,6 +13,10 @@ export async function saveSettings(form: FormData) {
   await setSetting("orgDetails", get("orgDetails").slice(0, 1000));
   await setSetting("orgContacts", get("orgContacts").slice(0, 500));
   if (form.has("policy")) await setSetting("policy", get("policy").slice(0, 50_000));
+  if (form.has("features")) {
+    await setFeatures(Object.fromEntries(Object.keys(FEATURES).map((k) => [k, form.get(`f_${k}`) === "on"])) as Features);
+    revalidatePath("/", "layout");
+  }
   revalidatePath("/admin/settings");
   revalidatePath("/privacy");
 }

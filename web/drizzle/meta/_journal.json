@@ -85,6 +85,13 @@
       "when": 1791976885927,
       "tag": "0011_demo_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791989545588,
+      "tag": "0012_course_cover",
+      "breakpoints": true
     }
   ]
 }

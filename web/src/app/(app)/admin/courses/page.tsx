@@ -3,28 +3,19 @@ import { asc, eq, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { plural } from "@/lib/format";
-import { Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
 import { PubStatus } from "@/components/PubStatus";
-import { createCourse } from "./actions";
-import { ImportCourse } from "./ImportCourse";
+import { CourseCover } from "@/components/CourseCover";
+import cs from "@/components/course-card.module.css";
 
 export const metadata = { title: "Курсы" };
-
-const PLAN_EXAMPLE = `Например:
-
-Знакомство с Docker
-- Что такое контейнер
-- Установка Docker
-Образы
-- Dockerfile
-- Сборка образа`;
 
 export default async function AdminCourses() {
   await requirePerm("courses");
   const [courses, groups, links] = await Promise.all([
     db.select({
       id: t.courses.id, title: t.courses.title, slug: t.courses.slug, published: t.courses.published, publishAt: t.courses.publishAt, demo: t.courses.demo,
+      coverId: t.courses.coverId, description: t.courses.description,
       lessons: sql<number>`count(${t.lessons.id})::int`,
     }).from(t.courses)
       .leftJoin(t.sections, eq(t.sections.courseId, t.courses.id))
@@ -38,65 +29,38 @@ export default async function AdminCourses() {
 
   return (
     <>
-      <div className="title"><h1>Курсы</h1><p>Курс → разделы → уроки. Ученики видят опубликованные курсы своего потока.</p></div>
-      <section className="card">
-        <div className="card-h"><h2>Новый курс</h2><ImportCourse /></div>
-        <form action={createCourse} className="form">
-          <div className="form-row">
-            <div className="field"><label htmlFor="c-title">Название</label>
-              <input id="c-title" name="title" className="ctl" placeholder="Например, Linux. Основы" required /></div>
-            <div className="field"><label htmlFor="c-desc">Короткое описание <span className="muted">(необязательно)</span></label>
-              <input id="c-desc" name="description" className="ctl" /></div>
-          </div>
-          <div className="field">
-            <span className="small muted">Какие потоки будут проходить курс</span>
-            {groups.length ? (
-              <div className="row" style={{ gap: 18 }}>
-                {groups.map((g) => (
-                  <label key={g.id} className="check"><input type="checkbox" name="group" value={g.id} />{g.name}</label>
-                ))}
-              </div>
-            ) : <span className="small muted">Потоков пока нет — выберете потом на странице курса.</span>}
-          </div>
-          <div className="field"><label htmlFor="c-plan">План курса <span className="muted">(необязательно — можно добавить потом)</span></label>
-            <textarea id="c-plan" name="plan" className="ctl mono" style={{ minHeight: 150 }} placeholder={PLAN_EXAMPLE} />
-            <span className="small muted">Строка — раздел. Строка с чёрточкой «-» в начале — урок этого раздела. Всё создастся сразу, тексты уроков напишете потом.</span>
-          </div>
-          <div className="row">
-            <Submit pending="Создаю…"><Icon name="plus" size={18} />Создать курс</Submit>
-            <span className="small muted">Курс будет черновиком — ученики увидят его после кнопки «Опубликовать».</span>
-          </div>
-        </form>
-      </section>
-      <section className="card">
-        {courses.length ? (
-          <div className="tbl-wrap">
-            <table className="tbl">
-              <thead><tr><th>Курс</th><th>Уроков</th><th>Потоки</th><th>Статус</th><th /></tr></thead>
-              <tbody>
-                {courses.map((c) => {
-                  const gs = groupsOf(c.id);
-                  return (
-                    <tr key={c.id}>
-                      <td><Link href={`/admin/courses/${c.id}`} style={{ fontWeight: 600 }}>{c.title}</Link>{c.demo && <span className="tag warn" style={{ marginLeft: 6 }}>демо</span>}
-                        <div className="small muted mono">/{c.slug}</div></td>
-                      <td>{c.lessons} {plural(c.lessons, "урок", "урока", "уроков")}</td>
-                      <td>{gs.length ? gs.join(", ") : <span className="muted">не выбраны</span>}</td>
-                      <td><PubStatus published={c.published} publishAt={c.publishAt} /></td>
-                      <td style={{ textAlign: "right" }}>
-                        <div className="row" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
-                          <a href={`/api/courses/${c.id}/export`} className="btn sm" title="Скачать курс архивом — для резервной копии или переноса" aria-label={`Скачать курс «${c.title}»`}><Icon name="dl" size={16} /></a>
-                          <Link href={`/admin/courses/${c.id}`} className="btn sm"><Icon name="edit" size={16} />Открыть</Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className="empty">Курсов пока нет.</p>}
-      </section>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div className="title"><h1>Курсы</h1><p>Все курсы: готовые и черновики. Ученики видят опубликованные курсы своего потока.</p></div>
+        <Link href="/admin/courses/new" className="btn pri"><Icon name="plus" size={18} />Создать курс</Link>
+      </div>
+      {courses.length ? (
+        <div className={cs.grid}>
+          {courses.map((c) => {
+            const gs = groupsOf(c.id);
+            return (
+              <article key={c.id} className={cs.card}>
+                <Link href={`/admin/courses/${c.id}`} aria-label={c.title}><CourseCover title={c.title} coverId={c.coverId} /></Link>
+                <div className={cs.body}>
+                  <div className={cs.meta}>
+                    <PubStatus published={c.published} publishAt={c.publishAt} />
+                    {c.demo && <span className="tag warn">демо</span>}
+                  </div>
+                  <h3><Link href={`/admin/courses/${c.id}`} style={{ color: "inherit" }}>{c.title}</Link></h3>
+                  <div className={cs.meta}>
+                    <span>{c.lessons} {plural(c.lessons, "урок", "урока", "уроков")}</span>
+                    <span>·</span>
+                    <span>{gs.length ? gs.join(", ") : "потоки не выбраны"}</span>
+                  </div>
+                  <div className={cs.actions}>
+                    <Link href={`/admin/courses/${c.id}`} className="btn sm pri"><Icon name="edit" size={16} />Открыть</Link>
+                    <a href={`/api/courses/${c.id}/export`} className="btn sm" title="Скачать курс архивом — для резервной копии или переноса"><Icon name="dl" size={16} />Скачать</a>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : <section className="card"><p className="empty">Курсов пока нет. <Link href="/admin/courses/new">Создайте первый</Link> или загрузите из архива.</p></section>}
     </>
   );
 }

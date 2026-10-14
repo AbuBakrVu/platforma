@@ -1,3 +1,4 @@
+import { getFeatures } from "@/lib/features";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
@@ -43,6 +44,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
   const manage = can(me, "people");
 
   const saved = (await searchParams).saved;
+  const features = await getFeatures();
   const [groups, roles, allCourses, personal, parents, children, mentor, audit, invites, parentsAll, studentsAll] = await Promise.all([
     db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
     db.select({ id: t.accessRoles.id, name: t.accessRoles.name }).from(t.accessRoles).orderBy(asc(t.accessRoles.name)),
@@ -117,7 +119,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
             <div><b>{levelOf(learning.xp).level}</b><span>уровень · {learning.xp} XP</span></div>
             <div><b>🔥 {learning.streak.streak}</b><span>серия дней</span></div>
             <div><b>🪙 {learning.coins}</b><span>монет</span></div>
-            <div><b>{learning.att.total ? `${learning.att.present}/${learning.att.total}` : "—"}</b><span>посещаемость</span></div>
+            {features.schedule && <div><b>{learning.att.total ? `${learning.att.present}/${learning.att.total}` : "—"}</b><span>посещаемость</span></div>}
             <div><b>{learning.labs}</b><span>лабораторных</span></div>
             <div><b>🏅 {learning.ach.size}</b><span>достижений</span></div>
           </div>
@@ -260,8 +262,8 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
 
         {student && (
           <section className="card">
-            <div className="card-h"><h2>Родители и наставник</h2></div>
-            {mentor[0] && <div className={s.line}><span>Наставник</span><Link href={`/admin/people/${mentor[0].id}`}>{mentor[0].name}</Link></div>}
+            <div className="card-h"><h2>{features.mentors ? "Родители и наставник" : "Родители"}</h2></div>
+            {features.mentors && mentor[0] && <div className={s.line}><span>Наставник</span><Link href={`/admin/people/${mentor[0].id}`}>{mentor[0].name}</Link></div>}
             {parents.map((p) => (
               <div key={p.id} className={s.line}><Link href={`/admin/people/${p.id}`}>{p.name}</Link><span className="small muted">{p.email}</span>
                 {manage && <form action={unlinkParent.bind(null, p.id, user.id)}><Confirm className="btn sm" message={`Отвязать родителя ${p.name}?`}>Отвязать</Confirm></form>}

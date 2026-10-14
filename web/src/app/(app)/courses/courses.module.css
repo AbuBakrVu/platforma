@@ -10,3 +10,7 @@
 .locked { opacity: .65; }
 .locked .n { background: #ECEEEB; color: var(--muted); }
 .sub { font-size: 18px; font-weight: 600; }
+
+/* Обложка во всю ширину карточки, над названием */
+.cardCover { margin: -22px -22px 4px; width: calc(100% + 44px); max-width: none; }
+.cardCover { border-radius: var(--r) var(--r) 0 0; }

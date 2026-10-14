@@ -1,3 +1,4 @@
+import { featureOn } from "@/lib/features";
 import { asc, sql } from "drizzle-orm";
 import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
@@ -23,7 +24,7 @@ export default async function GroupsPage() {
 
   return (
     <>
-      <PeopleTabs />
+      <PeopleTabs mentors={await featureOn("mentors")} />
       <div className="title"><h1>Потоки</h1><p>Учебные группы: у каждого потока свои курсы, расписание и рейтинг</p></div>
 
       <section className="card">

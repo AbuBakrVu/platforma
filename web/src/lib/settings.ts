@@ -45,9 +45,10 @@ const DEFAULTS: Record<string, string> = {
   orgDetails: "",
   orgContacts: "",
   policy: POLICY_TEMPLATE,
+  features: "{}",
 };
 
-export type SettingKey = "orgName" | "orgDetails" | "orgContacts" | "policy";
+export type SettingKey = "orgName" | "orgDetails" | "orgContacts" | "policy" | "features";
 
 export async function getSetting(key: SettingKey) {
   const [row] = await db.select({ value: t.settings.value }).from(t.settings).where(eq(t.settings.key, key));
