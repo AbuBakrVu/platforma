@@ -44,7 +44,7 @@ export async function updateAccount(_: AccountState, form: FormData): Promise<Ac
   const user = await requireUser({ parents: true });
   const phoneRaw = String(form.get("phone") ?? "").trim();
   const phone = phoneRaw ? normPhone(phoneRaw) : null;
-  if (phoneRaw && !phone) return { error: "Проверьте номер телефона, например +7 700 123 45 67" };
+  if (phoneRaw && !phone) return { error: "Проверьте номер телефона, например +7 928 123 45 67" };
   const current = String(form.get("current") ?? "");
   const next = String(form.get("next") ?? "");
   if (next) {

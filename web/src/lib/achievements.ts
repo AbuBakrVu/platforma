@@ -53,8 +53,8 @@ export const ACHIEVEMENTS: Achievement[] = [
     season: { from: "12-20", to: "01-10", name: "20 декабря — 10 января" }, test: () => true },
   { code: "knowledge_day", icon: "🍎", title: "День знаний", description: "Занимайтесь в первую неделю сентября", coins: 20,
     season: { from: "09-01", to: "09-07", name: "1–7 сентября" }, test: () => true },
-  { code: "nauryz", icon: "🌷", title: "Наурыз", description: "Занимайтесь в дни Наурыза", coins: 20,
-    season: { from: "03-21", to: "03-23", name: "21–23 марта" }, test: () => true },
+  { code: "spring", icon: "🌷", title: "Весенний старт", description: "Занимайтесь в первую неделю весны", coins: 20,
+    season: { from: "03-01", to: "03-07", name: "1–7 марта" }, test: () => true },
 ];
 
 async function collect(userId: string): Promise<Stats> {

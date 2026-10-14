@@ -121,7 +121,12 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 .imp-bar .btn{height:32px;background:#fff}
 
 /* Меню: заголовки групп, телефонная версия */
-.nav-t{padding:6px 14px 2px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#8A918B}
+.nav-t{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 14px;border:0;border-radius:var(--r-s);background:none;
+  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#8A918B;text-align:left}
+.nav-t:hover{background:#EEF1ED;color:var(--ink2)}
+.nav-t span:first-child{flex:1}
+.nav-t .badge{margin-left:0}
+.nav-chev{transition:transform .15s;transform:rotate(-90deg)}.nav-chev.on{transform:none}
 .side .nav + .nav{border-top:1px solid var(--line);padding-top:10px}
 .side-x,.mbar,.mtabs,.side-back{display:none}
 .app.staff .top .pill:has(.xp-ic){display:none}

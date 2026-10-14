@@ -51,7 +51,7 @@ export function AuthCard() {
         <div className="field">
           <label htmlFor="in-login">Почта или телефон</label>
           <div className="input">
-            <input id="in-login" name="login" autoComplete="username" placeholder="you@mail.kz или +7 700 123 45 67"
+            <input id="in-login" name="login" autoComplete="username" placeholder="you@mail.ru или +7 928 123 45 67"
               defaultValue={state.email} autoFocus required />
             <Icon name="person" size={18} />
           </div>

@@ -102,7 +102,7 @@ git clone https://github.com/AbuBakrVu/platforma.git && cd platforma && sudo ./i
 ```bash
 cp .env.example .env   # домен, POSTGRES_PASSWORD (openssl rand -hex 24), порт
 docker compose up -d --build
-echo -n 'пароль' | docker compose run --rm -T migrate npm run -s db:admin -- admin@example.kz "Имя"
+echo -n 'пароль' | docker compose run --rm -T migrate npm run -s db:admin -- admin@example.ru "Имя"
 ```
 
 Проверка: `curl http://127.0.0.1:3100/api/health` → `{"ok":true}`.

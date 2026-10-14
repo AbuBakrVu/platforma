@@ -35,7 +35,7 @@ export function ResetForm({ enabled }: { enabled: boolean }) {
       ) : (
         <div className="field">
           <label htmlFor="login">Почта или телефон</label>
-          <div className="input"><input id="login" name="login" autoComplete="username" defaultValue={state.login} placeholder="you@mail.kz или +7 700 123 45 67" autoFocus required /><Icon name="person" size={18} /></div>
+          <div className="input"><input id="login" name="login" autoComplete="username" defaultValue={state.login} placeholder="you@mail.ru или +7 928 123 45 67" autoFocus required /><Icon name="person" size={18} /></div>
         </div>
       )}
       {state.error && <p className="err" role="alert">{state.error}</p>}

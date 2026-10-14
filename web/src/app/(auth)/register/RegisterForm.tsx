@@ -43,8 +43,8 @@ export function RegisterForm({ code, verify }: { code: string; verify: boolean }
 
       {field("name", "Имя и фамилия", { autoComplete: "name", required: true, autoFocus: true }, "person")}
       <div className={s.row2}>
-        {field("email", "Почта", { type: "email", autoComplete: "email", placeholder: "you@mail.kz", required: true }, "mail")}
-        {field("phone", "Телефон", { type: "tel", autoComplete: "tel", placeholder: "+7 700 123 45 67", required: true })}
+        {field("email", "Почта", { type: "email", autoComplete: "email", placeholder: "you@mail.ru", required: true }, "mail")}
+        {field("phone", "Телефон", { type: "tel", autoComplete: "tel", placeholder: "+7 928 123 45 67", required: true })}
       </div>
       <div className={s.row2}>
         <div className="field">
@@ -60,7 +60,7 @@ export function RegisterForm({ code, verify }: { code: string; verify: boolean }
           <span className="small muted">Родитель (законный представитель) даёт согласие на обработку ваших данных и сможет следить за учёбой в кабинете родителя.</span>
           {field("parentName", "Имя и фамилия родителя", { required: true }, "person")}
           <div className={s.row2}>
-            {field("parentPhone", "Телефон родителя", { type: "tel", placeholder: "+7 700 123 45 67", required: true })}
+            {field("parentPhone", "Телефон родителя", { type: "tel", placeholder: "+7 928 123 45 67", required: true })}
             {field("parentEmail", "Почта родителя (необязательно)", { type: "email", placeholder: "для приглашения в кабинет" }, "mail")}
           </div>
         </div>

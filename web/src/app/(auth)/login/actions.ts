@@ -83,7 +83,7 @@ export async function signUp(_: SignUpState, form: FormData): Promise<SignUpStat
 
   if (name.length < 2) return back("Укажите имя и фамилию");
   if (!isEmail(email)) return back("Проверьте почту");
-  if (!phone) return back("Проверьте номер телефона, например +7 700 123 45 67");
+  if (!phone) return back("Проверьте номер телефона, например +7 928 123 45 67");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(values.birthDate) || age(values.birthDate) < 5 || age(values.birthDate) > 100) return back("Укажите дату рождения");
   const minor = age(values.birthDate) < 18;
   const parentPhone = normPhone(values.parentPhone);
