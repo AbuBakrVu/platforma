@@ -38,7 +38,12 @@
   React 19, TypeScript, Drizzle ORM, PostgreSQL 16. `labs/` — Node-сервис учебных сред. `docker-compose.yml`, `install.sh`, `deploy/Caddyfile`.
 - Схема: `web/src/db/schema.ts`; миграции `web/drizzle/` (`npx drizzle-kit generate --name <имя>`, потом `npm run db:migrate`).
   Если в одной таблице одновременно добавляется и удаляется колонка, drizzle-kit задаёт интерактивный вопрос — делать в две миграции.
-- Сид демо-данных: `npm run db:seed` (поток DevOps-24, курсы Kubernetes и Docker, демо-ученик `demo@platforma.local`).
+- Сид демо-данных: `npm run db:seed` — «живой» центр: 3 потока (DevOps-24, Docker-интенсив, дети с родителями), 32 человека,
+  курсы Linux, Docker, Kubernetes, «Компьютер для школьников», программа «DevOps-инженер с нуля», работы на проверке, экзамены,
+  расписание, форум, чаты, база знаний, магазин, челлендж, команды, дуэль. Входы: demo@ (ученик), parent@, teacher@, curator@, methodist@
+  `@platforma.local`, пароль SEED_DEMO_PASSWORD (если пуст — печатается). Всё с флагом `demo` (в т.ч. programs, teams, announcements,
+  kb_articles) и удаляется `removeDemoData` (`db/demo.ts`) — новые демо-сущности добавлять туда же. На сервере:
+  `docker compose run --rm migrate npm run db:seed`.
 
 ### Интерфейс
 - Меню (`components/Sidebar.tsx`) разное для ролей; группы с заголовком сворачиваются (раскрыта та, где текущая страница;

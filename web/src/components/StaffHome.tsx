@@ -50,7 +50,7 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
     // Зарегистрировались сами и ждут, когда их добавят в поток
     can(user, "people")
       ? db.select({ id: t.users.id, name: t.users.name, phone: t.users.phone, at: t.users.createdAt }).from(t.users)
-        .where(and(eq(t.users.role, "student"), isNull(t.users.groupId), eq(t.users.external, false), eq(t.users.demo, false)))
+        .where(and(eq(t.users.role, "student"), isNull(t.users.groupId), eq(t.users.external, false)))
         .orderBy(desc(t.users.createdAt)).limit(10)
       : none,
   ]);
