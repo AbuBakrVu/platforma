@@ -24,11 +24,11 @@ export default async function SettingsPage() {
           <div className="card-h"><h2>Организация</h2></div>
           <div className="field"><label htmlFor="orgName">Название (в письмах и в политике)</label>
             <input id="orgName" name="orgName" defaultValue={orgName} className="ctl" required /></div>
-          <div className="field"><label htmlFor="orgDetails">Реквизиты: юрлицо или ИП, БИН/ИИН, адрес</label>
+          <div className="field"><label htmlFor="orgDetails">Реквизиты: организация или ИП, ИНН, ОГРН/ОГРНИП, адрес</label>
             <textarea id="orgDetails" name="orgDetails" defaultValue={orgDetails} className="ctl" style={{ minHeight: 70 }}
-              placeholder="ТОО «Учебный центр», БИН 000000000000, г. Алматы, ул. …" /></div>
+              placeholder="ООО «Учебный центр», ИНН 0000000000, ОГРН 0000000000000, г. Грозный, ул. …" /></div>
           <div className="field"><label htmlFor="orgContacts">Контакты для обращений по персональным данным</label>
-            <input id="orgContacts" name="orgContacts" defaultValue={orgContacts} className="ctl" placeholder="info@центр.kz, +7 700 000 00 00" /></div>
+            <input id="orgContacts" name="orgContacts" defaultValue={orgContacts} className="ctl" placeholder="info@центр.ru, +7 928 000 00 00" /></div>
         </section>
 
         <section className="card form">

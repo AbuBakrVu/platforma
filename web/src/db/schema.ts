@@ -53,7 +53,7 @@ export const users = pgTable("users", {
   accessRoleId: uuid("access_role_id"),
   /** Для родителя — тоже; когда последний раз заходил */
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
-  /** Телефон в виде +77001234567 — для входа и связи */
+  /** Телефон в виде +79281234567 — для входа и связи */
   phone: text("phone"),
   /** Почта подтверждена кодом. Самостоятельная регистрация ставит false до ввода кода. */
   emailVerified: boolean("email_verified").notNull().default(true),

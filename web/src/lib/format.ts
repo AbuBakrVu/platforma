@@ -1,5 +1,5 @@
 /** Часовой пояс платформы: даты показываем в нём, а не в поясе сервера/контейнера */
-export const TZ = process.env.APP_TZ ?? "Asia/Almaty";
+export const TZ = process.env.APP_TZ ?? "Europe/Moscow";
 
 const part = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("ru-RU", { timeZone: TZ, ...o }).format(d);
 

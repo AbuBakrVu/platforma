@@ -174,14 +174,14 @@ const byId = new Map(allLessons.map((l) => [l.id, l]));
 
 // Ученики потока. Пароли случайные: входить под ними не нужно.
 const NAMES = [
-  "Данияр Садыков", "Мадина Ахметова", "Тимур Жунусов", "Ерлан Беков", "Алия Нурланова",
-  "Руслан Кенжебаев", "Жанна Мусина", "Бахыт Токтаров", "Олжас Ибраев", "Сабина Алиева", "Арман Серикбаев",
+  "Ахмед Магомадов", "Мадина Дудаева", "Ислам Хасанов", "Адам Мусаев", "Хеда Алиева",
+  "Рамзан Ибрагимов", "Зарема Исмаилова", "Магомед Шамаев", "Ибрагим Абдулаев", "Седа Хаджиева", "Умар Эльмурзаев",
 ];
 const others = await db.insert(t.users).values(await Promise.all(NAMES.map(async (name, i) => ({
   name, email: `student${i + 1}@platforma.local`, passwordHash: await hash(randomBytes(12).toString("base64url")), groupId: group.id, demo: true,
 })))).returning();
 const [demo] = await db.insert(t.users).values({
-  name: "Айгерим Касымова", email: "demo@platforma.local", passwordHash: await hash(demoPassword), groupId: group.id, demo: true,
+  name: "Амина Исаева", email: "demo@platforma.local", passwordHash: await hash(demoPassword), groupId: group.id, demo: true,
 }).returning();
 await db.insert(t.users).values({
   name: "Преподаватель", email: "teacher@platforma.local", passwordHash: await hash(demoPassword), role: "teacher", groupId: group.id, demo: true,
@@ -208,7 +208,7 @@ for (const [i, u] of others.entries()) {
 
 // Расписание: прошедшие занятия (для посещаемости) и ближайшая неделя
 // Время занятий задаём в часовом поясе платформы, а не машины, где запущен сид
-const TZ = process.env.APP_TZ ?? "Asia/Almaty";
+const TZ = process.env.APP_TZ ?? "Europe/Moscow";
 function tzOffsetMs(at: Date) {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",

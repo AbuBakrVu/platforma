@@ -45,7 +45,7 @@ while :; do
   read -r -p "Домен сайта${APP_DOMAIN:+ [$APP_DOMAIN]}: " d || true
   d=$(printf '%s' "${d:-${APP_DOMAIN:-}}" | tr '[:upper:]' '[:lower:]' | sed -E 's#^https?://##; s#/.*$##')
   [[ $d =~ $DOMAIN_RE ]] && break
-  warn "Нужен домен вида learn.example.kz"
+  warn "Нужен домен вида learn.example.ru"
 done
 APP_DOMAIN=$d
 
@@ -100,7 +100,7 @@ if [ "$MAIL_ASK" = Y ]; then
       *) SMTP_HOST=smtp.yandex.ru; SMTP_PORT=465; warn "Яндекс: нужен «пароль приложения» (id.yandex.ru → Безопасность → Пароли приложений → Почта)" ;;
     esac
     while :; do
-      read -r -p "Почтовый ящик, с которого отправлять (например, no-reply@вашдомен.kz): " SMTP_USER || true
+      read -r -p "Почтовый ящик, с которого отправлять (например, no-reply@вашдомен.ru): " SMTP_USER || true
       SMTP_USER=$(printf '%s' "$SMTP_USER" | xargs)
       [[ $SMTP_USER =~ $EMAIL_RE ]] && break
       warn "Это не похоже на адрес почты"
@@ -174,7 +174,7 @@ POSTGRES_USER=${POSTGRES_USER:-platforma}
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 APP_BIND=127.0.0.1
 APP_PORT=$APP_PORT
-APP_TZ=${APP_TZ:-Asia/Almaty}
+APP_TZ=${APP_TZ:-Europe/Moscow}
 COOKIE_SECURE=true
 COMPOSE_PROFILES=$( { [ "$PROXY" = caddy ] && echo caddy; [ "$OFFICE" = 1 ] && echo office; [ "$LABS" = 1 ] && echo labs; } | paste -sd, -)
 CONVERTER_URL=$([ "$OFFICE" = 1 ] && echo http://gotenberg:3000)

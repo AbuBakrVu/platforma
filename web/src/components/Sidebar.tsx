@@ -100,6 +100,7 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const staff = isStaffRole(role);
   const kind = role === "parent" ? "parent" : staff ? "staff" : "student";
 
@@ -130,6 +131,8 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
     </Link>
   );
   const here = all.find(isOn);
+  // Группа раскрыта, если её открыли вручную или в ней текущая страница
+  const isOpen = (g: Group) => toggled[g.title ?? ""] ?? g.items.some(isOn);
 
   return (
     <>
@@ -162,12 +165,22 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
             <span className="game-st" title="Монеты">🪙{game.coins}</span>
           </Link>
         )}
-        {groups.map((g, i) => (
-          <div key={i} className="nav">
-            {g.title && <span className="nav-t">{g.title}</span>}
-            {g.items.map(link)}
-          </div>
-        ))}
+        {groups.map((g, i) => {
+          if (!g.title) return <div key={i} className="nav">{g.items.map(link)}</div>;
+          const shown = isOpen(g);
+          // В свёрнутой группе — сумма счётчиков, чтобы новое не терялось
+          const hidden = shown ? 0 : g.items.reduce((n, l) => n + (l.badge ? counts[l.badge] : 0), 0);
+          return (
+            <div key={i} className="nav">
+              <button type="button" className="nav-t" aria-expanded={shown} onClick={() => setToggled((t) => ({ ...t, [g.title!]: !shown }))}>
+                <span>{g.title}</span>
+                {hidden > 0 && <span className="badge" aria-label={`${hidden} новых`}>{hidden}</span>}
+                <Icon name="down" size={16} className={shown ? "nav-chev on" : "nav-chev"} />
+              </button>
+              {shown && g.items.map(link)}
+            </div>
+          );
+        })}
         <form action={signOut} style={{ marginTop: "auto" }}>
           <button className="btn" style={{ width: "100%" }}>
             <Icon name="logout" size={18} />

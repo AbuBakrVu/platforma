@@ -71,6 +71,13 @@
       "when": 1791877835989,
       "tag": "0009_signup_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791962322766,
+      "tag": "0010_achievement_spring",
+      "breakpoints": true
     }
   ]
 }

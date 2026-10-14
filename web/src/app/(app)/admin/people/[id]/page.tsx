@@ -188,7 +188,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
               <div className="field" style={{ flex: "1 1 200px" }}><label htmlFor="u-email">Почта</label>
                 <input id="u-email" name="email" type="email" defaultValue={user.email} className="ctl" /></div>
               <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-phone">Телефон</label>
-                <input id="u-phone" name="phone" type="tel" defaultValue={fmtPhone(user.phone)} className="ctl" placeholder="+7 700 123 45 67" /></div>
+                <input id="u-phone" name="phone" type="tel" defaultValue={fmtPhone(user.phone)} className="ctl" placeholder="+7 928 123 45 67" /></div>
               <Submit className="btn sm">Сохранить</Submit>
             </form>
             <form action={setPassword.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }}>
