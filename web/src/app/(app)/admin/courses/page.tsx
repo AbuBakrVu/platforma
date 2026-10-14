@@ -83,7 +83,12 @@ export default async function AdminCourses() {
                       <td>{c.lessons} {plural(c.lessons, "урок", "урока", "уроков")}</td>
                       <td>{gs.length ? gs.join(", ") : <span className="muted">не выбраны</span>}</td>
                       <td><PubStatus published={c.published} publishAt={c.publishAt} /></td>
-                      <td style={{ textAlign: "right" }}><Link href={`/admin/courses/${c.id}`} className="btn sm"><Icon name="edit" size={16} />Открыть</Link></td>
+                      <td style={{ textAlign: "right" }}>
+                        <div className="row" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
+                          <a href={`/api/courses/${c.id}/export`} className="btn sm" title="Скачать курс архивом — для резервной копии или переноса" aria-label={`Скачать курс «${c.title}»`}><Icon name="dl" size={16} /></a>
+                          <Link href={`/admin/courses/${c.id}`} className="btn sm"><Icon name="edit" size={16} />Открыть</Link>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
