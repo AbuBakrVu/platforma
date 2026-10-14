@@ -60,7 +60,11 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
       <section className="card">
         <div className="card-h">
           <div className="row"><h2>Готовность курса</h2><PubStatus published={course.published} publishAt={course.publishAt} /></div>
-          <Link href={`/courses/${course.slug}`} className="btn sm"><Icon name="eye" size={16} />Как видит ученик</Link>
+          <div className="row">
+            <a href={`/api/courses/${id}/export`} className="btn sm" title="Архив со всеми уроками, файлами и тестами — его можно загрузить обратно кнопкой «Импорт курса»">
+              <Icon name="dl" size={16} />Скачать курс</a>
+            <Link href={`/courses/${course.slug}`} className="btn sm"><Icon name="eye" size={16} />Как видит ученик</Link>
+          </div>
         </div>
         <ol className={s.todo}>
           <li>
@@ -128,7 +132,6 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
               <div className="field"><label htmlFor="c-parent">Для родителей: о курсе простыми словами</label>
                 <textarea id="c-parent" name="parentDescription" defaultValue={course.parentDescription} className="ctl" style={{ minHeight: 80 }}
                   placeholder="Без терминов: чему научится ребёнок и где это пригодится. Например: «Учимся запускать сайты и приложения на серверах — так работают все интернет-сервисы»." /></div>
-              <div className="row"><a href={`/api/courses/${id}/export`} className="btn sm"><Icon name="dl" size={16} />Экспорт курса в архив</a></div>
             </div>
           </details>
           <div className="row"><Submit>Сохранить</Submit></div>

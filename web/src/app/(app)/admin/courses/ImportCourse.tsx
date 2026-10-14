@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { upload } from "@/lib/upload-client";
 
-/** Импорт курса из архива, сделанного кнопкой «Экспорт» (на этой или другой установке платформы) */
+/** Загрузить курс из архива, скачанного кнопкой «Скачать курс» (на этой или другой установке платформы) */
 export function ImportCourse() {
   const router = useRouter();
   const [state, setState] = useState<string | null>(null);
@@ -13,8 +13,8 @@ export function ImportCourse() {
   return (
     <div className="row">
       {err && <span className="err" role="alert">{err}</span>}
-      <label className="btn" title="Архив .platforma.zip из кнопки «Экспорт» на странице курса">
-        <Icon name="dl" size={18} />{state ?? "Импорт курса"}
+      <label className="btn" title="Файл .platforma.zip, скачанный кнопкой «Скачать курс»">
+        <Icon name="dl" size={18} />{state ?? "Загрузить курс из архива"}
         <input type="file" accept=".zip,application/zip" hidden disabled={!!state} onChange={async (e) => {
           const f = e.target.files?.[0];
           e.target.value = "";
