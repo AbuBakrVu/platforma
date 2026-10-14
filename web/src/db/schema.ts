@@ -146,6 +146,7 @@ export const programs = pgTable("programs", {
   /** Курс открывается, когда пройден предыдущий курс программы */
   sequential: boolean("sequential").notNull().default(true),
   createdAt: createdAt(),
+  demo: boolean("demo").notNull().default(false),
 }, (t) => [uniqueIndex("programs_slug_idx").on(t.slug)]);
 
 export const programCourses = pgTable("program_courses", {
@@ -542,6 +543,7 @@ export const teams = pgTable("teams", {
   name: text("name").notNull(),
   color: text("color").notNull().default("#1E5A3C"),
   createdAt: createdAt(),
+  demo: boolean("demo").notNull().default(false),
 });
 
 /** Ученик — максимум в одной команде */
@@ -664,6 +666,7 @@ export const announcements = pgTable("announcements", {
   pinned: boolean("pinned").notNull().default(false),
   authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
+  demo: boolean("demo").notNull().default(false),
 }, (t) => [index("announcements_idx").on(t.groupId, t.createdAt)]);
 
 /** Наставник → подопечный */
@@ -693,6 +696,7 @@ export const kbArticles = pgTable("kb_articles", {
   authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: createdAt(),
+  demo: boolean("demo").notNull().default(false),
 }, (t) => [uniqueIndex("kb_slug_idx").on(t.slug), index("kb_parent_idx").on(t.parentId, t.position)]);
 
 /* ——— Роли, родители, внешние ученики ——— */
