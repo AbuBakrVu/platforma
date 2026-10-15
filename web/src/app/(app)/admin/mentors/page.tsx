@@ -1,3 +1,5 @@
+import { featureOn } from "@/lib/features";
+import { redirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
@@ -10,6 +12,7 @@ export const metadata = { title: "Наставники" };
 
 /** Назначение наставников: преподаватель, сотрудник или опытный ученик из другого потока */
 export default async function Mentors({ searchParams }: PageProps<"/admin/mentors">) {
+  if (!(await featureOn("mentors"))) redirect("/"); // раздел выключен в «Настройках»
   await requirePerm("people");
   const groups = await db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name));
   const groupId = uuidOrNull(String((await searchParams).group ?? "")) ?? groups[0]?.id ?? null;
@@ -24,7 +27,7 @@ export default async function Mentors({ searchParams }: PageProps<"/admin/mentor
 
   return (
     <>
-      <PeopleTabs />
+      <PeopleTabs mentors={await featureOn("mentors")} />
       <div className="title"><h1>Наставники</h1>
         <p>Наставник видит прогресс подопечных на странице «Подопечные» и может писать им в сообщениях. Наставником может быть преподаватель, сотрудник или старший ученик.</p></div>
       <section className="card">

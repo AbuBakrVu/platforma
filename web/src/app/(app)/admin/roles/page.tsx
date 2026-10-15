@@ -1,3 +1,4 @@
+import { featureOn } from "@/lib/features";
 import { asc, sql } from "drizzle-orm";
 import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
@@ -30,7 +31,7 @@ export default async function Roles() {
 
   return (
     <>
-      <PeopleTabs />
+      <PeopleTabs mentors={await featureOn("mentors")} />
       <div className="title"><h1>Роли и права</h1>
         <p>Роль доступа назначается сотруднику в его карточке (Люди → открыть человека). Без роли сотрудник работает как преподаватель.</p></div>
 

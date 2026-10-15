@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { courseComplete, getMyCourses, getMyPrograms, getXp } from "@/lib/queries";
 import { plural } from "@/lib/format";
 import { Icon } from "@/components/Icon";
+import { CourseCover } from "@/components/CourseCover";
 import { TopBar } from "@/components/TopBar";
 import s from "./courses.module.css";
 
@@ -14,6 +15,7 @@ function CourseCard({ c, n }: { c: Course; n?: number }) {
   const pct = c.total ? Math.round((c.done / c.total) * 100) : 0;
   const body = (
     <>
+      <CourseCover title={c.title} coverId={c.coverId} className={s.cardCover} />
       <div className="card-h">
         <h2>{n ? <span className={s.n}>{n}</span> : null}{c.title}</h2>
         {c.lockedBy ? <Icon name="lock" size={18} className="muted" /> : <span className="small muted">{courseComplete(c) ? <Icon name="check" size={18} /> : `${pct}%`}</span>}

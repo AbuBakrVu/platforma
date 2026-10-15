@@ -1,3 +1,5 @@
+import { featureOn } from "@/lib/features";
+import { redirect } from "next/navigation";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -17,6 +19,7 @@ const isQuiet = (day: string | null) => !day || (Date.now() - new Date(`${day}T1
 
 /** Наставник видит прогресс подопечных и может написать каждому */
 export default async function Mentees() {
+  if (!(await featureOn("mentors"))) redirect("/"); // раздел выключен в «Настройках»
   const user = await requireUser();
   const list = await db.select({ id: t.users.id, name: t.users.name, email: t.users.email, role: t.users.role, groupId: t.users.groupId,
     avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame, group: t.groups.name })

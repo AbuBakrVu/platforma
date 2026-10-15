@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { mailEnabled } from "@/lib/mail";
 import { getSetting } from "@/lib/settings";
+import { FEATURES, getFeatures } from "@/lib/features";
 import { Submit } from "@/components/Buttons";
 import { PolicyEditor } from "./PolicyEditor";
 import { TestMail } from "./TestMail";
@@ -15,6 +16,7 @@ export default async function SettingsPage() {
     getSetting("orgName"), getSetting("orgDetails"), getSetting("orgContacts"), getSetting("policy"),
   ]);
   const mail = mailEnabled();
+  const features = await getFeatures();
   return (
     <>
       <div className="title"><h1>Настройки</h1><p>Данные организации, политика конфиденциальности, почта</p></div>
@@ -29,6 +31,18 @@ export default async function SettingsPage() {
               placeholder="ООО «Учебный центр», ИНН 0000000000, ОГРН 0000000000000, г. Грозный, ул. …" /></div>
           <div className="field"><label htmlFor="orgContacts">Контакты для обращений по персональным данным</label>
             <input id="orgContacts" name="orgContacts" defaultValue={orgContacts} className="ctl" placeholder="info@центр.ru, +7 928 000 00 00" /></div>
+        </section>
+
+        <section className="card form">
+          <div className="card-h"><h2>Разделы платформы</h2></div>
+          <p className="small muted" style={{ margin: 0 }}>Выключенный раздел пропадает из меню и с главных страниц у всех. Данные не удаляются — включите обратно в любой момент.</p>
+          <input type="hidden" name="features" value="1" />
+          {Object.entries(FEATURES).map(([k, f]) => (
+            <label key={k} className="check" style={{ alignItems: "flex-start" }}>
+              <input type="checkbox" name={`f_${k}`} defaultChecked={features[k as keyof typeof features]} style={{ marginTop: 2 }} />
+              <span><b style={{ fontWeight: 600 }}>{f.label}</b><br /><span className="small muted">{f.hint}</span></span>
+            </label>
+          ))}
         </section>
 
         <section className="card form">

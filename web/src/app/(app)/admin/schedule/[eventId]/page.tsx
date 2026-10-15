@@ -1,5 +1,6 @@
+import { featureOn } from "@/lib/features";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
@@ -18,6 +19,7 @@ const OPTIONS = [
 export const metadata = { title: "Посещаемость" };
 
 export default async function AttendancePage({ params, searchParams }: PageProps<"/admin/schedule/[eventId]">) {
+  if (!(await featureOn("schedule"))) redirect("/"); // раздел выключен в «Настройках»
   await requirePerm("schedule");
   const id = uuidOrNull((await params).eventId);
   if (!id) notFound();

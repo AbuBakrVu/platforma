@@ -11,11 +11,11 @@ const TABS = [
 ];
 
 /** Вкладки раздела «Люди и потоки» */
-export function PeopleTabs() {
+export function PeopleTabs({ mentors = true }: { mentors?: boolean }) {
   const path = usePathname();
   return (
     <nav className="seg" aria-label="Люди и потоки">
-      {TABS.map((t) => (
+      {TABS.filter((t) => mentors || t.href !== "/admin/mentors").map((t) => (
         <Link key={t.href} href={t.href} className={path.startsWith(t.href) ? "on" : undefined} aria-current={path.startsWith(t.href) ? "page" : undefined}>{t.label}</Link>
       ))}
     </nav>

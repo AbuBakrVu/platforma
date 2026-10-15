@@ -1,3 +1,4 @@
+import { featureOn } from "@/lib/features";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -22,6 +23,7 @@ const ATT = { present: "был(а)", absent: "пропустил(а)", excused: 
 
 /** Страница для родителя: как учится ребёнок — простыми словами, без технических терминов */
 export default async function ChildPage({ params }: PageProps<"/parent/[childId]">) {
+  const sched = await featureOn("schedule");
   const viewer = await requireUser({ parents: true });
   const id = uuidOrNull((await params).childId);
   const child = id ? await childFor(viewer, id) : null;
@@ -107,6 +109,7 @@ export default async function ChildPage({ params }: PageProps<"/parent/[childId]
           {!wins.achievements.length && !wins.subs.length && !wins.exams.length && <p className="empty">Успехи появятся по мере учёбы.</p>}
         </section>
 
+        {sched && (
         <section className="card">
           <div className="card-h"><h2>Посещаемость занятий</h2></div>
           {attList.map((a, i) => (
@@ -121,6 +124,7 @@ export default async function ChildPage({ params }: PageProps<"/parent/[childId]
             {upcoming.map((e) => <div key={e.id} className={s.line}><span>{fmtDateTime(e.startsAt)} · {e.title}</span></div>)}
           </>}
         </section>
+        )}
       </div>
 
       {viewer.role === "parent" && staff.length > 0 && (

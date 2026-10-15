@@ -1,3 +1,4 @@
+import { featureOn } from "@/lib/features";
 import { and, asc, desc, eq, ilike, isNull, or, type SQL } from "drizzle-orm";
 import { PeopleTabs } from "@/components/PeopleTabs";
 import { db, schema as t } from "@/db";
@@ -54,7 +55,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
 
   return (
     <>
-      <PeopleTabs />
+      <PeopleTabs mentors={await featureOn("mentors")} />
       <div className="title"><h1>Люди и приглашения</h1><p>Зарегистрироваться можно только по приглашению. Чтобы сменить роль, поток или пароль — откройте человека.</p></div>
 
       <details className="card" open={sp.invite === "1" || users.length <= 1 || undefined}>

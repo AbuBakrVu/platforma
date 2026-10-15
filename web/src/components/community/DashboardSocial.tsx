@@ -13,14 +13,14 @@ import s from "./dashboard-social.module.css";
 const recent = (d: Date) => Date.now() - d.getTime() < 14 * 864e5;
 
 /** На «Обзоре»: свежие объявления и наставник ученика */
-export async function DashboardSocial({ user }: { user: CurrentUser }) {
+export async function DashboardSocial({ user, mentors = true }: { user: CurrentUser; mentors?: boolean }) {
   const [news, [mentor]] = await Promise.all([
     newsFor(user, 5),
     db.select({ id: t.users.id, name: t.users.name, role: t.users.role, avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame })
       .from(t.mentorships).innerJoin(t.users, eq(t.users.id, t.mentorships.mentorId)).where(eq(t.mentorships.studentId, user.id)),
   ]);
   const shown = news.filter(({ a }) => a.pinned || recent(a.createdAt)).slice(0, 2);
-  if (!shown.length && !mentor) return null;
+  if (!shown.length && !(mentors && mentor)) return null;
   return (
     <div className={s.row}>
       {shown.map(({ a }) => (
@@ -30,7 +30,7 @@ export async function DashboardSocial({ user }: { user: CurrentUser }) {
           <div className={`${c.text} ${s.clip}`} dangerouslySetInnerHTML={{ __html: renderUserMd(a.body) }} />
         </Link>
       ))}
-      {mentor && (
+      {mentors && mentor && (
         <section className={`card ${s.mentor}`}>
           <span className="small muted">Ваш наставник</span>
           <div className="row"><Avatar user={mentor} size={44} /><b>{mentor.name}</b></div>

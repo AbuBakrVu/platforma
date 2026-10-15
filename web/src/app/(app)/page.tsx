@@ -9,10 +9,13 @@ import { DashboardSocial } from "@/components/community/DashboardSocial";
 import s from "./dashboard.module.css";
 import { isStaff } from "@/lib/permissions";
 import { StaffHome } from "@/components/StaffHome";
+import { getFeatures } from "@/lib/features";
 
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const user = await requireUser();
   if (isStaff(user)) return <StaffHome user={user} removed={typeof (await searchParams).removed === "string"} />;
+  const features = await getFeatures();
+  const sched = features.schedule;
   const [xp, courses, events, att, board] = await Promise.all([
     getXp(user.id),
     getMyCourses(user),
@@ -60,7 +63,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   return (
     <>
       <TopBar left={<span>Главная</span>} xp={xp}>
-        {todays[0]?.meetingUrl && (
+        {sched && todays[0]?.meetingUrl && (
           <a className="btn dark" href={todays[0].meetingUrl} target="_blank" rel="noreferrer">
             <span className={s.play}><Icon name="right" size={14} /></span>
             Подключиться к лекции
@@ -71,14 +74,14 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
       <div className="title">
         <h1>{greeting()}, {firstName}</h1>
         <p>
-          {todays.length
+          {!sched ? "Продолжим учиться?" : todays.length
             ? `Сегодня ${todays.map((e) => `${e.title.split(".")[0].toLowerCase()} в ${fmtTime(e.startsAt)}`).join(", ")}`
             : "Сегодня занятий нет — хорошее время пройти урок"}
         </p>
       </div>
 
       <GameStrip user={user} />
-      <DashboardSocial user={user} />
+      <DashboardSocial user={user} mentors={features.mentors} />
 
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))" }}>
         {next && outline ? (
@@ -109,13 +112,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             {me ? `из ${board.length} в потоке${ahead ? ` · до ${ahead.place}-го ${ahead.xp - me.xp + 1} XP` : ""}` : "Вы пока не в потоке"}
           </span>
         </div>
-        <div className={`card ${s.stat}`}>
+        {sched && <div className={`card ${s.stat}`}>
           <span className={s.label}>Посещаемость</span>
           <span className={s.big}>{att.total ? `${att.present}/${att.total}` : "—"}</span>
           <span className={`small ${att.absent ? s.warn : "muted"}`} style={{ marginTop: "auto" }}>
             {att.total ? (att.absent ? `${att.absent} ${plural(att.absent, "пропуск", "пропуска", "пропусков")}` : "Без пропусков") : "Отметок ещё нет"}
           </span>
-        </div>
+        </div>}
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(420px, 100%), 1fr))" }}>
@@ -142,6 +145,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           )}
         </section>
 
+        {sched && (
         <section className="card">
           <div className="card-h">
             <h2>На этой неделе</h2>
@@ -168,6 +172,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             <p className="muted" style={{ margin: 0 }}>На ближайшие 7 дней событий нет.</p>
           )}
         </section>
+        )}
       </div>
     </>
   );

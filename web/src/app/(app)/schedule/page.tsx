@@ -1,3 +1,5 @@
+import { featureOn } from "@/lib/features";
+import { redirect } from "next/navigation";
 import { requireInternal } from "@/lib/auth";
 import { getUpcomingEvents, getXp } from "@/lib/queries";
 import { dayKey, fmtDate, fmtTime, fmtWeekday } from "@/lib/format";
@@ -9,6 +11,7 @@ export const metadata = { title: "Расписание" };
 const KIND = { lecture: "Лекция", practice: "Практика", deadline: "Дедлайн" } as const;
 
 export default async function SchedulePage() {
+  if (!(await featureOn("schedule"))) redirect("/"); // раздел выключен в «Настройках»
   const user = await requireInternal();
   const [events, xp] = await Promise.all([getUpcomingEvents(user.groupId, 28), getXp(user.id)]);
   const today = dayKey(new Date());

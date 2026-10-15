@@ -9,6 +9,7 @@ import { dailyQuests } from "@/lib/quests";
 import { unreadTotal } from "@/lib/chats";
 import { Sidebar } from "@/components/Sidebar";
 import { labsEnabled } from "@/lib/labs";
+import { getFeatures } from "@/lib/features";
 import { isStaff } from "@/lib/permissions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     staff && user.perms.includes("shop")
       ? db.select({ n: sql<number>`count(*)::int` }).from(t.purchases).where(eq(t.purchases.status, "new")) : [{ n: 0 }],
   ]);
+  const features = await getFeatures();
   const lv = levelOf(xp);
   const game = {
     level: lv.level, title: lv.title, pct: lv.pct, coins, streak: streak.streak, streakToday: streak.today,
@@ -41,7 +43,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     {user.impersonatorId && <ImpersonationBar name={user.name} />}
     <div className={`app ${staff ? "staff" : ""}`}>
       <Sidebar name={user.name} role={user.role} group={group} due={due} avatar={me} game={game} external={user.external}
-        impersonating={!!user.impersonatorId} perms={user.perms} staffCounts={{ review: review.n, orders: orders.n }} labs={labsEnabled()} />
+        impersonating={!!user.impersonatorId} perms={user.perms} staffCounts={{ review: review.n, orders: orders.n }} labs={labsEnabled()} features={features} />
       <main className="main">{children}</main>
       <Celebrate />
     </div>

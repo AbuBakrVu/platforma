@@ -17,7 +17,7 @@ export const FORMAT = "platforma-course";
 
 type Manifest = {
   format: typeof FORMAT; version: 1; exportedAt: string;
-  course: { title: string; slug: string; description: string; sequential?: boolean };
+  course: { title: string; slug: string; description: string; sequential?: boolean; coverId?: string | null };
   sections: {
     title: string;
     lessons: { title: string; kind: "theory" | "practice" | "lab"; layout: "steps" | "longread"; durationMin: number; xp: number; published: boolean;
@@ -45,7 +45,7 @@ async function manifest(courseId: string): Promise<Manifest | null> {
 
   const m: Manifest = {
     format: FORMAT, version: 1, exportedAt: new Date().toISOString(),
-    course: { title: course.title, slug: course.slug, description: course.description, sequential: course.sequential },
+    course: { title: course.title, slug: course.slug, description: course.description, sequential: course.sequential, coverId: course.coverId },
     sections: sections.map((s) => ({
       title: s.title,
       lessons: lessons.filter((l) => l.sectionId === s.id).map((l) => ({
@@ -63,6 +63,7 @@ async function manifest(courseId: string): Promise<Manifest | null> {
   // Все id в содержимом: среди них загрузки (видео, картинки в тексте) и пакеты
   const ids = new Set(JSON.stringify(m.sections).match(UUID) ?? []);
   for (const x of materials) ids.add(x.uploadId);
+  if (course.coverId) ids.add(course.coverId);
   if (ids.size) {
     const ups = await db.select().from(t.uploads).where(inArray(t.uploads.id, [...ids]));
     const pdfs = ups.map((u) => u.pdfId).filter((x): x is string => !!x && !ids.has(x));
@@ -184,6 +185,9 @@ export async function importCourse(zipFile: string, userId: string) {
           id, courseId: c.id, name: u.name, mime: u.mime, size: u.size, pdfId: u.pdfId ? map.get(u.pdfId) ?? null : null, createdBy: userId,
         });
       }
+      // Обложка — одна из загрузок курса
+      const cover = m.course.coverId ? map.get(m.course.coverId) : undefined;
+      if (cover && m.uploads.some((u) => map.get(u.id) === cover)) await tx.update(t.courses).set({ coverId: cover }).where(eq(t.courses.id, c.id));
       for (const p of m.packages) {
         const src = path.join(/*turbopackIgnore: true*/ tmp, "packages", p.id);
         if (!(await stat(src).catch(() => null))) continue;

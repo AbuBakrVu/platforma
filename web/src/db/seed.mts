@@ -9,7 +9,7 @@
  * Пароль демо-входов — SEED_DEMO_PASSWORD; если не задан, создаётся и печатается в конце.
  */
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as t from "./schema";
