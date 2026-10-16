@@ -98,8 +98,8 @@ const TOP = {
   staff: ["/", "/admin/courses", "/admin/review", "/admin/requests", "/admin/users", "/messages"],
   parent: ["/parent", "/messages", "/news"],
 };
-/** Страница курса и уроки — там основное меню уходит наверх, чтобы урок был шире */
-const isCoursePage = (path: string) => /^\/courses\/[^/]+/.test(path);
+/** Страница курса и уроки, а также создание и редактор курса — там основное меню уходит наверх, чтобы урок был шире */
+const isCoursePage = (path: string) => /^\/(admin\/)?courses\/[^/]+/.test(path);
 
 const ROLE = { student: "Ученик", teacher: "Сотрудник", admin: "Администратор", parent: "Родитель" } as const;
 /** Разделы для своих — внешнему ученику (клиенту, партнёру) не показываем */
