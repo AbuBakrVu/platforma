@@ -2,7 +2,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDate } from "@/lib/format";
-import { getCoins } from "@/lib/gamify";
+import { getCoinsCached } from "@/lib/gamify";
 import { getXp } from "@/lib/queries";
 import { SHOP_KIND } from "@/lib/shop";
 import { TopBar } from "@/components/TopBar";
@@ -19,7 +19,7 @@ export default async function ShopPage() {
   const user = await requireUser();
   const [items, coins, xp, orders, [me]] = await Promise.all([
     db.select().from(t.shopItems).where(eq(t.shopItems.active, true)).orderBy(t.shopItems.price),
-    getCoins(user.id), getXp(user.id),
+    getCoinsCached(user.id), getXp(user.id),
     db.select().from(t.purchases).where(eq(t.purchases.userId, user.id)).orderBy(desc(t.purchases.createdAt)).limit(20),
     db.select({ freezes: t.users.freezes }).from(t.users).where(eq(t.users.id, user.id)),
   ]);
@@ -41,7 +41,7 @@ export default async function ShopPage() {
                 <div className={s.pic}>
                   {it.imageId
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={`/api/files/${it.imageId}`} alt="" />
+                    ? <img src={`/api/files/${it.imageId}`} alt="" loading="lazy" decoding="async" />
                     : <span aria-hidden>{ICON[it.kind]}</span>}
                 </div>
                 <span className="tag grey">{SHOP_KIND[it.kind]}</span>

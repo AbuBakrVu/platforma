@@ -23,3 +23,31 @@ export function upload<T = Uploaded>(file: File, courseId: string, opts: { kind?
 
 export const fmtSize = (n: number) =>
   n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} КБ` : n < 1024 ** 3 ? `${(n / 1024 / 1024).toFixed(1)} МБ` : `${(n / 1024 ** 3).toFixed(2)} ГБ`;
+
+/**
+ * Уменьшить и сжать картинку перед загрузкой: длинная сторона не больше maxSide, формат WebP.
+ * GIF (анимация) и SVG не трогаем. Если сжатая копия не легче оригинала — оставляем оригинал.
+ */
+export async function shrinkImage(file: File, maxSide = 1920): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    // Небольшая картинка нужного размера — сжимать незачем
+    if (k === 1 && file.size < 200 * 1024) { bmp.close(); return file; }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * k);
+    canvas.height = Math.round(bmp.height * k);
+    canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const toBlob = (type: string) => new Promise<Blob | null>((r) => canvas.toBlob(r, type, 0.85));
+    let blob = await toBlob("image/webp");
+    // Старый Safari не умеет WebP — тогда фото сохраняем как JPEG
+    if (blob?.type !== "image/webp") blob = file.type === "image/jpeg" ? await toBlob("image/jpeg") : null;
+    if (!blob || blob.size >= file.size) return file;
+    const ext = blob.type === "image/webp" ? "webp" : "jpg";
+    return new File([blob], file.name.replace(/\.\w+$/, "") + "." + ext, { type: blob.type });
+  } catch {
+    return file;
+  }
+}

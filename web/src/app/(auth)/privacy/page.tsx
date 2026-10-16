@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import Link from "next/link";
 import { renderMd } from "@/lib/markdown";
 import { getSetting, policyText } from "@/lib/settings";

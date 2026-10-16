@@ -2,16 +2,16 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "@/lib/auth";
-import { dayStart, getStreak, xpSince } from "@/lib/gamify";
+import { dayStart, getStreakCached, xpSince } from "@/lib/gamify";
 import { LEAGUES } from "@/lib/leagues";
-import { dailyQuests } from "@/lib/quests";
+import { dailyQuestsCached } from "@/lib/quests";
 import s from "./game.module.css";
 
 /** Карточки на «Обзоре»: цель дня, серия, задания дня, лига */
 export async function GameStrip({ user }: { user: CurrentUser }) {
   const [[me], today, streak, quests] = await Promise.all([
     db.select({ goal: t.users.dailyGoal, league: t.users.league, freezes: t.users.freezes }).from(t.users).where(eq(t.users.id, user.id)),
-    xpSince(user.id, dayStart()), getStreak(user.id), dailyQuests(user.id),
+    xpSince(user.id, dayStart()), getStreakCached(user.id), dailyQuestsCached(user.id),
   ]);
   const pct = Math.min(100, Math.round((today / me.goal) * 100));
   const doneQ = quests.filter((q) => q.done).length;

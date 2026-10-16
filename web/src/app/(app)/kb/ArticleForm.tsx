@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { MarkdownEditor } from "@/components/LazyEditor";
 import { saveArticle } from "./actions";
 
 type Opt = { id: string; title: string };

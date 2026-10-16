@@ -8,7 +8,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Placeholder } from "@tiptap/extensions";
 import { CALLOUTS, docToMd, mdToEditorHtml, type CalloutKind } from "@/lib/md-visual";
-import { upload } from "@/lib/upload-client";
+import { shrinkImage, upload } from "@/lib/upload-client";
 import { Callout, LineBreaks, MathBlock, MathInline, Video } from "./visual-nodes";
 import { IMAGE_WIDTHS, imageTitle, parseImageTitle, type ImageLayout } from "@/lib/image-layout";
 import s from "./editor.module.css";
@@ -51,7 +51,7 @@ export function VisualEditor({ value, onChange, courseId, minHeight, compact, pu
     for (const f of files.filter((x) => x.type.startsWith("image/"))) {
       setBusy(`Загружаю ${f.name}…`);
       try {
-        const up = await upload(f, courseId, publicUploads ? { access: "public" } : {});
+        const up = await upload(await shrinkImage(f), courseId, publicUploads ? { access: "public" } : {});
         const node = { type: "image", attrs: { src: `/api/files/${up.id}`, alt: f.name.replace(/\.\w+$/, "") } };
         if (pos != null) ed.chain().focus().insertContentAt(pos, node).run();
         else ed.chain().focus().insertContent(node).run();

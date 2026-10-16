@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";

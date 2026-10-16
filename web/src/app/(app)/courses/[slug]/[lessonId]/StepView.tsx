@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "@/lib/auth";
@@ -62,7 +63,7 @@ export async function StepView({ step, user }: { step: StepRow; user: CurrentUse
           {viewId && <iframe className={st.doc} src={`/api/files/${viewId}#view=FitH${c.allowDownload ? "" : "&toolbar=0"}`} title={f.name} />}
           {!viewId && f.mime.startsWith("image/") && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img className={st.docImg} src={`/api/files/${f.id}`} alt={f.name} />
+            <img className={st.docImg} src={`/api/files/${f.id}`} alt={f.name} loading="lazy" decoding="async" />
           )}
           {(c.allowDownload || (!viewId && !f.mime.startsWith("image/"))) && (
             <div className={st.fileCard}>

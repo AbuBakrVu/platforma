@@ -12,7 +12,7 @@ export function Avatar({ user, size = 44 }: { user: AvatarUser; size?: number })
       aria-hidden>
       {user.avatarId
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={`/api/files/${user.avatarId}`} alt="" />
+        ? <img src={`/api/files/${user.avatarId}`} alt="" loading="lazy" decoding="async" />
         : initials(user.name)}
     </span>
   );

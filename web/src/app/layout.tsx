@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Onest, JetBrains_Mono } from "next/font/google";
-import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const onest = Onest({
@@ -8,9 +7,11 @@ const onest = Onest({
   subsets: ["latin", "cyrillic"],
 });
 
+// Шрифт для кода нужен не на каждой странице — браузер скачает его, только когда встретит код
 const mono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin", "cyrillic"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

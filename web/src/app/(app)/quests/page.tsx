@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
-import { dayStart, getCoins, getStreak, xpSince } from "@/lib/gamify";
-import { activeChallenges, dailyQuests, METRIC_LABEL, type Metric } from "@/lib/quests";
+import { dayStart, getCoinsCached, getStreakCached, xpSince } from "@/lib/gamify";
+import { activeChallenges, dailyQuestsCached, METRIC_LABEL, type Metric } from "@/lib/quests";
 import { fmtDate } from "@/lib/format";
 import { getXp } from "@/lib/queries";
 import { db, schema as t } from "@/db";
@@ -18,8 +18,8 @@ export default async function QuestsPage() {
   const user = await requireUser();
   const [[me], xp, coins, today, streak, quests, challenges] = await Promise.all([
     db.select({ goal: t.users.dailyGoal, freezes: t.users.freezes }).from(t.users).where(eq(t.users.id, user.id)),
-    getXp(user.id), getCoins(user.id), xpSince(user.id, dayStart()), getStreak(user.id),
-    dailyQuests(user.id), activeChallenges(user.id),
+    getXp(user.id), getCoinsCached(user.id), xpSince(user.id, dayStart()), getStreakCached(user.id),
+    dailyQuestsCached(user.id), activeChallenges(user.id),
   ]);
   const pct = Math.min(100, Math.round((today / me.goal) * 100));
 

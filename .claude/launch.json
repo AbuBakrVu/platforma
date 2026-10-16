@@ -3,6 +3,7 @@
   "configurations": [
     { "name": "designs", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "4173", "--directory", "designs"], "port": 4173 },
     { "name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "--port", "3100"], "port": 3100 },
+    { "name": "web-prod", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "web", "run", "start", "--", "--port", "3105"], "port": 3105 },
     { "name": "labs", "runtimeExecutable": "sh", "runtimeArgs": ["-c", "cd labs && LAB_SECRET=$(sed -n 's/^LAB_SECRET=//p' ../web/.env.local) LAB_DRIVER=local PORT=3210 node runner.mjs"], "port": 3210 }
   ]
 }

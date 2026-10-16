@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
-import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { MarkdownEditor } from "@/components/LazyEditor";
 import {
   embedUrl, newId, parseChapters, QUIZ_LABEL, STEP_LABEL,
   type AssignmentContent, type CardsContent, type FileContent, type LabContent, type PackageContent, type QuizContent, type StepContent, type StepKind, type TextContent, type VideoContent,

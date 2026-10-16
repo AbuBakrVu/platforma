@@ -61,6 +61,11 @@
   Таблицы `groups`, `group_courses`, `group_programs` и `users.group_id` остались в базе, но не используются (миграция 0013 перенесла доступ в user_courses).
 - Редактор: вставленный текст и кнопки списков разбивают переносы строк на абзацы (`LineBreaks` в `components/visual-nodes.ts`).
   Картинка сбоку/по центру — «заголовок» картинки `layout:left w45` (`lib/image-layout.ts`), рендер в `markdown.ts`, стили `.img-left` и т.п.
+- Скорость: `(app)/loading.tsx` и `(focus)/loading.tsx` — заготовка страницы (классы `.skel*`); редактор подключать через
+  `components/LazyEditor.tsx`, а не напрямую `MarkdownEditor`; картинки перед загрузкой — `shrinkImage()` из `lib/upload-client.ts`;
+  стили KaTeX подключаются только в файлах, которые выводят Markdown (`import "katex/dist/katex.min.css"`), не в корневом layout;
+  для показа на странице — `getXp`, `getCoinsCached`, `getStreakCached`, `dailyQuestsCached` (один подсчёт за запрос), в начислениях — обычные.
+  Фоновая вкладка панели браузера может «застрять» на заготовке (не перерисовывается) — выводить вкладку вперёд.
 - Шаги урока сохраняются сами (через 2,5 с после правки и перед любым переходом/добавлением шага, `StepEditor.tsx`).
 - Регистрация открытая (`/register`, по почте и телефону; курсы ученик выбирает в каталоге),
   вход по почте или телефону (`lib/phone.ts` → `+79281234567`), коды подтверждения и сброса (`lib/codes.ts`), письма (`lib/mail.ts`, SMTP_* в .env;
