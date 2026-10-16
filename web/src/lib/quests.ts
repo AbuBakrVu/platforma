@@ -1,5 +1,6 @@
 import "server-only";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { cache } from "react";
 import { db, schema as t } from "@/db";
 import { addDays, dayStart, isoDay } from "./gamify";
 
@@ -74,6 +75,9 @@ export async function dailyQuests(userId: string) {
     return { ...q, value: Math.min(value, q.target), done: value >= q.target, claimed: claimed.has(`quest:${day}:${q.code}`), key: `quest:${day}:${q.code}` };
   }));
 }
+
+/** Для показа на странице: меню и страница считают задания дня один раз за запрос */
+export const dailyQuestsCached = cache(dailyQuests);
 
 /* ——— Челленджи от администратора ——— */
 

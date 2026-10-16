@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { upload } from "@/lib/upload-client";
+import { shrinkImage, upload } from "@/lib/upload-client";
 import { setAvatar } from "./actions";
 
 /** Загрузить фото профиля (картинка до 5 МБ) */
@@ -17,7 +17,7 @@ export function AvatarUpload({ has }: { has: boolean }) {
           e.target.value = "";
           if (!f) return;
           try {
-            const up = await upload(f, "", { kind: "avatar", onProgress: (p) => setBusy(`Загрузка ${p}%`) });
+            const up = await upload(await shrinkImage(f, 320), "", { kind: "avatar", onProgress: (p) => setBusy(`Загрузка ${p}%`) });
             start(() => setAvatar(up.id));
           } catch (x) { alert((x as Error).message); }
           setBusy(null);

@@ -1,9 +1,10 @@
 "use client";
 
+import "katex/dist/katex.min.css";
 import { useDeferredValue, useId, useMemo, useRef, useState } from "react";
 import { renderMd } from "@/lib/markdown";
 import { visualUnsupported } from "@/lib/md-visual";
-import { upload } from "@/lib/upload-client";
+import { shrinkImage, upload } from "@/lib/upload-client";
 import { VisualEditor } from "./VisualEditor";
 import s from "./editor.module.css";
 
@@ -69,7 +70,7 @@ export function MarkdownEditor({ value, onChange, courseId, label = "Текст"
       if (!f.type.startsWith("image/")) continue;
       setBusy(`Загружаю ${f.name}…`);
       try {
-        const up = await upload(f, courseId, publicUploads ? { access: "public" } : {});
+        const up = await upload(await shrinkImage(f), courseId, publicUploads ? { access: "public" } : {});
         insert({ block: true, run: () => ["![", f.name.replace(/\.\w+$/, ""), `](/api/files/${up.id})`] });
       } catch (e) {
         alert((e as Error).message);

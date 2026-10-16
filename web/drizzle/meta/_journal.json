@@ -99,6 +99,13 @@
       "when": 1792064983474,
       "tag": "0013_course_price_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792150136234,
+      "tag": "0014_speed_indexes",
+      "breakpoints": true
     }
   ]
 }

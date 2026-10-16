@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { TZ } from "./format";
@@ -109,6 +110,13 @@ export async function getStreak(userId: string) {
   while (set.has(d)) { n++; d = addDays(d, -1); }
   return { streak: n, today: set.has(today) };
 }
+
+/**
+ * Для показа на странице: меню и страница в одном запросе считают баланс и серию один раз.
+ * В начислениях (award) используем обычные getCoins/getStreak — там нужно свежее значение.
+ */
+export const getCoinsCached = cache(getCoins);
+export const getStreakCached = cache(getStreak);
 
 /* ——— Начисление ——— */
 

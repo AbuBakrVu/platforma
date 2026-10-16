@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { renderMd } from "@/lib/markdown";

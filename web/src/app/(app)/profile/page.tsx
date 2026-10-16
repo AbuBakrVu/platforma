@@ -5,7 +5,8 @@ import { ACHIEVEMENTS, userAchievements } from "@/lib/achievements";
 import { requireUser } from "@/lib/auth";
 import { AVATAR_COLORS, FRAMES } from "@/lib/frames";
 import { fmtDate } from "@/lib/format";
-import { getCoins, getStreak, levelOf, levelXp, totalXp } from "@/lib/gamify";
+import { getCoinsCached, getStreakCached, levelOf, levelXp } from "@/lib/gamify";
+import { getXp } from "@/lib/queries";
 import { LEAGUES } from "@/lib/leagues";
 import { Avatar } from "@/components/Avatar";
 import { TopBar } from "@/components/TopBar";
@@ -28,7 +29,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
   const tab: keyof typeof TABS = learner && typeof sp === "string" && sp in TABS ? (sp as keyof typeof TABS) : "me";
   const [[me], xp, coins, streak, got, frames] = await Promise.all([
     db.select().from(t.users).where(eq(t.users.id, user.id)),
-    totalXp(user.id), getCoins(user.id), getStreak(user.id), userAchievements(user.id), unlockedFrames(user.id),
+    getXp(user.id), getCoinsCached(user.id), getStreakCached(user.id), userAchievements(user.id), unlockedFrames(user.id),
   ]);
   const lv = levelOf(xp);
   const have = new Map(got.map((a) => [a.code, a.earnedAt]));

@@ -1,4 +1,5 @@
 /** Наши блоки для визуального редактора: выноски, формулы, видео по ссылке */
+import "katex/dist/katex.min.css";
 import { Extension, mergeAttributes, Node } from "@tiptap/core";
 import { Fragment, Slice, type Node as PMNode } from "@tiptap/pm/model";
 import { Plugin } from "@tiptap/pm/state";

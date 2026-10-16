@@ -64,7 +64,7 @@ md.use({
       const { layout, width } = parseImageTitle(title);
       const lay = /layout:/.test(title ?? "");
       const style = width && layout !== "full" ? ` style="width:${width}%"` : "";
-      return `<img src="${esc(href)}" alt="${esc(text)}"${lay ? ` class="img-${layout}"${style}` : title ? ` title="${esc(title)}"` : ""}>`;
+      return `<img src="${esc(href)}" alt="${esc(text)}" loading="lazy" decoding="async"${lay ? ` class="img-${layout}"${style}` : title ? ` title="${esc(title)}"` : ""}>`;
     },
     blockquote({ tokens }) {
       const first = tokens[0];

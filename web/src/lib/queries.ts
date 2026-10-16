@@ -16,13 +16,14 @@ export async function getGroupName(groupId: string | null) {
   return g?.name ?? null;
 }
 
-export async function getXp(userId: string) {
+/** XP для показа на странице: меню и страница спрашивают его в одном запросе — считаем один раз */
+export const getXp = cache(async (userId: string) => {
   const [r] = await db
     .select({ xp: sql<number>`coalesce(sum(${t.xpEvents.amount}), 0)::int` })
     .from(t.xpEvents)
     .where(eq(t.xpEvents.userId, userId));
   return r.xp;
-}
+});
 
 /** Рейтинг: ученики по сумме XP за период (since = null — за всё время). courseId — только записанные на курс, XP только за этот курс. */
 export async function getLeaderboard(courseId: string | null, since: Date | null) {

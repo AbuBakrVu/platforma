@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CourseCover } from "@/components/CourseCover";
 import { Icon } from "@/components/Icon";
-import { upload } from "@/lib/upload-client";
+import { shrinkImage, upload } from "@/lib/upload-client";
 import { setCourseCover } from "../actions";
 import s from "@/components/course-card.module.css";
 
@@ -18,7 +18,7 @@ export function CoverEditor({ courseId, title, coverId }: { courseId: string; ti
   const pick = async (f: File) => {
     if (!f.type.startsWith("image/")) { alert("Нужна картинка: JPG, PNG или WebP"); return; }
     try {
-      const up = await upload(f, courseId, { onProgress: (p) => setBusy(`Загрузка ${p}%`) });
+      const up = await upload(await shrinkImage(f, 1280), courseId, { onProgress: (p) => setBusy(`Загрузка ${p}%`) });
       start(async () => { await setCourseCover(courseId, up.id); router.refresh(); setBusy(null); });
     } catch (e) {
       alert((e as Error).message);

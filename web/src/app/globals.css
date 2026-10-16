@@ -177,3 +177,14 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 .prose h1,.prose h2,.prose h3,.prose pre,.prose table,.prose .table-wrap,.prose .callout,.prose .embed,.prose .math{clear:both}
 @media (max-width:600px){.prose img.img-left,.prose img.img-right{float:none;display:block;width:100%!important;margin:0 0 14px}}
 .prose ul,.prose ol{display:flow-root}
+
+/* Заготовка страницы на время загрузки (loading.tsx) */
+.skel{display:flex;flex-direction:column;gap:20px}
+.skel i,.skel-card{display:block;background:#E3E6E1;border-radius:12px;animation:skel 1.2s ease-in-out infinite alternate}
+.skel-top{display:flex;justify-content:space-between;gap:16px}.skel-top i{height:40px;border-radius:20px}
+.skel-h1{width:min(360px,70%);height:36px}.skel-p{width:min(560px,90%);height:16px}
+.skel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.skel-card{height:200px;border-radius:var(--r);background:#fff}
+@keyframes skel{from{opacity:1}to{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.skel i,.skel-card{animation:none}}
+.skel-card.skel-editor{height:220px;background:#F0F2EF;animation:skel 1.2s ease-in-out infinite alternate}

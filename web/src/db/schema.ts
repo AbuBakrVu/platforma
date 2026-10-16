@@ -278,7 +278,7 @@ export const stepProgress = pgTable("step_progress", {
   /** Последний ответ, позиция видео и т.п. */
   data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [primaryKey({ columns: [t.userId, t.stepId] })]);
+}, (t) => [primaryKey({ columns: [t.userId, t.stepId] }), index("step_progress_step_idx").on(t.stepId)]);
 
 /** Загруженные файлы. Сами файлы лежат в UPLOAD_DIR, доступ — через /api/files/<id> */
 export const uploads = pgTable("uploads", {
@@ -294,7 +294,8 @@ export const uploads = pgTable("uploads", {
   access: text("access").notNull().default("course"),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
-});
+  // pdf_id ищется при каждой отдаче файла (/api/files), course_id — в материалах и экспорте курса
+}, (t) => [index("uploads_pdf_idx").on(t.pdfId), index("uploads_course_idx").on(t.courseId)]);
 
 /** Импортированный пакет SCORM / xAPI / cmi5, распакован в UPLOAD_DIR/pkg/<id>/ */
 export const packages = pgTable("packages", {
@@ -349,7 +350,7 @@ export const lessonProgress = pgTable("lesson_progress", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
   completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [primaryKey({ columns: [t.userId, t.lessonId] })]);
+}, (t) => [primaryKey({ columns: [t.userId, t.lessonId] }), index("lesson_progress_lesson_idx").on(t.lessonId)]);
 
 /** Журнал начисления XP. Баланс и рейтинг считаются суммой. */
 export const xpEvents = pgTable("xp_events", {
@@ -428,7 +429,7 @@ export const examAttempts = pgTable("exam_attempts", {
   scorePercent: integer("score_percent"),
   scorePoints: integer("score_points"),
   maxPoints: integer("max_points"),
-}, (t) => [index("exam_attempts_user_idx").on(t.userId, t.examId)]);
+}, (t) => [index("exam_attempts_user_idx").on(t.userId, t.examId), index("exam_attempts_exam_idx").on(t.examId)]);
 
 export const certificates = pgTable("certificates", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -437,7 +438,7 @@ export const certificates = pgTable("certificates", {
   courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("certificates_number_idx").on(t.number)]);
+}, (t) => [uniqueIndex("certificates_number_idx").on(t.number), index("certificates_user_idx").on(t.userId)]);
 
 /** Работа ученика по шагу «Задание»: текст и файлы, проверка по рубрике */
 export const submissions = pgTable("submissions", {
@@ -457,7 +458,7 @@ export const submissions = pgTable("submissions", {
   reviewerId: uuid("reviewer_id").references(() => users.id, { onDelete: "set null" }),
   submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-}, (t) => [index("submissions_step_user_idx").on(t.stepId, t.userId), index("submissions_status_idx").on(t.status, t.submittedAt)]);
+}, (t) => [index("submissions_step_user_idx").on(t.stepId, t.userId), index("submissions_status_idx").on(t.status, t.submittedAt), index("submissions_user_idx").on(t.userId)]);
 
 /* ——— Геймификация ——— */
 
@@ -726,7 +727,7 @@ export const userCourses = pgTable("user_courses", {
   courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
   /** null — бессрочно */
   until: timestamp("until", { withTimezone: true }),
-}, (t) => [primaryKey({ columns: [t.userId, t.courseId] })]);
+}, (t) => [primaryKey({ columns: [t.userId, t.courseId] }), index("user_courses_course_idx").on(t.courseId)]);
 
 /** Заявки на платные курсы: ученик записался и оплатил переводом или наличными — администратор открывает доступ */
 export const courseRequests = pgTable("course_requests", {
