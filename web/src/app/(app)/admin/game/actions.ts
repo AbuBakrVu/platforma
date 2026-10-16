@@ -17,7 +17,7 @@ export async function addChallenge(form: FormData) {
   await db.insert(t.challenges).values({
     title, description: str(form, "description"), metric, target: int(form, "target", 1, 1_000_000, 100),
     startsAt, endsAt, rewardXp: int(form, "rewardXp", 0, 100_000, 50), rewardCoins: int(form, "rewardCoins", 0, 100_000, 20),
-    groupId: uuidOrNull(str(form, "groupId")),
+    groupId: null,
   });
   touch();
 }

@@ -11,7 +11,7 @@ export async function forumSections(user: CurrentUser) {
     ? (await getMyCourses(user)).filter((c) => !c.lockedBy).map((c) => ({ id: c.id, slug: c.slug, title: c.title }))
     : await db.select({ id: t.courses.id, slug: t.courses.slug, title: t.courses.title }).from(t.courses).orderBy(asc(t.courses.title));
   const stats = await db.select({
-    courseId: t.forumTopics.courseId, topics: sql<number>`count(*)::int`, last: sql<Date | null>`max(${t.forumTopics.lastPostAt})`,
+    courseId: t.forumTopics.courseId, topics: sql<number>`count(*)::int`, last: sql<Date | null>`max(${t.forumTopics.lastPostAt})`.mapWith(t.forumTopics.lastPostAt),
     open: sql<number>`count(*) filter (where ${t.forumTopics.kind} = 'question' and ${t.forumTopics.acceptedPostId} is null)::int`,
   }).from(t.forumTopics)
     .where(and(isNull(t.forumTopics.deletedAt), courses.length

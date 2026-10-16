@@ -5,9 +5,9 @@ export const PERMS = {
   gradebook: "Журнал оценок и профили учеников",
   schedule: "Расписание и посещаемость",
   news: "Объявления",
-  moderate: "Модерация: форум, комментарии, чат потока",
+  moderate: "Модерация: форум и комментарии",
   kb: "База знаний",
-  people: "Люди, потоки, приглашения, наставники, роли",
+  people: "Люди, приглашения, заявки на курсы, роли",
   shop: "Магазин, челленджи, команды",
   impersonate: "Вход под пользователем",
 } as const;
@@ -19,7 +19,7 @@ export const TEACHER_DEFAULT: Perm[] = ["courses", "review", "gradebook", "sched
 
 /** Готовые роли — администратор создаёт их одной кнопкой и может менять */
 export const ROLE_PRESETS: { name: string; description: string; perms: Perm[] }[] = [
-  { name: "Куратор", description: "Ведёт потоки: проверяет задания, расписание, объявления, модерация", perms: ["review", "gradebook", "schedule", "news", "moderate"] },
+  { name: "Куратор", description: "Ведёт учеников: проверяет задания, объявления, модерация", perms: ["review", "gradebook", "schedule", "news", "moderate"] },
   { name: "Методист", description: "Создаёт и правит курсы и базу знаний", perms: ["courses", "kb"] },
   { name: "Руководитель", description: "Смотрит журнал оценок и прогресс учеников", perms: ["gradebook"] },
   { name: "Наблюдатель", description: "Только просмотр журнала оценок", perms: ["gradebook"] },

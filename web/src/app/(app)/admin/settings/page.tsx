@@ -12,8 +12,8 @@ export const metadata = { title: "Настройки" };
 
 export default async function SettingsPage() {
   await requireAdmin();
-  const [orgName, orgDetails, orgContacts, policy] = await Promise.all([
-    getSetting("orgName"), getSetting("orgDetails"), getSetting("orgContacts"), getSetting("policy"),
+  const [orgName, orgDetails, orgContacts, policy, payment] = await Promise.all([
+    getSetting("orgName"), getSetting("orgDetails"), getSetting("orgContacts"), getSetting("policy"), getSetting("payment"),
   ]);
   const mail = mailEnabled();
   const features = await getFeatures();
@@ -31,6 +31,15 @@ export default async function SettingsPage() {
               placeholder="ООО «Учебный центр», ИНН 0000000000, ОГРН 0000000000000, г. Грозный, ул. …" /></div>
           <div className="field"><label htmlFor="orgContacts">Контакты для обращений по персональным данным</label>
             <input id="orgContacts" name="orgContacts" defaultValue={orgContacts} className="ctl" placeholder="info@центр.ru, +7 928 000 00 00" /></div>
+        </section>
+
+        <section className="card form">
+          <div className="card-h"><h2>Оплата курсов</h2></div>
+          <p className="small muted" style={{ margin: 0 }}>
+            Ученик видит этот текст на странице платного курса перед кнопкой «Записаться». Напишите номер карты или телефона для перевода,
+            банк и когда можно оплатить наличными. Жирный текст — **так**, список — строки с «- ».
+          </p>
+          <textarea name="payment" defaultValue={payment} className="ctl" style={{ minHeight: 160 }} />
         </section>
 
         <section className="card form">

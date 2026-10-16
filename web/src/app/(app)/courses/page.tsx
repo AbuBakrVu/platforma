@@ -41,7 +41,7 @@ export default async function CoursesPage() {
   return (
     <>
       <TopBar left={<b>Мои курсы</b>} xp={xp} />
-      <div className="title"><h1>Мои курсы</h1><p>{programs.length ? "Программы и курсы вашего потока" : "Курсы вашего потока"}</p></div>
+      <div className="title"><h1>Мои курсы</h1><p>Курсы, на которые вы записаны. Новые — в <Link href="/catalog">каталоге курсов</Link>.</p></div>
 
       {programs.map((p) => {
         const list = p.courseIds.map((id) => byId.get(id)).filter((c): c is Course => !!c);
@@ -74,7 +74,7 @@ export default async function CoursesPage() {
         </>
       )}
       {courses.length === 0 && (
-        <section className="card"><p className="muted" style={{ margin: 0 }}>Курсы появятся, когда вас добавят в поток.</p></section>
+        <section className="card"><p className="muted" style={{ margin: 0 }}>Вы ещё не записаны ни на один курс. Выберите курс в <Link href="/catalog">каталоге</Link>.</p></section>
       )}
     </>
   );

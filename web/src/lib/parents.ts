@@ -78,7 +78,7 @@ export async function attendanceList(childId: string, groupId: string | null, li
 /** Успехи: экзамены, принятые задания, достижения, отзывы преподавателей */
 export async function successes(childId: string) {
   const [exams, subs, ach] = await Promise.all([
-    db.select({ title: t.exams.title, pass: t.exams.passPercent, best: sql<number>`max(${t.examAttempts.scorePercent})::int`, at: sql<Date>`max(${t.examAttempts.finishedAt})` })
+    db.select({ title: t.exams.title, pass: t.exams.passPercent, best: sql<number>`max(${t.examAttempts.scorePercent})::int`, at: sql<Date>`max(${t.examAttempts.finishedAt})`.mapWith(t.examAttempts.finishedAt) })
       .from(t.examAttempts).innerJoin(t.exams, eq(t.exams.id, t.examAttempts.examId))
       .where(and(eq(t.examAttempts.userId, childId), sql`${t.examAttempts.finishedAt} is not null`)).groupBy(t.exams.id),
     // По каждому заданию — только последняя проверенная попытка

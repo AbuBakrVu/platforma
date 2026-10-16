@@ -13,7 +13,7 @@ export function ExamFields({ exam, courses }: { exam?: Exam; courses: { id: stri
         <div className="field"><label htmlFor="x-course">Курс (кто увидит экзамен)</label>
           <select id="x-course" name="courseId" defaultValue={exam?.courseId ?? ""} className="ctl">
             <option value="">Все ученики</option>
-            {courses.map((c) => <option key={c.id} value={c.id}>Потоки курса «{c.title}»</option>)}
+            {courses.map((c) => <option key={c.id} value={c.id}>Записанные на курс «{c.title}»</option>)}
           </select></div>
       </div>
       <div className="form-row">

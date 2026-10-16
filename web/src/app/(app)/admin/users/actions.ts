@@ -13,7 +13,7 @@ const ROLES = ["student", "teacher", "admin", "parent"] as const;
 type Role = (typeof ROLES)[number];
 const asRole = (v: string, allowed: readonly Role[]): Role => (allowed.includes(v as Role) ? (v as Role) : "student");
 
-/** kind: student — ученик потока, external — внешний ученик с выбранными курсами, teacher — персонал, parent — родитель ученика */
+/** kind: student — ученик (можно сразу открыть курсы), teacher — сотрудник, parent — родитель ученика */
 export async function createInvite(form: FormData) {
   const me = await requirePerm("people");
   const days = optInt(form, "days", 1, 365);
@@ -24,9 +24,9 @@ export async function createInvite(form: FormData) {
   await db.insert(t.invites).values({
     code: newInviteCode(),
     role,
-    groupId: kind === "student" ? uuidOrNull(str(form, "groupId")) : null,
-    external: kind === "external",
-    courseIds: kind === "external" ? form.getAll("courseId").map(String).map(uuidOrNull).filter((x): x is string => !!x) : [],
+    groupId: null,
+    external: false,
+    courseIds: kind === "student" ? form.getAll("courseId").map(String).map(uuidOrNull).filter((x): x is string => !!x) : [],
     accessRoleId: role === "teacher" ? uuidOrNull(str(form, "accessRoleId")) : null,
     childId,
     maxUses: optInt(form, "maxUses", 1, 10000),
@@ -52,7 +52,7 @@ export async function updateUser(id: string, form: FormData): Promise<void> {
   // Себе роль не меняем, чтобы не остаться без администратора; почту и телефон — только если поля есть в форме
   await db.update(t.users)
     .set({
-      groupId: uuidOrNull(str(form, "groupId")), ...(id === me.id ? {} : { role }),
+      ...(id === me.id ? {} : { role }),
       ...(form.has("email") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { email } : {}),
       ...(form.has("phone") && (phone || !phoneRaw) ? { phone } : {}),
     })

@@ -37,8 +37,8 @@ export default async function AdminShop() {
   await requirePerm("shop");
   const [items, orders] = await Promise.all([
     db.select().from(t.shopItems).orderBy(asc(t.shopItems.price)),
-    db.select({ p: t.purchases, name: t.users.name, group: t.groups.name }).from(t.purchases)
-      .innerJoin(t.users, eq(t.users.id, t.purchases.userId)).leftJoin(t.groups, eq(t.groups.id, t.users.groupId))
+    db.select({ p: t.purchases, name: t.users.name, email: t.users.email }).from(t.purchases)
+      .innerJoin(t.users, eq(t.users.id, t.purchases.userId))
       .orderBy(desc(t.purchases.createdAt)).limit(100),
   ]);
   const pending = orders.filter((o) => o.p.status === "new");
@@ -52,9 +52,9 @@ export default async function AdminShop() {
         <div className="card-h"><h2>Заказы к выдаче</h2><span className="small muted">{pending.length}</span></div>
         {pending.length ? (
           <div className="tbl-wrap"><table className="tbl"><tbody>
-            {pending.map(({ p, name, group }) => (
+            {pending.map(({ p, name, email }) => (
               <tr key={p.id}>
-                <td><b style={{ fontWeight: 600 }}>{name}</b><div className="small muted">{group ?? "без потока"}</div></td>
+                <td><b style={{ fontWeight: 600 }}>{name}</b><div className="small muted">{email}</div></td>
                 <td>{p.title}</td><td>{p.price} 🪙</td><td className="small muted">{fmtDateTime(p.createdAt)}</td>
                 <td style={{ textAlign: "right" }}>
                   <div className="row" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>

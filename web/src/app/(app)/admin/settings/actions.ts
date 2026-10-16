@@ -13,6 +13,7 @@ export async function saveSettings(form: FormData) {
   await setSetting("orgDetails", get("orgDetails").slice(0, 1000));
   await setSetting("orgContacts", get("orgContacts").slice(0, 500));
   if (form.has("policy")) await setSetting("policy", get("policy").slice(0, 50_000));
+  if (form.has("payment")) await setSetting("payment", get("payment").slice(0, 5000));
   if (form.has("features")) {
     await setFeatures(Object.fromEntries(Object.keys(FEATURES).map((k) => [k, form.get(`f_${k}`) === "on"])) as Features);
     revalidatePath("/", "layout");

@@ -8,7 +8,8 @@ import { uuidOrNull } from "@/lib/form";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
 import { PubStatus } from "@/components/PubStatus";
-import { addSection, deleteCourse, publishCourse, updateCourse, updateCourseGroups } from "../actions";
+import { addSection, deleteCourse, publishCourse, updateCourse } from "../actions";
+import { fmtPrice } from "@/lib/catalog";
 import { CourseTree } from "./CourseTree";
 import { CoverEditor } from "./CoverEditor";
 import { Materials } from "./Materials";
@@ -33,15 +34,13 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
         and not (st.kind = 'text' and st.library_id is null and coalesce(st.content->>'md', '') = ''))`,
     }).from(t.lessons).where(inArray(t.lessons.sectionId, sections.map((x) => x.id))).orderBy(asc(t.lessons.position))
     : [];
-  const [materials, log, groups, links] = await Promise.all([
+  const [materials, log] = await Promise.all([
     db.select({ m: t.courseMaterials, name: t.uploads.name, size: t.uploads.size })
       .from(t.courseMaterials).innerJoin(t.uploads, eq(t.uploads.id, t.courseMaterials.uploadId))
       .where(eq(t.courseMaterials.courseId, id)).orderBy(asc(t.courseMaterials.position)),
     db.select({ action: t.courseLog.action, at: t.courseLog.createdAt, who: t.users.name })
       .from(t.courseLog).leftJoin(t.users, eq(t.users.id, t.courseLog.userId))
       .where(eq(t.courseLog.courseId, id)).orderBy(desc(t.courseLog.createdAt)).limit(100),
-    db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
-    db.select().from(t.groupCourses).where(eq(t.groupCourses.courseId, id)),
   ]);
   const now = new Date();
   const draftLabel = (l: { published: boolean; publishAt: Date | null }) =>
@@ -50,7 +49,6 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
   const lessonCount = lessons.length;
   const emptyCount = lessons.filter((l) => l.empty).length;
   const lessonsReady = lessonCount > 0 && emptyCount === 0;
-  const myGroups = new Set(links.map((x) => x.groupId));
   const sp = await searchParams;
 
   return (
@@ -78,18 +76,12 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
             </div>
           </li>
           <li>
-            <span className={`${s.mark} ${myGroups.size ? s.done : ""}`}>{myGroups.size ? <Icon name="check" size={14} /> : 2}</span>
+            <span className={`${s.mark} ${s.done}`}><Icon name="check" size={14} /></span>
             <div>
-              <b>Потоки</b>
-              {groups.length ? (
-                <form action={updateCourseGroups.bind(null, id)} className="row" style={{ gap: 18 }} key={[...myGroups].join()}>
-                  {groups.map((g) => (
-                    <label key={g.id} className="check"><input type="checkbox" name="group" value={g.id} defaultChecked={myGroups.has(g.id)} />{g.name}</label>
-                  ))}
-                  <Submit className="btn sm">Сохранить потоки</Submit>
-                </form>
-              ) : <span className="small muted">Потоков пока нет. Создайте поток в разделе <Link href="/admin/groups">«Потоки»</Link>.</span>}
-              {!myGroups.size && groups.length > 0 && <span className="small muted">Отметьте потоки — иначе ученики курс не увидят.</span>}
+              <b>Цена: {fmtPrice(course.price)}</b>
+              <span className="small muted">{course.price > 0
+                ? "Ученик нажимает «Записаться», оплачивает переводом или наличными — вы открываете доступ в «Заявках на курсы»."
+                : "Ученик записывается сам одной кнопкой. Цену можно изменить ниже, рядом с названием."}</span>
             </div>
           </li>
           <li>
@@ -97,7 +89,7 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
             <div>
               <b>{course.published ? "Опубликован" : "Публикация"}</b>
               <span className="small muted">{course.published
-                ? "Ученики отмеченных потоков видят курс."
+                ? "Курс виден всем в «Каталоге курсов»."
                 : "Пока это черновик — ученики курс не видят."}</span>
               <form action={publishCourse.bind(null, id, !course.published)}>
                 {course.published
@@ -116,6 +108,11 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
               <input id="c-title" name="title" defaultValue={course.title} className="ctl" required /></div>
             <div className="field"><label htmlFor="c-desc">Описание</label>
               <input id="c-desc" name="description" defaultValue={course.description} className="ctl" /></div>
+          </div>
+          <div className="form-row">
+            <div className="field"><label htmlFor="c-price">Цена, ₽ <span className="muted">(0 — бесплатный курс)</span></label>
+              <input id="c-price" name="price" type="number" min={0} step={100} defaultValue={course.price} className="ctl" /></div>
+            <div className="field" />
           </div>
           <CoverEditor courseId={id} title={course.title} coverId={course.coverId} />
           <details className={s.more}>

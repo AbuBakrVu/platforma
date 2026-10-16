@@ -9,7 +9,8 @@ import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Placeholder } from "@tiptap/extensions";
 import { CALLOUTS, docToMd, mdToEditorHtml, type CalloutKind } from "@/lib/md-visual";
 import { upload } from "@/lib/upload-client";
-import { Callout, MathBlock, MathInline, Video } from "./visual-nodes";
+import { Callout, LineBreaks, MathBlock, MathInline, Video } from "./visual-nodes";
+import { IMAGE_WIDTHS, imageTitle, parseImageTitle, type ImageLayout } from "@/lib/image-layout";
 import s from "./editor.module.css";
 
 type Props = {
@@ -25,12 +26,16 @@ function B({ on, children, title, run, disabled }: { on?: boolean; children: Rea
   );
 }
 
+const LAYOUTS: Record<ImageLayout, string> = { left: "Слева, текст справа", right: "Справа, текст слева", center: "По центру", full: "Во всю ширину" };
+const WIDTH_LABEL: Record<number, string> = { 30: "Маленькая", 45: "Средняя", 60: "Большая" };
+
 /** Что включено там, где стоит курсор — для подсветки кнопок */
 const toolState = (e: Editor) => ({
   h2: e.isActive("heading", { level: 2 }), h3: e.isActive("heading", { level: 3 }),
   bold: e.isActive("bold"), italic: e.isActive("italic"), code: e.isActive("code"), link: e.isActive("link"),
   ul: e.isActive("bulletList"), ol: e.isActive("orderedList"), task: e.isActive("taskList"),
   pre: e.isActive("codeBlock"), table: e.isActive("table"),
+  image: e.isActive("image") ? parseImageTitle(e.getAttributes("image").title) : null,
   callout: (Object.keys(CALLOUTS) as CalloutKind[]).find((k) => e.isActive("callout", { kind: k })) ?? null,
   undo: e.can().undo(), redo: e.can().redo(),
 });
@@ -65,7 +70,7 @@ export function VisualEditor({ value, onChange, courseId, minHeight, compact, pu
       TableKit.configure({ table: { resizable: false } }),
       TaskList, TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: placeholder ?? "Начните писать…" }),
-      Callout, MathInline, MathBlock, Video,
+      Callout, MathInline, MathBlock, Video, LineBreaks,
     ],
     content: mdToEditorHtml(value),
     editorProps: {
@@ -103,6 +108,9 @@ export function VisualEditor({ value, onChange, courseId, minHeight, compact, pu
   if (!editor || !st) return <div className={`prose ${s.visual}`} style={{ minHeight }} />;
   const c = () => editor.chain().focus();
 
+  const setImage = (layout: ImageLayout, width: number | null) =>
+    c().updateAttributes("image", { title: imageTitle(layout, width) }).run();
+
   const link = () => {
     const prev = editor.getAttributes("link").href as string | undefined;
     const href = window.prompt("Адрес ссылки (пусто — убрать ссылку)", prev ?? "https://");
@@ -136,9 +144,9 @@ export function VisualEditor({ value, onChange, courseId, minHeight, compact, pu
         <B on={st.code} title="Команда или код внутри строки" run={() => c().toggleCode().run()}>Код в строке</B>
         <B on={st.link} title="Ссылка на сайт" run={link}>Ссылка</B>
         <span className={s.sep} />
-        <B on={st.ul} title="Список с точками" run={() => c().toggleBulletList().run()}>• Список</B>
-        <B on={st.ol} title="Нумерованный список" run={() => c().toggleOrderedList().run()}>1. Нумерация</B>
-        {!compact && <B on={st.task} title="Список с галочками" run={() => c().toggleTaskList().run()}>☐ Галочки</B>}
+        <B on={st.ul} title="Список с точками" run={() => c().splitLinesInSelection().toggleBulletList().run()}>• Список</B>
+        <B on={st.ol} title="Нумерованный список" run={() => c().splitLinesInSelection().toggleOrderedList().run()}>1. Нумерация</B>
+        {!compact && <B on={st.task} title="Список с галочками" run={() => c().splitLinesInSelection().toggleTaskList().run()}>☐ Галочки</B>}
         {!compact && <>
           <span className={s.sep} />
           {(Object.entries(CALLOUTS) as [CalloutKind, string][]).map(([k, label]) => (
@@ -162,6 +170,20 @@ export function VisualEditor({ value, onChange, courseId, minHeight, compact, pu
         <input ref={file} type="file" accept="image/*" multiple hidden
           onChange={(e) => { if (e.target.files) uploadImages(editor, Array.from(e.target.files)); e.target.value = ""; }} />
       </div>
+      {st.image && (
+        <div className={s.toolbar} role="toolbar" aria-label="Картинка">
+          <span className="small muted">Картинка:</span>
+          {(Object.entries(LAYOUTS) as [ImageLayout, string][]).map(([k, label]) => (
+            <B key={k} on={st.image!.layout === k} run={() => setImage(k, k === "full" ? null : st.image!.width ?? 45)}>{label}</B>
+          ))}
+          {st.image.layout !== "full" && <>
+            <span className={s.sep} />
+            {IMAGE_WIDTHS.map((w) => (
+              <B key={w} on={st.image!.width === w} run={() => setImage(st.image!.layout, w)}>{WIDTH_LABEL[w]}</B>
+            ))}
+          </>}
+        </div>
+      )}
       {st.table && (
         <div className={s.toolbar} role="toolbar" aria-label="Таблица">
           <span className="small muted">Таблица:</span>

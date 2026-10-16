@@ -1,14 +1,10 @@
 import "server-only";
-import { desc, eq, isNull, or } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import type { CurrentUser } from "./auth";
-import { isStaff } from "@/lib/permissions";
 
-/** Объявления для пользователя: общие и своего потока (персоналу — все); закреплённые первыми */
-export function newsFor(user: CurrentUser, limit = 50) {
-  const q = db.select({ a: t.announcements, group: t.groups.name }).from(t.announcements)
-    .leftJoin(t.groups, eq(t.groups.id, t.announcements.groupId));
-  const where = isStaff(user) ? undefined
-    : user.groupId ? or(isNull(t.announcements.groupId), eq(t.announcements.groupId, user.groupId)) : isNull(t.announcements.groupId);
-  return q.where(where).orderBy(desc(t.announcements.pinned), desc(t.announcements.createdAt)).limit(limit);
+/** Объявления для всех (потоков больше нет); закреплённые первыми */
+export function newsFor(_user: CurrentUser, limit = 50) {
+  return db.select({ a: t.announcements, group: sql<string | null>`null` }).from(t.announcements)
+    .orderBy(desc(t.announcements.pinned), desc(t.announcements.createdAt)).limit(limit);
 }

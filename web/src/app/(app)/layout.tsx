@@ -3,7 +3,7 @@ import { Celebrate } from "@/components/Celebrate";
 import { ImpersonationBar } from "@/components/ImpersonationBar";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { getDueCount, getGroupName } from "@/lib/queries";
+import { getDueCount } from "@/lib/queries";
 import { getCoins, getStreak, levelOf, totalXp } from "@/lib/gamify";
 import { dailyQuests } from "@/lib/quests";
 import { unreadTotal } from "@/lib/chats";
@@ -14,8 +14,8 @@ import { isStaff } from "@/lib/permissions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser({ parents: true });
-  const [group, due, [me], xp, coins, streak, quests, [duels], unread, [mentees]] = await Promise.all([
-    getGroupName(user.groupId), getDueCount(user.id),
+  const [due, [me], xp, coins, streak, quests, [duels], unread, [mentees]] = await Promise.all([
+    getDueCount(user.id),
     db.select({ avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame }).from(t.users).where(eq(t.users.id, user.id)),
     totalXp(user.id), getCoins(user.id), getStreak(user.id), dailyQuests(user.id),
     // Дуэли, где мой ход: соперник вызвал, а я ещё не отвечал
@@ -26,11 +26,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   ]);
   // Счётчики рабочих разделов сотрудника: работы на проверке, заказы магазина к выдаче
   const staff = isStaff(user);
-  const [[review], [orders]] = await Promise.all([
+  const [[review], [orders], [requests]] = await Promise.all([
     staff && user.perms.includes("review")
       ? db.select({ n: sql<number>`count(*)::int` }).from(t.submissions).where(eq(t.submissions.status, "submitted")) : [{ n: 0 }],
     staff && user.perms.includes("shop")
       ? db.select({ n: sql<number>`count(*)::int` }).from(t.purchases).where(eq(t.purchases.status, "new")) : [{ n: 0 }],
+    staff && user.perms.includes("people")
+      ? db.select({ n: sql<number>`count(*)::int` }).from(t.courseRequests).where(eq(t.courseRequests.status, "new")) : [{ n: 0 }],
   ]);
   const features = await getFeatures();
   const lv = levelOf(xp);
@@ -42,8 +44,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <>
     {user.impersonatorId && <ImpersonationBar name={user.name} />}
     <div className={`app ${staff ? "staff" : ""}`}>
-      <Sidebar name={user.name} role={user.role} group={group} due={due} avatar={me} game={game} external={user.external}
-        impersonating={!!user.impersonatorId} perms={user.perms} staffCounts={{ review: review.n, orders: orders.n }} labs={labsEnabled()} features={features} />
+      <Sidebar name={user.name} role={user.role} due={due} avatar={me} game={game} external={user.external}
+        impersonating={!!user.impersonatorId} perms={user.perms} staffCounts={{ review: review.n, orders: orders.n, requests: requests.n }} labs={labsEnabled()} features={features} />
       <main className="main">{children}</main>
       <Celebrate />
     </div>

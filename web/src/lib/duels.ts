@@ -38,9 +38,9 @@ async function pool(a: Learner, b: Learner) {
 
 export async function createDuel(me: Learner, opponentId: string) {
   if (opponentId === me.id) return { error: "Нельзя вызвать самого себя" };
-  const [opp] = await db.select({ id: t.users.id, name: t.users.name, email: t.users.email, role: t.users.role, groupId: t.users.groupId })
+  const [opp] = await db.select({ id: t.users.id, name: t.users.name, email: t.users.email, role: t.users.role })
     .from(t.users).where(eq(t.users.id, opponentId));
-  if (!opp || opp.role !== "student" || !me.groupId || opp.groupId !== me.groupId) return { error: "Соперник должен быть из вашего потока" };
+  if (!opp || opp.role !== "student" || me.role !== "student") return { error: "Вызвать на дуэль можно только ученика" };
   const [open] = await db.select({ n: sql<number>`count(*)::int` }).from(t.duels)
     .where(and(eq(t.duels.challengerId, me.id), eq(t.duels.opponentId, opponentId), inArray(t.duels.status, ["pending", "active"])));
   if (open.n) return { error: "С этим соперником уже есть незавершённая дуэль" };

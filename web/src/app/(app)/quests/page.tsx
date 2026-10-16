@@ -19,7 +19,7 @@ export default async function QuestsPage() {
   const [[me], xp, coins, today, streak, quests, challenges] = await Promise.all([
     db.select({ goal: t.users.dailyGoal, freezes: t.users.freezes }).from(t.users).where(eq(t.users.id, user.id)),
     getXp(user.id), getCoins(user.id), xpSince(user.id, dayStart()), getStreak(user.id),
-    dailyQuests(user.id), activeChallenges(user.id, user.groupId),
+    dailyQuests(user.id), activeChallenges(user.id),
   ]);
   const pct = Math.min(100, Math.round((today / me.goal) * 100));
 

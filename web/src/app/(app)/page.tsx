@@ -21,21 +21,23 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     getMyCourses(user),
     getUpcomingEvents(user.groupId),
     getAttendanceStats(user.id),
-    user.groupId ? getLeaderboard(user.groupId, null) : Promise.resolve([]),
+    getLeaderboard(null, null),
   ]);
 
-  // Зарегистрировался сам и ещё не добавлен в поток — курсов пока нет
-  if (!user.groupId && !user.external && courses.length === 0) {
+  // Ещё ни на один курс не записан — ведём в каталог
+  if (courses.length === 0) {
     return (
       <>
         <div className="title"><h1>{greeting()}, {user.name.split(/\s+/)[0]}</h1></div>
         <section className="card" style={{ alignItems: "flex-start" }}>
-          <h2 style={{ fontSize: 20 }}>Вы зарегистрированы 🎉</h2>
+          <h2 style={{ fontSize: 20 }}>Добро пожаловать! 🎉</h2>
           <p className="muted" style={{ margin: 0, lineHeight: 1.6 }}>
-            Администратор учебного центра добавит вас в учебный поток — после этого здесь появятся ваши курсы, расписание и задания.
-            Обычно это происходит после оплаты обучения. Если долго ничего не меняется — напишите нам.
+            Выберите курс в каталоге и нажмите «Записаться». Бесплатные курсы открываются сразу, платные — после оплаты.
           </p>
-          <Link href="/messages" className="btn"><Icon name="mail" size={18} />Написать в учебный центр</Link>
+          <div className="row">
+            <Link href="/catalog" className="btn pri"><Icon name="cards" size={18} />Каталог курсов</Link>
+            <Link href="/messages" className="btn"><Icon name="mail" size={18} />Написать в учебный центр</Link>
+          </div>
         </section>
       </>
     );
@@ -109,7 +111,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <span className={s.label}>Место в рейтинге</span>
           <span className={s.big}>{me ? me.place : "—"}</span>
           <span className="small muted" style={{ marginTop: "auto" }}>
-            {me ? `из ${board.length} в потоке${ahead ? ` · до ${ahead.place}-го ${ahead.xp - me.xp + 1} XP` : ""}` : "Вы пока не в потоке"}
+            {me ? `из ${board.length} учеников${ahead ? ` · до ${ahead.place}-го ${ahead.xp - me.xp + 1} XP` : ""}` : "Пока без рейтинга"}
           </span>
         </div>
         {sched && <div className={`card ${s.stat}`}>
@@ -141,7 +143,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
               })}
             </div>
           ) : (
-            <p className="muted" style={{ margin: 0 }}>Курсы появятся, когда вас добавят в поток.</p>
+            <p className="muted" style={{ margin: 0 }}>Запишитесь на курс в <Link href="/catalog">каталоге</Link>.</p>
           )}
         </section>
 

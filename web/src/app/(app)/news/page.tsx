@@ -1,5 +1,3 @@
-import { asc } from "drizzle-orm";
-import { db, schema as t } from "@/db";
 import { requireInternal, can } from "@/lib/auth";
 import { authors, reactionsFor } from "@/lib/community";
 import { fmtDateTime } from "@/lib/format";
@@ -18,9 +16,8 @@ export const metadata = { title: "Объявления" };
 export default async function News() {
   const user = await requireInternal({ parents: true });
   const staff = can(user, "news");
-  const [items, xp, groups] = await Promise.all([
+  const [items, xp] = await Promise.all([
     newsFor(user), getXp(user.id),
-    staff ? db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)) : [],
   ]);
   const [people, reacts] = await Promise.all([
     authors(items.map((i) => i.a.authorId).filter((x): x is string => !!x)),
@@ -29,15 +26,14 @@ export default async function News() {
   return (
     <>
       <TopBar xp={xp} left={<b>Объявления</b>} />
-      <div className="title"><h1>Объявления</h1><p>Новости курса и потока от преподавателей.</p></div>
-      {staff && <NewAnnouncement groups={groups} />}
-      {items.map(({ a, group }) => {
+      <div className="title"><h1>Объявления</h1><p>Новости учебного центра для всех учеников.</p></div>
+      {staff && <NewAnnouncement />}
+      {items.map(({ a }) => {
         const author = a.authorId ? people.get(a.authorId) : null;
         return (
           <article key={a.id} className="card" aria-labelledby={`a-${a.id}`}>
             <div className="card-h">
               <h2 id={`a-${a.id}`}>{a.pinned && "📌 "}{a.title}</h2>
-              <span className="tag grey">{group ? `Поток ${group}` : "Для всех"}</span>
             </div>
             <div className={c.text} dangerouslySetInnerHTML={{ __html: renderUserMd(a.body) }} />
             <div className="row" style={{ justifyContent: "space-between" }}>

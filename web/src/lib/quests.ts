@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { addDays, dayStart, isoDay } from "./gamify";
 
@@ -77,11 +77,11 @@ export async function dailyQuests(userId: string) {
 
 /* ——— Челленджи от администратора ——— */
 
-export async function activeChallenges(userId: string, groupId: string | null) {
+/** Действующие челленджи — для всех учеников (потоков больше нет) */
+export async function activeChallenges(userId: string) {
   const now = new Date();
   const list = await db.select().from(t.challenges)
-    .where(and(lte(t.challenges.startsAt, now), gte(t.challenges.endsAt, now),
-      groupId ? or(isNull(t.challenges.groupId), eq(t.challenges.groupId, groupId)) : isNull(t.challenges.groupId)));
+    .where(and(lte(t.challenges.startsAt, now), gte(t.challenges.endsAt, now)));
   const claimed = await claimedKeys(userId, "challenge:%");
   return Promise.all(list.map(async (c) => {
     const value = await measure(userId, c.metric as Metric, c.startsAt, c.endsAt);

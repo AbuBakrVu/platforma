@@ -46,9 +46,10 @@ const DEFAULTS: Record<string, string> = {
   orgContacts: "",
   policy: POLICY_TEMPLATE,
   features: "{}",
+  payment: "Оплатите курс **переводом на карту** или **наличными** в учебном центре.\n\n- Карта: *укажите номер карты и банк в «Настройках»*\n- По номеру телефона (СБП): *укажите номер*\n\nВ комментарии к переводу напишите своё имя и название курса. После оплаты нажмите «Записаться на курс» — администратор проверит оплату и откроет доступ.",
 };
 
-export type SettingKey = "orgName" | "orgDetails" | "orgContacts" | "policy" | "features";
+export type SettingKey = "orgName" | "orgDetails" | "orgContacts" | "policy" | "features" | "payment";
 
 export async function getSetting(key: SettingKey) {
   const [row] = await db.select({ value: t.settings.value }).from(t.settings).where(eq(t.settings.key, key));

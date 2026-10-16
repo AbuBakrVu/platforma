@@ -20,7 +20,7 @@ export default async function ParentHome() {
           {kids.map((k) => (
             <Link key={k.id} href={`/parent/${k.id}`} className="card" style={{ flexDirection: "row", alignItems: "center", color: "var(--ink)" }}>
               <Avatar user={k} size={56} />
-              <div><b style={{ fontSize: 18 }}>{k.name}</b><div className="small muted">{k.group ? `Группа ${k.group}` : "Индивидуальное обучение"}</div></div>
+              <div><b style={{ fontSize: 18 }}>{k.name}</b><div className="small muted">Ученик</div></div>
             </Link>
           ))}
         </div>

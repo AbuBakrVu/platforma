@@ -8,13 +8,14 @@ export type Cell = { text: string; value: number | null; tone?: "ok" | "bad" | "
 export type Column = { key: string; title: string; kind: "progress" | "exam" | "assignment" | "lab" | "quiz" | "total" };
 
 /**
- * Журнал оценок потока по курсу: прогресс, экзамены (лучшая попытка), задания (баллы),
+ * Журнал оценок курса (все записанные на курс ученики): прогресс, экзамены (лучшая попытка), задания (баллы),
  * лабораторные и вопросы в уроках. Итог — средний процент по всем оцениваемым колонкам.
  */
-export async function gradebook(groupId: string, courseId: string) {
+export async function gradebook(courseId: string) {
   const [students, lessons, exams, steps] = await Promise.all([
     db.select({ id: t.users.id, name: t.users.name, email: t.users.email }).from(t.users)
-      .where(and(eq(t.users.groupId, groupId), eq(t.users.role, "student"))).orderBy(asc(t.users.name)),
+      .innerJoin(t.userCourses, and(eq(t.userCourses.userId, t.users.id), eq(t.userCourses.courseId, courseId)))
+      .where(eq(t.users.role, "student")).orderBy(asc(t.users.name)),
     db.select({ id: t.lessons.id, published: t.lessons.published, publishAt: t.lessons.publishAt, title: t.lessons.title })
       .from(t.lessons).innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId))
       .where(eq(t.sections.courseId, courseId)).orderBy(asc(t.sections.position), asc(t.lessons.position)),

@@ -6,5 +6,5 @@ import { removeDemoData } from "./demo";
 
 const client = postgres(process.env.DATABASE_URL!, { max: 1 });
 const r = await removeDemoData(drizzle(client, { schema }));
-console.log(`Удалено: пользователей ${r.users}, потоков ${r.groups}, курсов ${r.courses}, экзаменов ${r.exams}`);
+console.log(`Удалено: пользователей ${r.users}, курсов ${r.courses}, экзаменов ${r.exams}`);
 await client.end();

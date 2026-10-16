@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import {
@@ -31,51 +31,85 @@ export function StepEditor({ courseId, step, files: initialFiles, packages: init
   const [msg, setMsg] = useState<{ ok?: boolean; text: string } | null>(null);
   const [saving, start] = useTransition();
 
+  // Последние значения и номер правки — для сохранения из обработчиков и таймера без устаревших данных
+  const latest = useRef({ title, content });
+  const version = useRef(0);
+  const bypass = useRef(false);
+  useEffect(() => { latest.current = { title, content }; });
+
+  const touch = () => { version.current++; setDirty(true); setMsg(null); };
+
+  /** Сохранить сейчас. Вернёт текст ошибки или null. Отметку «изменено» снимаем, только если пока сохраняли, ничего не правили. */
+  const saveNow = useCallback(async (auto = false) => {
+    const v = version.current;
+    const r = await persist(latest.current.title, latest.current.content);
+    if (r?.error) { setMsg({ text: r.error }); return r.error; }
+    if (version.current === v) setDirty(false);
+    setMsg({ ok: true, text: auto ? "Сохранено автоматически" : "Шаг сохранён" });
+    return null;
+  }, [persist]);
+
+  // Автосохранение: через 2,5 секунды после последней правки
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => start(async () => { await saveNow(true); }), 2500);
+    return () => clearTimeout(timer);
+  }, [dirty, title, content, saveNow]);
+
+  // Перед любым действием на странице (добавить шаг, другой шаг, другой урок) — сначала сохранить этот шаг
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    // Переходы по ссылкам и другие формы страницы (добавить шаг, сохранить урок) beforeunload не ловит — спрашиваем сами
-    const ask = (e: Event) => {
-      if (!confirm("Шаг не сохранён. Уйти без сохранения?")) { e.preventDefault(); e.stopPropagation(); }
+    const thenDo = async (go: () => void) => {
+      const err = await saveNow(true);
+      if (err && !confirm(`Шаг не сохранён: ${err}. Продолжить без сохранения?`)) return;
+      bypass.current = true;
+      try { go(); } finally { bypass.current = false; }
     };
     const click = (e: MouseEvent) => {
-      const a = (e.target as Element | null)?.closest?.("a[href]");
-      if (a && !a.getAttribute("target") && !a.hasAttribute("download") && !e.defaultPrevented) ask(e);
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (bypass.current || !a || a.getAttribute("target") || a.hasAttribute("download") || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      thenDo(() => a.click());
+    };
+    const submit = (e: SubmitEvent) => {
+      if (bypass.current) return;
+      const form = e.target as HTMLFormElement;
+      const by = e.submitter;
+      e.preventDefault();
+      e.stopPropagation();
+      thenDo(() => form.requestSubmit(by ?? undefined));
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", click, true);
-    document.addEventListener("submit", ask, true);
+    document.addEventListener("submit", submit, true);
     return () => {
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", click, true);
-      document.removeEventListener("submit", ask, true);
+      document.removeEventListener("submit", submit, true);
     };
-  }, [dirty]);
+  }, [dirty, saveNow]);
 
   const set = <K extends StepKind>(patch: Partial<StepContent[K]>) => {
     setContent((c) => ({ ...c, ...patch }));
-    setDirty(true);
-    setMsg(null);
+    touch();
   };
   const addFile = (f: Uploaded) => setFiles((m) => ({ ...m, [f.id]: f }));
 
-  const save = () => start(async () => {
-    const r = await persist(title, content);
-    if (r?.error) setMsg({ text: r.error });
-    else { setMsg({ ok: true, text: "Шаг сохранён" }); setDirty(false); }
-  });
+  const save = () => start(async () => { await saveNow(); });
 
   const ctx = { courseId, files, addFile, set };
   return (
     <div className="card form">
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span className="tag">{STEP_LABEL[step.kind]}</span>
-        {dirty && <span className="small muted">Есть несохранённые изменения</span>}
+        <span className="small muted">{saving ? "Сохраняю…" : dirty ? "Есть изменения — сохранятся сами" : ""}</span>
       </div>
       {banner}
       <div className="field">
         <label htmlFor="st-title">Заголовок шага <span className="muted">(необязательно)</span></label>
-        <input id="st-title" className="ctl" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+        <input id="st-title" className="ctl" value={title} onChange={(e) => { setTitle(e.target.value); touch(); }}
           placeholder={STEP_LABEL[step.kind]} />
       </div>
 
