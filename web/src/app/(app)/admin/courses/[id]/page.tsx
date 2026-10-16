@@ -111,7 +111,7 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
           </div>
           <div className="form-row">
             <div className="field"><label htmlFor="c-price">Цена, ₽ <span className="muted">(0 — бесплатный курс)</span></label>
-              <input id="c-price" name="price" type="number" min={0} step={100} defaultValue={course.price} className="ctl" /></div>
+              <input id="c-price" name="price" type="number" min={0} step={1} defaultValue={course.price} className="ctl" /></div>
             <div className="field" />
           </div>
           <CoverEditor courseId={id} title={course.title} coverId={course.coverId} />

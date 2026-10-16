@@ -35,7 +35,7 @@ export default async function NewCourse() {
           </div>
           <div className="form-row">
             <div className="field"><label htmlFor="c-price">Цена, ₽ <span className="muted">(0 — бесплатный курс)</span></label>
-              <input id="c-price" name="price" type="number" min={0} step={100} defaultValue={0} className="ctl" /></div>
+              <input id="c-price" name="price" type="number" min={0} step={1} defaultValue={0} className="ctl" /></div>
             <div className="field" />
           </div>
           <div className="field"><label htmlFor="c-plan">План курса <span className="muted">(необязательно — можно добавить потом)</span></label>
