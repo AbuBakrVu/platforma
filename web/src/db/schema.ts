@@ -134,6 +134,8 @@ export const courses = pgTable("courses", {
   parentDescription: text("parent_description").notNull().default(""),
   /** Обложка карточки курса (картинка из загрузок) */
   coverId: uuid("cover_id"),
+  /** Цена в рублях; 0 — бесплатный (ученик записывается сам) */
+  price: integer("price").notNull().default(0),
   demo: boolean("demo").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex("courses_slug_idx").on(t.slug)]);
@@ -725,6 +727,20 @@ export const userCourses = pgTable("user_courses", {
   /** null — бессрочно */
   until: timestamp("until", { withTimezone: true }),
 }, (t) => [primaryKey({ columns: [t.userId, t.courseId] })]);
+
+/** Заявки на платные курсы: ученик записался и оплатил переводом или наличными — администратор открывает доступ */
+export const courseRequests = pgTable("course_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  status: text("status").$type<"new" | "approved" | "rejected">().notNull().default("new"),
+  /** Комментарий ученика: как оплатил */
+  note: text("note").notNull().default(""),
+  price: integer("price").notNull().default(0),
+  decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index("course_requests_status_idx").on(t.status, t.createdAt), index("course_requests_user_idx").on(t.userId)]);
 
 /** Журнал действий администраторов: вход под пользователем, смена ролей и т.п. */
 export const auditLog = pgTable("audit_log", {

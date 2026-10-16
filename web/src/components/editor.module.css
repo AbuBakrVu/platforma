@@ -39,3 +39,12 @@
 .visual :global(.selectedCell) { background: var(--green-soft); }
 .visual :global(img.ProseMirror-selectednode) { outline-offset: 0; }
 .sticky { position: sticky; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 6px; padding: 8px 0; background: #fff; }
+/* Расположение картинки в редакторе — по её заголовку layout:… wNN, как у ученика */
+.visual :global(img[title*="layout:left"]) { float: left; margin: 4px 22px 12px 0; width: 45%; }
+.visual :global(img[title*="layout:right"]) { float: right; margin: 4px 0 12px 22px; width: 45%; }
+.visual :global(img[title*="layout:center"]) { display: block; margin: 0 auto 14px; width: 45%; }
+.visual :global(img[title*=" w30"]) { width: 30%; }
+.visual :global(img[title*=" w45"]) { width: 45%; }
+.visual :global(img[title*=" w60"]) { width: 60%; }
+.visual :global(h2), .visual :global(h3), .visual :global(pre), .visual :global(table), .visual :global(aside.callout) { clear: both; }
+.visual::after { content: ""; display: table; clear: both; }

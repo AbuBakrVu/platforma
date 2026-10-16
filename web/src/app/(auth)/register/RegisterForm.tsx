@@ -69,7 +69,7 @@ export function RegisterForm({ code, verify }: { code: string; verify: boolean }
       <details className={s.more} open={!!v.code || undefined}>
         <summary>У меня есть код приглашения</summary>
         {field("code", "Код приглашения", { autoComplete: "off", autoCapitalize: "characters", spellCheck: false, placeholder: "XXXX-XXXX", className: "mono" }, "lock")}
-        <span className="small muted">С кодом вы сразу попадёте в свой поток. Без кода администратор добавит вас сам.</span>
+        <span className="small muted">Код выдаёт учебный центр — с ним сразу откроются оплаченные курсы.</span>
       </details>
 
       <label className={s.consent}>

@@ -1,5 +1,7 @@
 /** Наши блоки для визуального редактора: выноски, формулы, видео по ссылке */
-import { mergeAttributes, Node } from "@tiptap/core";
+import { Extension, mergeAttributes, Node } from "@tiptap/core";
+import { Fragment, Slice, type Node as PMNode } from "@tiptap/pm/model";
+import { Plugin } from "@tiptap/pm/state";
 import katex from "katex";
 import { CALLOUTS, type CalloutKind } from "@/lib/md-visual";
 
@@ -110,5 +112,64 @@ export const Video = Node.create({
     s.textContent = node.attrs.src;
     dom.append(b, s);
     return { dom };
+  },
+});
+
+/* ——— Переносы строк → абзацы ——— */
+
+
+/** Абзац с переносами строк (Shift+Enter, текст из Word или с сайта) → отдельные абзацы */
+function splitBreaks(fragment: Fragment): Fragment {
+  const out: PMNode[] = [];
+  fragment.forEach((node) => {
+    if (node.type.name === "paragraph" && node.content.size) {
+      let cur: PMNode[] = [];
+      let split = false;
+      node.forEach((ch) => {
+        if (ch.type.name === "hardBreak") { out.push(node.type.create(node.attrs, cur)); cur = []; split = true; }
+        else cur.push(ch);
+      });
+      out.push(split ? node.type.create(node.attrs, cur) : node);
+    } else if (!node.isLeaf && node.childCount) out.push(node.copy(splitBreaks(node.content)));
+    else out.push(node);
+  });
+  return Fragment.from(out);
+}
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    lineBreaks: { splitLinesInSelection: () => ReturnType };
+  }
+}
+
+/** Вставленный текст: каждая строка — свой абзац; команда разбить выделенные строки перед превращением в список */
+export const LineBreaks = Extension.create({
+  name: "lineBreaks",
+  addProseMirrorPlugins() {
+    return [new Plugin({ props: { transformPasted: (slice) => new Slice(splitBreaks(slice.content), slice.openStart, slice.openEnd) } })];
+  },
+  addCommands() {
+    return {
+      splitLinesInSelection: () => ({ tr, state, dispatch }) => {
+        const { from, to } = state.selection;
+        const targets: { pos: number; node: PMNode }[] = [];
+        state.doc.nodesBetween(from, to, (node, pos) => {
+          if (node.type.name === "paragraph") {
+            let has = false;
+            node.forEach((ch) => { if (ch.type.name === "hardBreak") has = true; });
+            if (has) targets.push({ pos, node });
+            return false;
+          }
+          return true;
+        });
+        if (!targets.length) return true;
+        if (dispatch) {
+          for (const { pos, node } of targets.reverse()) {
+            tr.replaceWith(pos, pos + node.nodeSize, splitBreaks(Fragment.from(node)));
+          }
+        }
+        return true;
+      },
+    };
   },
 });

@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
-import { uuidOrNull } from "@/lib/form";
 import { METRIC_LABEL, type Metric } from "@/lib/quests";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -11,20 +10,15 @@ import { addChallenge, addTeam, deleteChallenge, deleteTeam, setTeams } from "./
 
 export const metadata = { title: "Челленджи и команды" };
 
-export default async function AdminGame({ searchParams }: PageProps<"/admin/game">) {
+export default async function AdminGame() {
   await requirePerm("shop");
-  const [challenges, teams, groups] = await Promise.all([
-    db.select({ c: t.challenges, group: t.groups.name }).from(t.challenges).leftJoin(t.groups, eq(t.groups.id, t.challenges.groupId))
-      .orderBy(desc(t.challenges.endsAt)),
+  const [challenges, teams, students] = await Promise.all([
+    db.select({ c: t.challenges }).from(t.challenges).orderBy(desc(t.challenges.endsAt)),
     db.select().from(t.teams).orderBy(asc(t.teams.name)),
-    db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
-  ]);
-  const groupId = uuidOrNull(String((await searchParams).group ?? "")) ?? groups[0]?.id ?? null;
-  const students = groupId
-    ? await db.select({ id: t.users.id, name: t.users.name, team: t.teamMembers.teamId }).from(t.users)
+    db.select({ id: t.users.id, name: t.users.name, team: t.teamMembers.teamId }).from(t.users)
       .leftJoin(t.teamMembers, eq(t.teamMembers.userId, t.users.id))
-      .where(and(eq(t.users.groupId, groupId), eq(t.users.role, "student"))).orderBy(asc(t.users.name))
-    : [];
+      .where(eq(t.users.role, "student")).orderBy(asc(t.users.name)),
+  ]);
   const now = new Date();
 
   return (
@@ -34,10 +28,10 @@ export default async function AdminGame({ searchParams }: PageProps<"/admin/game
 
       <section className="card">
         <div className="card-h"><h2>Челленджи</h2></div>
-        {challenges.map(({ c, group }) => (
+        {challenges.map(({ c }) => (
           <div key={c.id} className="row" style={{ justifyContent: "space-between", borderTop: "1px solid var(--line2)", paddingTop: 10 }}>
             <div><b style={{ fontWeight: 600 }}>{c.title}</b>
-              <div className="small muted">{c.target} {METRIC_LABEL[c.metric as Metric]} · {fmtDateTime(c.startsAt)} — {fmtDateTime(c.endsAt)} · {group ?? "все потоки"} ·
+              <div className="small muted">{c.target} {METRIC_LABEL[c.metric as Metric]} · {fmtDateTime(c.startsAt)} — {fmtDateTime(c.endsAt)} ·
                 {" "}+{c.rewardXp} XP, +{c.rewardCoins} 🪙 {c.endsAt < now ? "· завершён" : c.startsAt > now ? "· скоро" : "· идёт"}</div></div>
             <form action={deleteChallenge.bind(null, c.id)}><Confirm className="btn sm danger" message={`Удалить челлендж «${c.title}»?`}><Icon name="trash" size={16} /></Confirm></form>
           </div>
@@ -56,8 +50,6 @@ export default async function AdminGame({ searchParams }: PageProps<"/admin/game
             <div className="field"><label htmlFor="c-e">Конец</label><input id="c-e" name="endsAt" type="datetime-local" className="ctl" required /></div>
             <div className="field"><label htmlFor="c-x">Награда, XP</label><input id="c-x" name="rewardXp" type="number" min={0} defaultValue={50} className="ctl" /></div>
             <div className="field"><label htmlFor="c-c">Награда, монет</label><input id="c-c" name="rewardCoins" type="number" min={0} defaultValue={20} className="ctl" /></div>
-            <div className="field"><label htmlFor="c-gr">Для кого</label>
-              <select id="c-gr" name="groupId" className="ctl"><option value="">Все потоки</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
           </div>
           <div><Submit><Icon name="plus" size={18} />Добавить челлендж</Submit></div>
         </form>
@@ -79,13 +71,9 @@ export default async function AdminGame({ searchParams }: PageProps<"/admin/game
           <Submit><Icon name="plus" size={18} />Создать</Submit>
         </form>
 
-        {teams.length > 0 && groups.length > 0 && (
+        {teams.length > 0 && (
           <>
-            <form className="row" style={{ alignItems: "flex-end" }}>
-              <div className="field"><label htmlFor="t-gr">Состав команд — поток</label>
-                <select id="t-gr" name="group" defaultValue={groupId ?? ""} className="ctl">{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
-              <button className="btn">Показать</button>
-            </form>
+            <span className="small muted">Состав команд</span>
             <form key={students.map((x) => x.team ?? "-").join()} action={setTeams} className="form">
               <div className="tbl-wrap"><table className="tbl"><tbody>
                 {students.map((st) => (

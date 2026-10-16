@@ -13,8 +13,10 @@ export default async function CoursePage({ params }: PageProps<"/courses/[slug]"
   if (!outline) {
     // Курс программы, который ещё закрыт: объясняем, что пройти сначала
     const [c] = await db.select({ id: t.courses.id, title: t.courses.title }).from(t.courses).where(eq(t.courses.slug, slug));
-    const by = c ? (await getCourseLocks(user.id, user.role, user.groupId)).get(c.id) : undefined;
-    if (!c || !by) notFound();
+    const by = c ? (await getCourseLocks(user.id, user.role)).get(c.id) : undefined;
+    if (!c) notFound();
+    // Не записан на курс — на страницу курса в каталоге, там «Записаться»
+    if (!by) redirect(`/catalog/${slug}`);
     return (
       <section className="card" style={{ maxWidth: 640 }}>
         <h2>{c.title}</h2>

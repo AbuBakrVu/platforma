@@ -97,13 +97,13 @@ export async function finalizeAttempt(attemptId: string) {
   return done;
 }
 
-/** Экзамены, доступные пользователю: без курса — всем, с курсом — потокам этого курса. Персонал видит всё. */
+/** Экзамены, доступные пользователю: без курса — всем, с курсом — записанным на курс. Персонал видит всё. */
 export async function accessibleExams(user: Learner) {
   if (isStaff(user)) {
     return db.select().from(t.exams).orderBy(asc(t.exams.title));
   }
-  // Курсы потока — напрямую и из программ обучения (кроме ещё закрытых в программе)
-  const courseIds = user.groupId ? (await getMyCourses(user)).filter((c) => !c.lockedBy).map((c) => c.id) : [];
+  // Курсы, на которые записан (кроме ещё закрытых в программе)
+  const courseIds = (await getMyCourses(user)).filter((c) => !c.lockedBy).map((c) => c.id);
   return db.select().from(t.exams)
     .where(and(eq(t.exams.published, true), courseIds.length ? or(isNull(t.exams.courseId), inArray(t.exams.courseId, courseIds)) : isNull(t.exams.courseId)))
     .orderBy(asc(t.exams.title));

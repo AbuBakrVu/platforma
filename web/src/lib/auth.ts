@@ -109,7 +109,7 @@ export const getUser = cache(async () => {
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getUser>>>;
 /** Кто учится: достаточно для проверок доступа к курсам (подходит и для чужого профиля) */
-export type Learner = { id: string; role: CurrentUser["role"]; groupId: string | null; external?: boolean };
+export type Learner = { id: string; role: CurrentUser["role"]; groupId?: string | null; external?: boolean };
 
 /** Вошедший пользователь. Родителя без parents: true переносим в его кабинет — разделы ученика ему не нужны. */
 export async function requireUser(opts: { parents?: boolean } = {}) {

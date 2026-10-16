@@ -6,7 +6,7 @@ import type { CurrentUser, Learner } from "./auth";
 import { isStaff } from "@/lib/permissions";
 
 /** Опубликован и время публикации наступило (черновики и отложенная публикация) */
-const live = (published: typeof t.courses.published | typeof t.lessons.published, at: typeof t.courses.publishAt | typeof t.lessons.publishAt): SQL =>
+export const live = (published: typeof t.courses.published | typeof t.lessons.published, at: typeof t.courses.publishAt | typeof t.lessons.publishAt): SQL =>
   and(eq(published, true), or(isNull(at), lte(at, sql`now()`)))!;
 export const isLive = (x: { published: boolean; publishAt: Date | null }) => x.published && (!x.publishAt || x.publishAt <= new Date());
 
@@ -24,40 +24,47 @@ export async function getXp(userId: string) {
   return r.xp;
 }
 
-/** Рейтинг потока: ученики по сумме XP за период (since = null — за всё время) */
-export async function getLeaderboard(groupId: string, since: Date | null) {
+/** Рейтинг: ученики по сумме XP за период (since = null — за всё время). courseId — только записанные на курс, XP только за этот курс. */
+export async function getLeaderboard(courseId: string | null, since: Date | null) {
+  const keys = courseId ? await courseXpKeys(courseId) : null;
+  const xpJoin = and(
+    eq(t.xpEvents.userId, t.users.id),
+    since ? gte(t.xpEvents.createdAt, since) : undefined,
+    keys ? (keys.length ? inArray(t.xpEvents.sourceKey, keys) : sql`false`) : undefined,
+  );
   const xp = sql<number>`coalesce(sum(${t.xpEvents.amount}), 0)::int`;
   const rows = await db
     .select({ id: t.users.id, name: t.users.name, avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame, xp })
     .from(t.users)
-    .leftJoin(
-      t.xpEvents,
-      since ? and(eq(t.xpEvents.userId, t.users.id), gte(t.xpEvents.createdAt, since)) : eq(t.xpEvents.userId, t.users.id),
-    )
-    .where(and(eq(t.users.groupId, groupId), eq(t.users.role, "student")))
+    .leftJoin(t.xpEvents, xpJoin)
+    .where(and(eq(t.users.role, "student"),
+      courseId ? sql`exists (select 1 from ${t.userCourses} uc where uc.user_id = ${t.users.id} and uc.course_id = ${courseId})` : undefined))
     .groupBy(t.users.id)
     .orderBy(sql`${xp} desc`, asc(t.users.name));
   return rows.map((r, i) => ({ ...r, place: i + 1 }));
 }
 
-/** Курсы потока: назначенные напрямую и через опубликованные программы обучения */
-const groupAccess = cache(async (groupId: string) => {
-  const [direct, viaPrograms] = await Promise.all([
-    db.select({ courseId: t.groupCourses.courseId }).from(t.groupCourses).where(eq(t.groupCourses.groupId, groupId)),
-    db.select({
-      programId: t.programs.id, sequential: t.programs.sequential, courseId: t.programCourses.courseId, position: t.programCourses.position,
-    })
-      .from(t.groupPrograms)
-      .innerJoin(t.programs, and(eq(t.programs.id, t.groupPrograms.programId), eq(t.programs.published, true)))
-      .innerJoin(t.programCourses, eq(t.programCourses.programId, t.programs.id))
-      .where(eq(t.groupPrograms.groupId, groupId))
-      .orderBy(asc(t.programs.id), asc(t.programCourses.position)),
+/** Ключи начислений XP за курс: его уроки и экзамены */
+async function courseXpKeys(courseId: string) {
+  const [lessons, exams] = await Promise.all([
+    db.select({ id: t.lessons.id }).from(t.lessons).innerJoin(t.sections, eq(t.sections.id, t.lessons.sectionId)).where(eq(t.sections.courseId, courseId)),
+    db.select({ id: t.exams.id }).from(t.exams).where(eq(t.exams.courseId, courseId)),
   ]);
-  return { direct: new Set(direct.map((d) => d.courseId)), programs: viaPrograms };
-});
+  return [...lessons.map((l) => `lesson:${l.id}`), ...exams.map((e) => `exam:${e.id}`)];
+}
 
-/** Курсы, выданные пользователю лично (внешним ученикам), с действующим сроком */
-const personalCourses = cache(async (userId: string) =>
+/** Опубликованные программы обучения с курсами по порядку */
+const publishedPrograms = cache(async () => db.select({
+  programId: t.programs.id, title: t.programs.title, description: t.programs.description, sequential: t.programs.sequential,
+  courseId: t.programCourses.courseId, position: t.programCourses.position,
+})
+  .from(t.programs)
+  .innerJoin(t.programCourses, eq(t.programCourses.programId, t.programs.id))
+  .where(eq(t.programs.published, true))
+  .orderBy(asc(t.programs.title), asc(t.programs.id), asc(t.programCourses.position)));
+
+/** Курсы, на которые ученик записан (сам или администратором), с действующим сроком */
+export const personalCourses = cache(async (userId: string) =>
   new Set((await db.select({ id: t.userCourses.courseId }).from(t.userCourses)
     .where(and(eq(t.userCourses.userId, userId), or(isNull(t.userCourses.until), gte(t.userCourses.until, sql`now()`))))).map((r) => r.id)));
 
@@ -81,18 +88,17 @@ export const courseComplete = (p: { total: number; done: number } | undefined) =
 
 /**
  * Закрытые курсы последовательных программ: курс → название курса, который нужно пройти раньше.
- * Курс, назначенный потоку напрямую или открытый хотя бы в одной программе, не закрыт.
+ * Учитываются только курсы, на которые ученик записан: курс программы без записи на предыдущий не закрыт.
  */
-export const getCourseLocks = cache(async (userId: string, role: CurrentUser["role"], groupId: string | null) => {
+export const getCourseLocks = cache(async (userId: string, role: CurrentUser["role"]) => {
   const locks = new Map<string, string>();
-  if (role !== "student" || !groupId) return locks;
-  const { direct, programs } = await groupAccess(groupId);
-  const seq = programs.filter((p) => p.sequential);
+  if (role !== "student") return locks;
+  const mine = await personalCourses(userId);
+  const seq = (await publishedPrograms()).filter((p) => p.sequential && mine.has(p.courseId));
   if (!seq.length) return locks;
   const progress = await courseProgress(userId, [...new Set(seq.map((p) => p.courseId))]);
   const open = new Set<string>();
-  const byProgram = Map.groupBy(seq, (p) => p.programId);
-  for (const items of byProgram.values()) {
+  for (const items of Map.groupBy(seq, (p) => p.programId).values()) {
     let blocker: string | null = null;
     for (const it of items) {
       if (blocker) { if (!locks.has(it.courseId)) locks.set(it.courseId, blocker); }
@@ -100,11 +106,11 @@ export const getCourseLocks = cache(async (userId: string, role: CurrentUser["ro
       if (!blocker && !courseComplete(progress.get(it.courseId))) blocker = progress.get(it.courseId)?.title ?? "предыдущий курс";
     }
   }
-  for (const id of [...locks.keys()]) if (open.has(id) || direct.has(id)) locks.delete(id);
+  for (const id of [...locks.keys()]) if (open.has(id)) locks.delete(id);
   return locks;
 });
 
-/** Курсы пользователя с прогрессом. Без потока — все опубликованные. lockedBy — курс программы, который нужно пройти раньше. */
+/** Курсы пользователя с прогрессом: ученику — на которые записан, персоналу — все опубликованные. lockedBy — курс программы, который нужно пройти раньше. */
 export async function getMyCourses(user: Learner) {
   const base = db
     .select({
@@ -114,7 +120,7 @@ export async function getMyCourses(user: Learner) {
       coverId: t.courses.coverId,
       total: sql<number>`count(${t.lessons.id})::int`,
       done: sql<number>`count(${t.lessonProgress.lessonId})::int`,
-      lastAt: sql<Date | null>`max(${t.lessonProgress.completedAt})`,
+      lastAt: sql<Date | null>`max(${t.lessonProgress.completedAt})`.mapWith(t.lessonProgress.completedAt),
     })
     .from(t.courses)
     .leftJoin(t.sections, eq(t.sections.courseId, t.courses.id))
@@ -125,32 +131,23 @@ export async function getMyCourses(user: Learner) {
     .$dynamic();
 
   const visible = live(t.courses.published, t.courses.publishAt);
+  // Персонал и родитель (для своих детей запрашивается с ролью ребёнка) — по роли; ученик — только курсы, на которые записан
+  if (user.role !== "student") return (await base.where(visible)).map((c) => ({ ...c, lockedBy: null as string | null }));
   const mine = await personalCourses(user.id);
-  // Внешний ученик и ученик без потока — только выданные лично; персонал — все опубликованные
-  if (user.external || (!user.groupId && user.role === "student")) {
-    if (!mine.size) return [];
-    return (await base.where(and(visible, inArray(t.courses.id, [...mine])))).map((c) => ({ ...c, lockedBy: null as string | null }));
-  }
-  if (!user.groupId) return (await base.where(visible)).map((c) => ({ ...c, lockedBy: null as string | null }));
-  const access = await groupAccess(user.groupId);
-  const ids = [...new Set([...access.direct, ...access.programs.map((p) => p.courseId), ...mine])];
-  if (!ids.length) return [];
+  if (!mine.size) return [];
   const [rows, locks] = await Promise.all([
-    base.where(and(visible, inArray(t.courses.id, ids))),
-    getCourseLocks(user.id, user.role, user.groupId),
+    base.where(and(visible, inArray(t.courses.id, [...mine]))),
+    getCourseLocks(user.id, user.role),
   ]);
-  return rows.map((c) => ({ ...c, lockedBy: mine.has(c.id) ? null : locks.get(c.id) ?? null }));
+  return rows.map((c) => ({ ...c, lockedBy: locks.get(c.id) ?? null }));
 }
 
-/** Ученику доступны опубликованные курсы его потока (напрямую или из программы), кроме ещё закрытых в программе; персоналу — все */
+/** Ученику доступны опубликованные курсы, на которые он записан, кроме ещё закрытых в программе; персоналу — все */
 export async function canAccessCourse(user: Learner, course: { id: string; published: boolean; publishAt: Date | null }) {
   if (isStaff(user)) return true;
   if (!isLive(course) || user.role !== "student") return false;
-  if ((await personalCourses(user.id)).has(course.id)) return true;
-  if (user.external || !user.groupId) return false;
-  const access = await groupAccess(user.groupId);
-  if (!access.direct.has(course.id) && !access.programs.some((p) => p.courseId === course.id)) return false;
-  return !(await getCourseLocks(user.id, user.role, user.groupId)).has(course.id);
+  if (!(await personalCourses(user.id)).has(course.id)) return false;
+  return !(await getCourseLocks(user.id, user.role)).has(course.id);
 }
 
 /** Доступ к курсу по id (для файлов и пакетов). courseId = null — только персоналу. */
@@ -375,22 +372,15 @@ export async function getMyLabs(user: Learner) {
     || (isLive({ published: r.lessonPublished, publishAt: r.lessonPublishAt }) && !(r.opensAt && r.opensAt > now)));
 }
 
-/** Программы потока с курсами по порядку (прогресс и замки берутся из getMyCourses) */
+/** Программы, в которых ученик записан хотя бы на один курс; курсы — по порядку, только записанные */
 export async function getMyPrograms(user: Learner) {
-  if (!user.groupId) return [];
-  const rows = await db.select({
-    id: t.programs.id, title: t.programs.title, description: t.programs.description, sequential: t.programs.sequential,
-    courseId: t.programCourses.courseId,
-  })
-    .from(t.groupPrograms)
-    .innerJoin(t.programs, and(eq(t.programs.id, t.groupPrograms.programId), eq(t.programs.published, true)))
-    .innerJoin(t.programCourses, eq(t.programCourses.programId, t.programs.id))
-    .where(eq(t.groupPrograms.groupId, user.groupId))
-    .orderBy(asc(t.programs.title), asc(t.programCourses.position));
+  if (user.role !== "student") return [];
+  const mine = await personalCourses(user.id);
   const out: { id: string; title: string; description: string; sequential: boolean; courseIds: string[] }[] = [];
-  for (const r of rows) {
+  for (const r of await publishedPrograms()) {
+    if (!mine.has(r.courseId)) continue;
     let p = out.at(-1);
-    if (!p || p.id !== r.id) { p = { id: r.id, title: r.title, description: r.description, sequential: r.sequential, courseIds: [] }; out.push(p); }
+    if (!p || p.id !== r.programId) { p = { id: r.programId, title: r.title, description: r.description, sequential: r.sequential, courseIds: [] }; out.push(p); }
     p.courseIds.push(r.courseId);
   }
   return out;

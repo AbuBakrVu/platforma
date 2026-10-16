@@ -6,6 +6,7 @@
 import { Marked, type TokenizerAndRendererExtension } from "marked";
 import katex from "katex";
 import { embedUrl } from "./steps";
+import { parseImageTitle } from "./image-layout";
 
 const tex = (src: string, displayMode: boolean) =>
   katex.renderToString(src, { displayMode, throwOnError: false, output: "htmlAndMathml" });
@@ -58,6 +59,13 @@ export const md = new Marked({ gfm: true, breaks: false });
 md.use({
   extensions: [blockMath, inlineMath, embed],
   renderer: {
+    // Картинка сбоку или по центру — по «заголовку» layout:… (см. lib/image-layout.ts)
+    image({ href, title, text }) {
+      const { layout, width } = parseImageTitle(title);
+      const lay = /layout:/.test(title ?? "");
+      const style = width && layout !== "full" ? ` style="width:${width}%"` : "";
+      return `<img src="${esc(href)}" alt="${esc(text)}"${lay ? ` class="img-${layout}"${style}` : title ? ` title="${esc(title)}"` : ""}>`;
+    },
     blockquote({ tokens }) {
       const first = tokens[0];
       const m = first?.type === "paragraph" ? first.raw.match(/^\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*/) : null;

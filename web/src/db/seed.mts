@@ -37,21 +37,8 @@ const randomHash = await hash(randomBytes(12).toString("base64url"));
 const DAY = 864e5;
 const ago = (days: number, h = 0) => new Date(Date.now() - days * DAY - h * 3600_000);
 
-// ——— Время занятий — в часовом поясе платформы, а не машины, где запущен сид ———
+// ——— Дни активности — в часовом поясе платформы, а не машины, где запущен сид ———
 const TZ = process.env.APP_TZ ?? "Europe/Moscow";
-function tzOffsetMs(when: Date) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
-  }).formatToParts(when).map((x) => [x.type, x.value]));
-  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - when.getTime();
-}
-const at = (dayOffset: number, h: number, m = 0) => {
-  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  const wall = new Date(`${ymd}T00:00:00Z`);
-  wall.setUTCDate(wall.getUTCDate() + dayOffset);
-  wall.setUTCHours(h, m, 0, 0);
-  return new Date(wall.getTime() - tzOffsetMs(wall));
-};
 const dayOf = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 
 // ——— Курсы ———
@@ -468,7 +455,7 @@ const KIDS: S[] = [
   },
 ];
 
-async function addCourse(slug: string, title: string, description: string, sections: S[], extra: { parentDescription?: string; sequential?: boolean } = {}) {
+async function addCourse(slug: string, title: string, description: string, sections: S[], extra: { parentDescription?: string; sequential?: boolean; price?: number } = {}) {
   const [course] = await db.insert(t.courses).values({ slug, title, description, demo: true, ...extra }).returning();
   const lessonIds: string[] = [];
   const steps: { id: string; kind: string; lessonId: string; content: Record<string, unknown> }[] = [];
@@ -511,10 +498,10 @@ async function addCourse(slug: string, title: string, description: string, secti
 
 const linux = await addCourse("linux", "Linux для начинающих", "Терминал, файлы, права, процессы и пакеты — фундамент DevOps", LINUX,
   { parentDescription: "Учимся работать в системе, на которой построены почти все серверы и сайты в мире." });
-const docker = await addCourse("docker", "Docker", "Контейнеры с нуля: образы, Dockerfile, Compose, тома и сети", DOCKER);
-const k8s = await addCourse("kubernetes", "Kubernetes", "Оркестрация контейнеров на практике", K8S, { sequential: true });
+const docker = await addCourse("docker", "Docker", "Контейнеры с нуля: образы, Dockerfile, Compose, тома и сети", DOCKER, { price: 2900 });
+const k8s = await addCourse("kubernetes", "Kubernetes", "Оркестрация контейнеров на практике", K8S, { sequential: true, price: 4900 });
 const kids = await addCourse("kompyuter-dlya-shkolnikov", "Компьютер для школьников", "Устройство компьютера, клавиатура и мышь, безопасный интернет",
-  KIDS, { parentDescription: "Ребёнок учится уверенно и безопасно пользоваться компьютером и интернетом." });
+  KIDS, { parentDescription: "Ребёнок учится уверенно и безопасно пользоваться компьютером и интернетом.", price: 1900 });
 const byLesson = new Map((await db.select().from(t.lessons)).map((l) => [l.id, l]));
 const allSteps = [...linux.steps, ...docker.steps, ...k8s.steps, ...kids.steps];
 const stepOf = (kind: string, lessonId: string) => allSteps.find((s) => s.kind === kind && s.lessonId === lessonId)!;
@@ -525,13 +512,6 @@ const [program] = await db.insert(t.programs).values({
   published: true, sequential: true, demo: true,
 }).returning();
 await db.insert(t.programCourses).values([linux, docker, k8s].map((c, i) => ({ programId: program.id, courseId: c.course.id, position: i + 1 })));
-
-// ——— Потоки ———
-const [devops] = await db.insert(t.groups).values({ name: "DevOps-24", demo: true }).returning();
-const [intensive] = await db.insert(t.groups).values({ name: "Docker-интенсив (октябрь)", demo: true }).returning();
-const [kidsGroup] = await db.insert(t.groups).values({ name: "Компьютер для школьников — суббота", demo: true }).returning();
-await db.insert(t.groupPrograms).values({ groupId: devops.id, programId: program.id });
-await db.insert(t.groupCourses).values([{ groupId: intensive.id, courseId: docker.course.id }, { groupId: kidsGroup.id, courseId: kids.course.id }]);
 
 // ——— Сотрудники: роли доступа — стандартные (не демо, пригодятся и после удаления) ———
 async function role(name: string, description: string, perms: string[]) {
@@ -549,19 +529,19 @@ await db.insert(t.users).values(staffRow("Аслан Бисултанов", "met
 
 // ——— Ученики ———
 let phoneN = 1000;
-const studentRow = (name: string, email: string, groupId: string | null, extra: Partial<typeof t.users.$inferInsert> = {}) => ({
-  name, email, passwordHash: randomHash, groupId, demo: true, phone: `+7928000${phoneN++}`, consentAt: ago(40),
+const studentRow = (name: string, email: string, extra: Partial<typeof t.users.$inferInsert> = {}) => ({
+  name, email, passwordHash: randomHash, demo: true, phone: `+7928000${phoneN++}`, consentAt: ago(40),
   lastSeenAt: ago(Math.random() * 3), ...extra,
 });
-const [amina] = await db.insert(t.users).values(studentRow("Амина Исаева", "demo@platforma.local", devops.id,
+const [amina] = await db.insert(t.users).values(studentRow("Амина Исаева", "demo@platforma.local",
   { passwordHash: demoHash, birthDate: "2001-05-14", lastSeenAt: ago(0, 1), freezes: 1 })).returning();
 const DEVOPS_NAMES = ["Ахмед Магомадов", "Мадина Дудаева", "Ислам Хасанов", "Адам Мусаев", "Хеда Алиева", "Рамзан Ибрагимов",
   "Зарема Исмаилова", "Магомед Шамаев", "Ибрагим Абдулаев", "Седа Хаджиева", "Умар Эльмурзаев"];
-const devopsStudents = await db.insert(t.users).values(DEVOPS_NAMES.map((n, i) => studentRow(n, `student${i + 1}@platforma.local`, devops.id,
+const devopsStudents = await db.insert(t.users).values(DEVOPS_NAMES.map((n, i) => studentRow(n, `student${i + 1}@platforma.local`,
   // Двое давно не заходили — попадут в «Давно не заходили» у сотрудника
   i >= 9 ? { lastSeenAt: ago(12 + i) } : {}))).returning();
 const INTENSIVE_NAMES = ["Тамерлан Гайрбеков", "Луиза Сулейманова", "Арби Усманов", "Милана Байсултанова", "Саид-Магомед Цуев", "Айшат Махмудова", "Хасан Эдиев"];
-const intensiveStudents = await db.insert(t.users).values(INTENSIVE_NAMES.map((n, i) => studentRow(n, `intensive${i + 1}@platforma.local`, intensive.id))).returning();
+const intensiveStudents = await db.insert(t.users).values(INTENSIVE_NAMES.map((n, i) => studentRow(n, `intensive${i + 1}@platforma.local`))).returning();
 
 // Дети: дата рождения, родитель и его согласие
 const KIDS_LIST: [string, string, string][] = [
@@ -569,7 +549,7 @@ const KIDS_LIST: [string, string, string][] = [
   ["Абдул-Малик Вахаев", "2013-01-25", "Руслан Вахаев"], ["Марьям Джабраилова", "2012-11-08", "Петимат Джабраилова"],
   ["Юсуп Межидов", "2013-06-19", "Аюб Межидов"], ["Асият Шахбиева", "2014-02-14", "Зулихан Шахбиева"],
 ];
-const kidsStudents = await db.insert(t.users).values(KIDS_LIST.map(([n, birth, parent], i) => studentRow(n, `kid${i + 1}@platforma.local`, kidsGroup.id, {
+const kidsStudents = await db.insert(t.users).values(KIDS_LIST.map(([n, birth, parent], i) => studentRow(n, `kid${i + 1}@platforma.local`, {
   birthDate: birth, parentName: parent, parentPhone: `+7929000${2000 + i}`, consentByParent: true,
 }))).returning();
 const [parent] = await db.insert(t.users).values({
@@ -579,14 +559,29 @@ await db.insert(t.parentChildren).values([{ parentId: parent.id, childId: kidsSt
 
 // Зарегистрировались сами и ждут, когда их добавят в поток; внешний ученик с личным доступом к курсу
 await db.insert(t.users).values([
-  studentRow("Сулейман Арсанукаев", "new1@platforma.local", null, { createdAt: ago(0, 5), birthDate: "1998-09-30" }),
-  studentRow("Яха Эскиева", "new2@platforma.local", null, { createdAt: ago(1, 3), birthDate: "2003-04-17" }),
+  studentRow("Сулейман Арсанукаев", "new1@platforma.local", { createdAt: ago(0, 5), birthDate: "1998-09-30" }),
+  studentRow("Яха Эскиева", "new2@platforma.local", { createdAt: ago(1, 3), birthDate: "2003-04-17" }),
 ]);
-const [external] = await db.insert(t.users).values(studentRow("Рустам Ахмедов (ООО «ГрозТелеком»)", "partner@platforma.local", null, { external: true })).returning();
-await db.insert(t.userCourses).values({ userId: external.id, courseId: docker.course.id });
+const [external] = await db.insert(t.users).values(studentRow("Рустам Ахмедов (ООО «ГрозТелеком»)", "partner@platforma.local")).returning();
+
+// ——— Записи на курсы: Linux бесплатный, остальные куплены (оплата подтверждена администратором) ———
+const enroll = (users: { id: string }[], courseIds: string[]) => db.insert(t.userCourses)
+  .values(users.flatMap((u) => courseIds.map((courseId) => ({ userId: u.id, courseId })))).onConflictDoNothing();
+await enroll([amina, ...devopsStudents], [linux.course.id, docker.course.id, k8s.course.id]);
+await enroll(intensiveStudents, [docker.course.id]);
+await enroll(kidsStudents, [kids.course.id]);
+await enroll([external], [docker.course.id]);
 
 // Наставник — сильный ученик потока
 await db.insert(t.mentorships).values([{ mentorId: devopsStudents[0].id, studentId: amina.id }, { mentorId: devopsStudents[0].id, studentId: devopsStudents[8].id }]);
+
+// Заявки: двое новых записались на платные курсы и ждут подтверждения оплаты, одна уже подтверждена
+const [newbie1, newbie2] = await db.select().from(t.users).where(inArray(t.users.email, ["new1@platforma.local", "new2@platforma.local"])).orderBy(t.users.email);
+await db.insert(t.courseRequests).values([
+  { userId: newbie1.id, courseId: docker.course.id, price: 2900, note: "Перевёл на карту Сбербанка, 14 октября", createdAt: ago(0, 4) },
+  { userId: newbie2.id, courseId: kids.course.id, price: 1900, note: "Оплачу наличными в субботу", createdAt: ago(1, 2) },
+  { userId: intensiveStudents[0].id, courseId: docker.course.id, price: 2900, status: "approved", decidedBy: curator.id, decidedAt: ago(9), createdAt: ago(10) },
+]);
 
 // ——— Прогресс, XP, монеты, серии ———
 const activity = new Map<string, Set<string>>();
@@ -699,31 +694,11 @@ await db.insert(t.xpEvents).values([
   { userId: devopsStudents[0].id, amount: 200, reason: "Экзамен «Kubernetes. Пробный экзамен»", sourceKey: `exam:${k8sExam.id}`, createdAt: ago(3) },
 ]);
 
-// ——— Расписание и посещаемость ———
-async function schedule(groupId: string, courseId: string, members: { id: string }[], pastDays: number[], h: number, m: number, room: string, title: string, url?: string) {
-  const past = await db.insert(t.scheduleEvents).values(pastDays.map((d, i) => ({
-    groupId, courseId, kind: (i % 3 === 2 ? "lecture" : "practice") as "lecture" | "practice", title: `${title} ${i + 1}`,
-    startsAt: at(d, h, m), endsAt: at(d, h + 1, m + 30), location: room, meetingUrl: url ?? null,
-  }))).returning();
-  await db.insert(t.attendance).values(past.flatMap((e, i) => members.map((u, j) => ({
-    eventId: e.id, userId: u.id, status: (i + j) % 7 === 0 ? "absent" as const : (i + j) % 11 === 0 ? "excused" as const : "present" as const,
-  }))));
-}
-await schedule(devops.id, linux.course.id, [amina, ...devopsStudents], [-27, -25, -23, -20, -18, -16, -13, -11, -9, -6, -4, -2], 18, 30, "аудитория 204", "Занятие");
-await schedule(kidsGroup.id, kids.course.id, kidsStudents, [-21, -14, -7], 11, 0, "кабинет 3", "Урок");
-await db.insert(t.scheduleEvents).values([
-  { groupId: devops.id, courseId: docker.course.id, kind: "lecture", title: "Лекция: Docker Compose", startsAt: at(0, 18, 30), endsAt: at(0, 20), location: "онлайн", meetingUrl: "https://telemost.yandex.ru/" },
-  { groupId: devops.id, courseId: docker.course.id, kind: "practice", title: "Практика: тома и сети", startsAt: at(2, 18, 30), endsAt: at(2, 20), location: "аудитория 204" },
-  { groupId: devops.id, courseId: docker.course.id, kind: "deadline", title: "Дедлайн: Dockerfile для своего сайта", startsAt: at(4, 23, 59) },
-  { groupId: intensive.id, courseId: docker.course.id, kind: "practice", title: "Интенсив: день 3", startsAt: at(1, 10), endsAt: at(1, 14), location: "аудитория 101" },
-  { groupId: kidsGroup.id, courseId: kids.course.id, kind: "practice", title: "Урок: безопасный интернет", startsAt: at(((6 - new Date().getDay()) % 7) || 7, 11), endsAt: at(((6 - new Date().getDay()) % 7) || 7, 12, 30), location: "кабинет 3" },
-]);
-
 // ——— Объявления ———
 await db.insert(t.announcements).values([
   { title: "Добро пожаловать на платформу!", body: "Здесь курсы, расписание, домашние задания и общение с преподавателями. Вопросы — в «Сообщениях» или на форуме.", pinned: true, authorId: curator.id, demo: true, createdAt: ago(30) },
-  { groupId: devops.id, title: "Перенос практики на четверг", body: "Практика по томам и сетям Docker переносится на **четверг, 18:30**. Аудитория та же — 204.", authorId: teacher.id, demo: true, createdAt: ago(1) },
-  { groupId: kidsGroup.id, title: "Родительское собрание", body: "В субботу после урока, в 12:40, — короткое собрание для родителей: расскажем об успехах и планах.", authorId: curator.id, demo: true, createdAt: ago(2) },
+  { title: "Новый курс по Kubernetes", body: "В каталоге появился курс **Kubernetes** — продолжение Docker. Выпускникам Docker — скидка 20% до конца месяца.", authorId: teacher.id, demo: true, createdAt: ago(1) },
+  { title: "Родительское собрание", body: "В субботу после урока, в 12:40, — короткое собрание для родителей: расскажем об успехах и планах.", authorId: curator.id, demo: true, createdAt: ago(2) },
 ]);
 
 // ——— Форум и вопросы ———
@@ -748,7 +723,7 @@ await topic("question", amina.id, "Чем sudo отличается от su?", "
     [teacher.id, "На серверах почти всегда используют `sudo`: каждая команда записывается в журнал, и не нужно знать пароль root."],
   ], 0);
 await topic("discussion", curator.id, "Знакомимся! Расскажите о себе", "Напишите, как вас зовут, откуда вы и чего ждёте от курса 🙂",
-  { groupId: devops.id, daysAgo: 28 }, [
+  { daysAgo: 28 }, [
     [amina.id, "Амина, Грозный. Работаю в бухгалтерии, хочу перейти в IT — DevOps кажется интересным."],
     [devopsStudents[0].id, "Ахмед, Аргун. Сисадмин, хочу освоить контейнеры и Kubernetes."],
     [devopsStudents[5].id, "Рамзан, Гудермес. Студент, учусь на программиста."],
@@ -763,15 +738,6 @@ await db.insert(t.comments).values([
 await db.insert(t.reactions).values([{ target: "comment", targetId: c1.id, userId: amina.id, emoji: "👍" }, { target: "comment", targetId: c1.id, userId: devopsStudents[1].id, emoji: "👍" }]).onConflictDoNothing();
 
 // ——— Сообщения: чат потока и личный диалог с преподавателем ———
-const [groupChat] = await db.insert(t.chats).values({ kind: "group", groupId: devops.id, lastMessageAt: ago(0, 3) }).returning();
-await db.insert(t.chatMembers).values([amina, ...devopsStudents, teacher, curator].map((u) => ({ chatId: groupChat.id, userId: u.id, lastReadAt: ago(0, 4) })));
-const GROUP_MSGS: [string, string, number][] = [
-  [curator.id, "Всем привет! Напоминаю: сегодня лекция по Docker Compose в 18:30, ссылка в расписании.", 5],
-  [devopsStudents[1].id, "Спасибо! Запись будет?", 4.5],
-  [curator.id, "Да, выложим в урок после занятия.", 4.2],
-  [devopsStudents[0].id, "Кто не успел с Dockerfile — пишите, помогу разобраться.", 3],
-];
-await db.insert(t.messages).values(GROUP_MSGS.map(([userId, body, h]) => ({ chatId: groupChat.id, userId, body, createdAt: ago(0, h) })));
 const [direct] = await db.insert(t.chats).values({ kind: "direct", pairKey: [amina.id, teacher.id].sort().join(":"), lastMessageAt: ago(0, 1) }).returning();
 await db.insert(t.chatMembers).values([{ chatId: direct.id, userId: amina.id, lastReadAt: ago(0, 2) }, { chatId: direct.id, userId: teacher.id, lastReadAt: ago(0, 1) }]);
 await db.insert(t.messages).values([
@@ -819,7 +785,7 @@ if (freeze && stickers) {
 // ——— Челлендж, команды, дуэль ———
 await db.insert(t.challenges).values({
   title: "Марафон: 10 уроков за 2 недели", description: "Пройдите 10 уроков до конца месяца — получите 150 XP и 50 монет.",
-  metric: "lessons", target: 10, startsAt: ago(5), endsAt: new Date(Date.now() + 9 * DAY), rewardXp: 150, rewardCoins: 50, groupId: devops.id,
+  metric: "lessons", target: 10, startsAt: ago(5), endsAt: new Date(Date.now() + 9 * DAY), rewardXp: 150, rewardCoins: 50,
 });
 const [teamA] = await db.insert(t.teams).values({ name: "Контейнеры", color: "#1E5A3C", demo: true }).returning();
 const [teamB] = await db.insert(t.teams).values({ name: "Кластеры", color: "#B4600E", demo: true }).returning();
@@ -837,7 +803,7 @@ await db.insert(t.duels).values({
 });
 
 const people = learners.length + 3 + 1 + 3;
-console.log(`Готово: 3 потока, людей: ${people}, курсы Linux, Docker, Kubernetes и «Компьютер для школьников», программа «${program.title}»`);
+console.log(`Готово: людей: ${people}, курсы Linux, Docker, Kubernetes и «Компьютер для школьников», программа «${program.title}»`);
 console.log(`Демо-входы (пароль ${demoPassword}): ученик demo@platforma.local, родитель parent@platforma.local,`);
 console.log("преподаватель teacher@platforma.local, куратор curator@platforma.local, методист methodist@platforma.local");
 await client.end();

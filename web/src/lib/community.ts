@@ -37,7 +37,7 @@ export async function canSeeLesson(user: Learner, lessonId: string) {
 /** Раздел форума виден: общий — всем, курса — тем, у кого есть курс; темы потока — только потоку */
 export async function canSeeTopic(user: Learner, topic: { courseId: string | null; groupId: string | null }) {
   if (isStaff(user)) return true;
-  if (topic.groupId && topic.groupId !== user.groupId) return false;
+  if (topic.groupId) return false; // темы бывших потоков — только персоналу
   if (!topic.courseId) return !user.external;
   const [c] = await db.select({ id: t.courses.id, published: t.courses.published, publishAt: t.courses.publishAt }).from(t.courses).where(eq(t.courses.id, topic.courseId));
   return !!c && canAccessCourse(user, c);
@@ -70,7 +70,7 @@ export async function canSeeTarget(user: Learner, target: Target, id: string) {
     }
     case "announcement": {
       const [a] = await db.select({ groupId: t.announcements.groupId }).from(t.announcements).where(eq(t.announcements.id, id));
-      return !!a && (isStaff(user) || !a.groupId || a.groupId === user.groupId);
+      return !!a;
     }
   }
 }

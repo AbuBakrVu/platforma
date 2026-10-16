@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { demoCounts } from "@/db/demo";
 import { removeDemo } from "@/app/(app)/admin/actions";
@@ -10,20 +10,21 @@ import { dayKey, fmtDate, fmtTime, greeting, plural } from "@/lib/format";
 import { fmtPhone } from "@/lib/phone";
 import { Confirm } from "./Buttons";
 import { Icon, type IconName } from "./Icon";
+import { RequestList } from "@/app/(app)/admin/requests/RequestList";
 import s from "./staff-home.module.css";
 
 type Staff = NonNullable<Awaited<ReturnType<typeof getUser>>>;
 
 const DAY = 864e5;
 /** Границы для запросов — вне рендера, чтобы не дёргать часы во время отрисовки */
-const bounds = () => ({ now: new Date(), from: new Date(Date.now() - DAY), to: new Date(Date.now() + 2 * DAY), idle: new Date(Date.now() - 7 * DAY) });
+const bounds = () => ({ now: new Date(), from: new Date(Date.now() - DAY), to: new Date(Date.now() + 2 * DAY), fresh: new Date(Date.now() - 14 * DAY) });
 
 /** Главная сотрудника: что ждёт его сегодня, по его правам */
 export async function StaffHome({ user, removed }: { user: Staff; removed: boolean }) {
   const w = bounds();
   const sched = await featureOn("schedule");
   const none = Promise.resolve([] as never[]);
-  const [toReview, events, [orders], unread, drafts, idle, demo, fresh] = await Promise.all([
+  const [toReview, events, [orders], unread, drafts, demo, fresh, requests] = await Promise.all([
     can(user, "review")
       ? db.select({ id: t.submissions.id, at: t.submissions.submittedAt, who: t.users.name, lesson: t.lessons.title })
         .from(t.submissions).innerJoin(t.users, eq(t.users.id, t.submissions.userId))
@@ -42,25 +43,27 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
     can(user, "courses")
       ? db.select({ id: t.courses.id, title: t.courses.title }).from(t.courses).where(eq(t.courses.published, false)).orderBy(asc(t.courses.title))
       : none,
-    can(user, "gradebook") || can(user, "people")
-      ? db.select({ id: t.users.id, name: t.users.name, seen: t.users.lastSeenAt, group: t.groups.name })
-        .from(t.users).leftJoin(t.groups, eq(t.groups.id, t.users.groupId))
-        .where(and(eq(t.users.role, "student"), or(isNull(t.users.lastSeenAt), lt(t.users.lastSeenAt, w.idle))))
-        .orderBy(sql`${t.users.lastSeenAt} asc nulls first`).limit(8)
-      : none,
     user.role === "admin" ? demoCounts(db) : null,
-    // Зарегистрировались сами и ждут, когда их добавят в поток
+    // Новые ученики за последние 2 недели
     can(user, "people")
-      ? db.select({ id: t.users.id, name: t.users.name, phone: t.users.phone, at: t.users.createdAt }).from(t.users)
-        .where(and(eq(t.users.role, "student"), isNull(t.users.groupId), eq(t.users.external, false)))
+      ? db.select({ id: t.users.id, name: t.users.name, phone: t.users.phone, at: t.users.createdAt,
+        courses: sql<number>`(select count(*) from ${t.userCourses} uc where uc.user_id = ${t.users.id})::int` }).from(t.users)
+        .where(and(eq(t.users.role, "student"), gte(t.users.createdAt, w.fresh)))
         .orderBy(desc(t.users.createdAt)).limit(10)
+      : none,
+    // Заявки на платные курсы: оплата получена — открыть доступ
+    can(user, "people")
+      ? db.select({ id: t.courseRequests.id, at: t.courseRequests.createdAt, note: t.courseRequests.note, price: t.courseRequests.price,
+        userId: t.users.id, name: t.users.name, email: t.users.email, phone: t.users.phone, course: t.courses.title })
+        .from(t.courseRequests).innerJoin(t.users, eq(t.users.id, t.courseRequests.userId)).innerJoin(t.courses, eq(t.courses.id, t.courseRequests.courseId))
+        .where(eq(t.courseRequests.status, "new")).orderBy(t.courseRequests.createdAt)
       : none,
   ]);
   const today = dayKey(w.now);
   const todays = events.filter((e) => dayKey(e.at) === today && e.kind !== "deadline");
 
   const tiles: { n: number; label: string; href: string; icon: IconName; show: boolean }[] = [
-    { n: fresh.length, label: plural(fresh.length, "новый ученик без потока", "новых ученика без потока", "новых учеников без потока"), href: "#fresh", icon: "person-add", show: fresh.length > 0 },
+    { n: requests.length, label: plural(requests.length, "заявка на курс", "заявки на курсы", "заявок на курсы"), href: "/admin/requests", icon: "person-add", show: can(user, "people") },
     { n: toReview.length, label: plural(toReview.length, "работа ждёт проверки", "работы ждут проверки", "работ ждут проверки"), href: "/admin/review", icon: "check", show: can(user, "review") },
     { n: todays.length, label: plural(todays.length, "занятие сегодня", "занятия сегодня", "занятий сегодня"), href: "/admin/schedule", icon: "cal", show: (sched && can(user, "schedule")) },
     { n: unread, label: plural(unread, "новое сообщение", "новых сообщения", "новых сообщений"), href: "/messages", icon: "mail", show: true },
@@ -97,15 +100,10 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
         ))}
       </div>
 
-      {fresh.length > 0 && (
-        <section className="card" id="fresh">
-          <div className="card-h"><h2>Новые регистрации</h2><span className="small muted">добавьте в поток — тогда они увидят курсы</span></div>
-          {fresh.map((u) => (
-            <Link key={u.id} href={`/admin/people/${u.id}#account`} className={s.line}>
-              <span><b>{u.name}</b>{u.phone ? ` · ${fmtPhone(u.phone)}` : ""}</span>
-              <span className="small muted">{fmtDate(u.at)} · выбрать поток →</span>
-            </Link>
-          ))}
+      {requests.length > 0 && (
+        <section className="card">
+          <div className="card-h"><h2>Заявки на курсы</h2><span className="small muted">проверьте оплату и откройте доступ</span></div>
+          <RequestList rows={requests} />
         </section>
       )}
 
@@ -135,13 +133,14 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
           </section>
         )}
 
-        {idle.length > 0 && (
+
+        {fresh.length > 0 && (
           <section className="card">
-            <div className="card-h"><h2>Давно не заходили</h2><span className="small muted">больше недели</span></div>
-            {idle.map((u) => (
+            <div className="card-h"><h2>Новые ученики</h2><span className="small muted">за 2 недели</span></div>
+            {fresh.map((u) => (
               <Link key={u.id} href={`/admin/people/${u.id}`} className={s.line}>
-                <span><b>{u.name}</b>{u.group ? ` · ${u.group}` : ""}</span>
-                <span className="small muted">{u.seen ? `был(а) ${fmtDate(u.seen)}` : "ещё не заходил(а)"}</span>
+                <span><b>{u.name}</b>{u.phone ? ` · ${fmtPhone(u.phone)}` : ""}</span>
+                <span className="small muted">{fmtDate(u.at)} · {u.courses ? `${u.courses} ${plural(u.courses, "курс", "курса", "курсов")}` : "ещё не записан"}</span>
               </Link>
             ))}
           </section>
@@ -162,7 +161,7 @@ export async function StaffHome({ user, removed }: { user: Staff; removed: boole
           <div className="card-h"><h2>Демо-данные</h2></div>
           <p className="muted" style={{ margin: 0, lineHeight: 1.55 }}>
             В базе есть данные для знакомства: {demo.users} {plural(demo.users, "пользователь", "пользователя", "пользователей")} (включая
-            demo@platforma.local), {demo.groups} {plural(demo.groups, "поток", "потока", "потоков")}, {demo.courses}{" "}
+            demo@platforma.local), {demo.courses}{" "}
             {plural(demo.courses, "курс", "курса", "курсов")}
             {demo.exams ? `, ${demo.exams} ${plural(demo.exams, "экзамен", "экзамена", "экзаменов")}` : ""}. Удалите их перед запуском для настоящих учеников —
             ваши собственные курсы и пользователи не пострадают.

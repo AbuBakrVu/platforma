@@ -18,7 +18,7 @@ export async function claimQuest(code: string) {
 
 export async function claimChallenge(id: string) {
   const user = await requireUser();
-  const c = (await activeChallenges(user.id, user.groupId)).find((x) => x.id === id);
+  const c = (await activeChallenges(user.id)).find((x) => x.id === id);
   if (!c || !c.done || c.claimed) return;
   await award(user.id, { xp: c.rewardXp, coins: c.rewardCoins, reason: `Челлендж «${c.title}»`, sourceKey: `challenge:${c.id}` });
   revalidatePath("/", "layout");

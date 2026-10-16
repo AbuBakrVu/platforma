@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
-import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
@@ -21,7 +19,6 @@ const PLAN_EXAMPLE = `Например:
 /** Новый курс одной формой или загрузка готового курса из архива */
 export default async function NewCourse() {
   await requirePerm("courses");
-  const groups = await db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name));
 
   return (
     <>
@@ -36,15 +33,10 @@ export default async function NewCourse() {
             <div className="field"><label htmlFor="c-desc">Короткое описание <span className="muted">(необязательно)</span></label>
               <input id="c-desc" name="description" className="ctl" /></div>
           </div>
-          <div className="field">
-            <span className="small muted">Какие потоки будут проходить курс</span>
-            {groups.length ? (
-              <div className="row" style={{ gap: 18 }}>
-                {groups.map((g) => (
-                  <label key={g.id} className="check"><input type="checkbox" name="group" value={g.id} />{g.name}</label>
-                ))}
-              </div>
-            ) : <span className="small muted">Потоков пока нет — выберете потом на странице курса.</span>}
+          <div className="form-row">
+            <div className="field"><label htmlFor="c-price">Цена, ₽ <span className="muted">(0 — бесплатный курс)</span></label>
+              <input id="c-price" name="price" type="number" min={0} step={100} defaultValue={0} className="ctl" /></div>
+            <div className="field" />
           </div>
           <div className="field"><label htmlFor="c-plan">План курса <span className="muted">(необязательно — можно добавить потом)</span></label>
             <textarea id="c-plan" name="plan" className="ctl mono" style={{ minHeight: 150 }} placeholder={PLAN_EXAMPLE} />

@@ -10,14 +10,11 @@ export async function GET(req: Request) {
   const user = await getUser();
   if (!user || !can(user, "gradebook")) return new Response("Нет доступа", { status: 403 });
   const q = new URL(req.url).searchParams;
-  const groupId = uuidOrNull(q.get("group") ?? ""), courseId = uuidOrNull(q.get("course") ?? "");
-  if (!groupId || !courseId) return new Response("Укажите поток и курс", { status: 400 });
-  const [[g], [c]] = await Promise.all([
-    db.select({ name: t.groups.name }).from(t.groups).where(eq(t.groups.id, groupId)),
-    db.select({ title: t.courses.title, slug: t.courses.slug }).from(t.courses).where(eq(t.courses.id, courseId)),
-  ]);
-  if (!g || !c) return new Response("Не найдено", { status: 404 });
-  const { columns, rows } = await gradebook(groupId, courseId);
+  const courseId = uuidOrNull(q.get("course") ?? "");
+  if (!courseId) return new Response("Укажите курс", { status: 400 });
+  const [c] = await db.select({ title: t.courses.title, slug: t.courses.slug }).from(t.courses).where(eq(t.courses.id, courseId));
+  if (!c) return new Response("Не найдено", { status: 404 });
+  const { columns, rows } = await gradebook(courseId);
   const data: (string | number | null)[][] = [
     ["Ученик", "Email", ...columns.map((col) => col.title)],
     ...rows.map((r) => [r.student.name, r.student.email, ...columns.map((col) => {
@@ -26,11 +23,11 @@ export async function GET(req: Request) {
       return col.kind === "exam" || col.kind === "total" ? cell?.value ?? null : cell?.text ?? "";
     })]),
   ];
-  const file = xlsx(`${g.name} · ${c.title}`, data);
+  const file = xlsx(c.title, data);
   return new Response(new Uint8Array(file), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(`Журнал ${g.name} ${c.slug}.xlsx`)}`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(`Журнал ${c.slug}.xlsx`)}`,
       "Cache-Control": "no-store",
     },
   });

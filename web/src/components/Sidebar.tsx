@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar } from "./Avatar";
 import { isStaffRole, type Perm } from "@/lib/permissions";
 import type { Feature, Features } from "@/lib/features-list";
 import { Icon, type IconName } from "./Icon";
 import { signOut } from "@/app/(auth)/login/actions";
 
-type Badge = "due" | "quests" | "unread" | "duels" | "review" | "orders";
+type Badge = "due" | "quests" | "unread" | "duels" | "review" | "orders" | "requests";
 type Item = {
   href: string; label: string; icon: IconName; badge?: Badge;
   /** Короткая подпись для нижней панели на телефоне */
@@ -31,6 +31,7 @@ type Group = { title?: string; items: Item[] };
 const STUDENT: Group[] = [
   { items: [
     { href: "/", label: "Главная", icon: "home" },
+    { href: "/catalog", label: "Каталог курсов", short: "Каталог", icon: "cards" },
     { href: "/courses", label: "Мои курсы", short: "Курсы", icon: "skills" },
     { href: "/schedule", label: "Расписание", icon: "cal", feature: "schedule" },
     { href: "/review", label: "Повторение", icon: "cards", badge: "due" },
@@ -65,7 +66,8 @@ const STAFF: Group[] = [
     { href: "/admin/review", label: "Проверка заданий", short: "Проверка", icon: "check", perm: "review", badge: "review" },
     { href: "/admin/gradebook", label: "Журнал оценок", icon: "doc", perm: "gradebook" },
     { href: "/admin/schedule", label: "Расписание", icon: "cal", perm: "schedule", feature: "schedule" },
-    { href: "/admin/users", label: "Люди и потоки", icon: "users", perm: "people", also: ["/admin/groups", "/admin/roles", "/admin/mentors", "/admin/people"] },
+    { href: "/admin/requests", label: "Заявки на курсы", short: "Заявки", icon: "person-add", perm: "people", badge: "requests" },
+    { href: "/admin/users", label: "Люди", icon: "users", perm: "people", also: ["/admin/roles", "/admin/mentors", "/admin/people"] },
     { href: "/admin/shop", label: "Магазин и игра", icon: "shop", perm: "shop", badge: "orders", also: ["/admin/game"] },
   ] },
   { title: "Общение", items: [
@@ -85,10 +87,19 @@ const PARENT: Group[] = [{ items: [
 
 /** Нижняя панель на телефоне: самое частое, остальное — в «Меню» */
 const TABS = {
-  student: ["/", "/courses", "/review", "/messages"],
-  staff: ["/", "/admin/courses", "/admin/review", "/admin/schedule", "/messages"],
+  student: ["/", "/catalog", "/courses", "/messages"],
+  staff: ["/", "/admin/courses", "/admin/requests", "/admin/review", "/messages"],
   parent: ["/parent", "/messages", "/news"],
 };
+
+/** Верхняя полоса на страницах курса: основные разделы иконками, остальное — под «Ещё» */
+const TOP = {
+  student: ["/", "/catalog", "/courses", "/review", "/quests", "/rating", "/messages"],
+  staff: ["/", "/admin/courses", "/admin/review", "/admin/requests", "/admin/users", "/messages"],
+  parent: ["/parent", "/messages", "/news"],
+};
+/** Страница курса и уроки — там основное меню уходит наверх, чтобы урок был шире */
+const isCoursePage = (path: string) => /^\/courses\/[^/]+/.test(path);
 
 const ROLE = { student: "Ученик", teacher: "Сотрудник", admin: "Администратор", parent: "Родитель" } as const;
 /** Разделы для своих — внешнему ученику (клиенту, партнёру) не показываем */
@@ -99,19 +110,26 @@ type Game = {
   unread: number; mentees: number;
 };
 
-export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staffCounts, labs, features, external = false, impersonating = false }: {
-  name: string; role: keyof typeof ROLE; group?: string | null; due?: number; external?: boolean; impersonating?: boolean;
+export function Sidebar({ name, role, due = 0, avatar, game, perms, staffCounts, labs, features, external = false, impersonating = false }: {
+  name: string; role: keyof typeof ROLE; due?: number; external?: boolean; impersonating?: boolean;
   avatar: { avatarId: string | null; avatarColor: string | null; frame: string | null }; game: Game;
-  perms: readonly string[]; staffCounts: { review: number; orders: number }; labs: boolean; features: Features;
+  perms: readonly string[]; staffCounts: { review: number; orders: number; requests: number }; labs: boolean; features: Features;
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  // Esc закрывает выезжающее меню
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const staff = isStaffRole(role);
   const kind = role === "parent" ? "parent" : staff ? "staff" : "student";
 
   const counts: Record<Badge, number> = {
-    due, quests: game.quests, unread: game.unread, duels: game.duels, review: staffCounts.review, orders: staffCounts.orders,
+    due, quests: game.quests, unread: game.unread, duels: game.duels, review: staffCounts.review, orders: staffCounts.orders, requests: staffCounts.requests,
   };
   const isOn = (l: Item) => (l.href === "/" ? path === "/"
     : [l.href, ...(l.also ?? [])].some((h) => path.startsWith(h)) && !(l.not ?? []).some((h) => path.startsWith(h)));
@@ -138,6 +156,8 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
     </Link>
   );
   const here = all.find(isOn);
+  const topMode = isCoursePage(path);
+  const top = TOP[kind].map((h) => all.find((l) => l.href === h)).filter((l): l is Item => !!l);
   // Группа раскрыта, если её открыли вручную или в ней текущая страница
   const isOpen = (g: Group) => toggled[g.title ?? ""] ?? g.items.some(isOn);
 
@@ -151,15 +171,39 @@ export function Sidebar({ name, role, group, due = 0, avatar, game, perms, staff
         <b>{here?.label ?? "Платформа"}</b>
         <Link href="/profile" aria-label="Профиль"><Avatar user={{ name, ...avatar }} size={36} /></Link>
       </div>
+      {/* Компьютер, страница курса: основное меню — полосой сверху */}
+      {topMode && (
+        <header className="topnav">
+          <Link href="/" className="topnav-logo"><span>П</span>Платформа</Link>
+          <nav className="topnav-pill" aria-label="Основные разделы">
+            {top.map((l) => (
+              <Link key={l.href} href={l.href} title={l.label} aria-label={l.label} className={isOn(l) ? "on" : undefined} aria-current={isOn(l) ? "page" : undefined}>
+                <Icon name={l.icon} size={19} />{isOn(l) && <span>{l.short ?? l.label}</span>}{badge(l)}
+              </Link>
+            ))}
+            <button type="button" title="Всё меню" aria-label="Всё меню" aria-expanded={open} onClick={() => setOpen(true)}>
+              <svg className="ic" viewBox="0 0 24 24" aria-hidden style={{ width: 19, height: 19 }}><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            </button>
+          </nav>
+          <div className="topnav-me">
+            {kind === "student" && (
+              <Link href="/profile" className="pill" title={`Уровень ${game.level}: ${game.title}`}>
+                <span className={game.streakToday ? "" : "cold"}>🔥{game.streak}</span><span>🪙{game.coins}</span>
+              </Link>
+            )}
+            <Link href="/profile" aria-label="Профиль" title={name}><Avatar user={{ name, ...avatar }} size={40} /></Link>
+          </div>
+        </header>
+      )}
       {open && <div className="side-back" onClick={() => setOpen(false)} aria-hidden />}
 
-      <nav className={`side ${open ? "open" : ""}`} aria-label="Меню" onClick={(e) => { if ((e.target as Element).closest("a")) setOpen(false); }}>
+      <nav className={`side ${topMode ? "drawer" : ""} ${open ? "open" : ""}`} aria-label="Меню" onClick={(e) => { if ((e.target as Element).closest("a")) setOpen(false); }}>
         <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
           <Link href="/profile" className="me" aria-label="Профиль">
             <Avatar user={{ name, ...avatar }} size={44} />
             <div style={{ minWidth: 0 }}>
               <b style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</b>
-              <small>{ROLE[role]}{group && !staff ? ` · ${group}` : ""}</small>
+              <small>{ROLE[role]}</small>
             </div>
           </Link>
           <button type="button" className="iconbtn side-x" aria-label="Закрыть меню" onClick={() => setOpen(false)}><Icon name="x" size={18} /></button>

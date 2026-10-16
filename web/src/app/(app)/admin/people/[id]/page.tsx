@@ -16,7 +16,7 @@ import { Icon } from "@/components/Icon";
 import { Confirm, Copy, Submit } from "@/components/Buttons";
 import { deleteUser, setPassword, updateUser } from "../../users/actions";
 import {
-  grantCourse, inviteParent, linkChild, linkParent, revokeCourse, setAccessRole, setExternal, startImpersonation, unlinkParent,
+  grantCourse, inviteParent, linkChild, linkParent, revokeCourse, setAccessRole, startImpersonation, unlinkParent,
 } from "../actions";
 import s from "../people.module.css";
 
@@ -37,7 +37,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
   const me = await requireStaff();
   if (!can(me, "gradebook") && !can(me, "people")) redirect("/");
   const id = uuidOrNull((await params).id);
-  const [u] = id ? await db.select({ u: t.users, group: t.groups.name }).from(t.users).leftJoin(t.groups, eq(t.groups.id, t.users.groupId)).where(eq(t.users.id, id)) : [];
+  const [u] = id ? await db.select({ u: t.users }).from(t.users).where(eq(t.users.id, id)) : [];
   if (!u) notFound();
   const user = u.u;
   const student = user.role === "student";
@@ -45,8 +45,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
 
   const saved = (await searchParams).saved;
   const features = await getFeatures();
-  const [groups, roles, allCourses, personal, parents, children, mentor, audit, invites, parentsAll, studentsAll] = await Promise.all([
-    db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
+  const [roles, allCourses, personal, parents, children, mentor, audit, invites, parentsAll, studentsAll] = await Promise.all([
     db.select({ id: t.accessRoles.id, name: t.accessRoles.name }).from(t.accessRoles).orderBy(asc(t.accessRoles.name)),
     db.select({ id: t.courses.id, title: t.courses.title }).from(t.courses).orderBy(asc(t.courses.title)),
     db.select({ courseId: t.userCourses.courseId, until: t.userCourses.until, title: t.courses.title }).from(t.userCourses)
@@ -67,7 +66,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
   // Учебные данные — только для ученика
   const learning = student ? await (async () => {
     const [courses, xp, coins, streak, att, exams, subs, labs, ach, recent] = await Promise.all([
-      getMyCourses({ id: user.id, role: user.role, groupId: user.groupId, external: user.external }),
+      getMyCourses({ id: user.id, role: user.role }),
       totalXp(user.id), getCoins(user.id), getStreak(user.id), getAttendanceStats(user.id),
       db.select({ title: t.exams.title, pass: t.exams.passPercent, best: sql<number>`max(${t.examAttempts.scorePercent})::int`, tries: sql<number>`count(*)::int` })
         .from(t.examAttempts).innerJoin(t.exams, eq(t.exams.id, t.examAttempts.examId))
@@ -101,13 +100,12 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
           <div className="row">
             <span className="tag">{ROLE_LABEL[user.role]}</span>
             {user.external && <span className="tag grey">внешний</span>}
-            {u.group && <span className="tag grey">Поток {u.group}</span>}
             {user.demo && <span className="tag warn">демо</span>}
           </div>
           <span className="small muted">Зарегистрирован {fmtDate(user.createdAt)} · {user.lastSeenAt ? `был(а) ${fmtDateTime(user.lastSeenAt)}` : "ещё не заходил(а)"}</span>
         </div>
         <div className="row">
-          {manage && <a href="#account" className="btn"><Icon name="settings" size={18} />Роль, поток, пароль</a>}
+          {manage && <a href="#account" className="btn"><Icon name="settings" size={18} />Роль и пароль</a>}
           {student && <Link href={`/parent/${user.id}`} className="btn">👪 Как видит родитель</Link>}
           {canImpersonate && <form action={startImpersonation.bind(null, user.id)}><button className="btn">👁 Войти как {ROLE_LABEL[user.role].toLowerCase()}</button></form>}
         </div>
@@ -177,15 +175,10 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
         {manage && (
           <section className="card" id="account" style={{ scrollMarginTop: 16 }}>
             <div className="card-h"><h2>Учётная запись</h2></div>
-            <form action={updateUser.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }} key={`${user.role}-${user.groupId}-${user.email}-${user.phone}`}>
+            <form action={updateUser.bind(null, user.id)} className="row" style={{ alignItems: "flex-end" }} key={`${user.role}-${user.email}-${user.phone}`}>
               <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-role">Роль</label>
                 <select id="u-role" name="role" defaultValue={user.role} className="ctl" disabled={user.id === me.id}>
                   {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select></div>
-              <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="u-group">Поток</label>
-                <select id="u-group" name="groupId" defaultValue={user.groupId ?? ""} className="ctl">
-                  <option value="">Без потока</option>
-                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select></div>
               <div className="field" style={{ flex: "1 1 200px" }}><label htmlFor="u-email">Почта</label>
                 <input id="u-email" name="email" type="email" defaultValue={user.email} className="ctl" /></div>
@@ -233,13 +226,11 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
 
         {student && (
           <section className="card">
-            <div className="card-h"><h2>Личный доступ к курсам</h2></div>
-            <p className="small muted" style={{ margin: 0 }}>
-              {user.external ? "Внешний ученик видит только эти курсы." : "Дополнительно к курсам потока."}
-            </p>
+            <div className="card-h" id="courses"><h2>Курсы ученика</h2></div>
+            <p className="small muted" style={{ margin: 0 }}>Курсы, на которые он записан. Любой курс можно открыть вручную — например, после оплаты наличными.</p>
             {personal.map((p) => (
               <div key={p.courseId} className={s.line}><span>{p.title}</span><span className="small muted">{p.until ? `до ${fmtDate(p.until)}` : "бессрочно"}</span>
-                {manage && <form action={revokeCourse.bind(null, user.id, p.courseId)}><Confirm className="btn sm danger" message={`Забрать доступ к «${p.title}»?`}>Забрать</Confirm></form>}
+                {manage && <form action={revokeCourse.bind(null, user.id, p.courseId)}><Confirm className="btn sm danger" message={`Закрыть доступ к «${p.title}»?`}>Закрыть</Confirm></form>}
               </div>
             ))}
             {manage && free.length > 0 && (
@@ -247,14 +238,7 @@ export default async function Person({ params, searchParams }: PageProps<"/admin
                 <select name="courseId" className="ctl" style={{ flex: "1 1 200px" }} aria-label="Курс">{free.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</select>
                 <div className="field"><label htmlFor="until" className="small">До (необязательно)</label>
                   <input id="until" name="until" type="datetime-local" className="ctl" /></div>
-                <Submit className="btn sm">Выдать</Submit>
-              </form>
-            )}
-            {manage && (
-              <form action={setExternal.bind(null, user.id, !user.external)}>
-                <Confirm className="btn sm" message={user.external ? "Сделать обычным учеником?" : "Сделать внешним учеником? Он потеряет поток и внутренние разделы."}>
-                  {user.external ? "Сделать обычным учеником" : "Сделать внешним учеником"}
-                </Confirm>
+                <Submit className="btn sm pri">Открыть курс</Submit>
               </form>
             )}
           </section>

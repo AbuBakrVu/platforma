@@ -142,7 +142,8 @@ const serializer: MarkdownSerializer = new MarkdownSerializer({
   taskList(state, node) { state.renderList(node, "  ", (i) => `- [${node.child(i).attrs.checked ? "x" : " "}] `); },
   taskItem(state, node) { state.renderContent(node); },
   image(state, node) {
-    state.write(`![${state.esc(node.attrs.alt || "")}](${String(node.attrs.src).replace(/[()]/g, "\\$&")})`);
+    const title = node.attrs.title ? ` "${String(node.attrs.title).replace(/"/g, "")}"` : "";
+    state.write(`![${state.esc(node.attrs.alt || "")}](${String(node.attrs.src).replace(/[()]/g, "\\$&")}${title})`);
   },
   mathInline(state, node) { state.write(`$${node.attrs.src}$`); },
   mathBlock(state, node) {

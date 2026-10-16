@@ -104,13 +104,13 @@ export async function signUp(_: SignUpState, form: FormData): Promise<SignUpStat
   const passwordHash = await hashPassword(password);
   const verify = mailEnabled();
   const userId = await db.transaction(async (tx) => {
-    // Без кода — обычный ученик без потока: администратор добавит его после оплаты
+    // Без кода — обычный ученик: курсы выбирает сам в каталоге
     const invite = code ? await consumeInvite(tx, code) : null;
     if (code && !invite) return null;
     const role = invite?.role ?? "student";
     const [user] = await tx.insert(schema.users).values({
       name, email, phone, passwordHash, role, emailVerified: !verify,
-      groupId: invite && role === "student" ? invite.groupId : null,
+      groupId: null,
       external: !!invite && role === "student" && invite.external,
       accessRoleId: invite && role === "teacher" ? invite.accessRoleId : null,
       birthDate: values.birthDate,

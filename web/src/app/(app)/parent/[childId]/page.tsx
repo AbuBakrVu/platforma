@@ -45,7 +45,7 @@ export default async function ChildPage({ params }: PageProps<"/parent/[childId]
         <Avatar user={child} size={72} />
         <div className={s.heroText}>
           <h1>{child.name}</h1>
-          <span className="muted">{child.group ? `Группа ${child.group}` : "Индивидуальное обучение"} · {daysAgo(child.lastSeenAt)}</span>
+          <span className="muted">{daysAgo(child.lastSeenAt)}</span>
         </div>
       </section>
 

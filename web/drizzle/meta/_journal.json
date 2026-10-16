@@ -92,6 +92,13 @@
       "when": 1791989545588,
       "tag": "0012_course_cover",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792064983474,
+      "tag": "0013_course_price_requests",
+      "breakpoints": true
     }
   ]
 }

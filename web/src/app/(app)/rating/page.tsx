@@ -4,7 +4,7 @@ import { db, schema as t } from "@/db";
 import { requireInternal } from "@/lib/auth";
 import { fmtDateTime, plural } from "@/lib/format";
 import { lastResult, LEAGUES, leagueTable } from "@/lib/leagues";
-import { getGroupName, getLeaderboard, getTeamBoard, getXp } from "@/lib/queries";
+import { getLeaderboard, getMyCourses, getTeamBoard, getXp } from "@/lib/queries";
 import { Avatar } from "@/components/Avatar";
 import { TopBar } from "@/components/TopBar";
 import s from "./rating.module.css";
@@ -13,7 +13,7 @@ export const metadata = { title: "Рейтинг" };
 
 const PERIODS = { week: "Неделя", month: "Месяц", all: "Всё время" } as const;
 type Period = keyof typeof PERIODS;
-const VIEWS = { group: "Поток", league: "Лига", teams: "Команды" } as const;
+const VIEWS = { all: "Общий", course: "По курсу", league: "Лига", teams: "Команды" } as const;
 type View = keyof typeof VIEWS;
 
 function since(p: Period) {
@@ -26,9 +26,11 @@ export default async function RatingPage({ searchParams }: PageProps<"/rating">)
   const user = await requireInternal();
   const sp = await searchParams;
   const period: Period = sp.period === "month" || sp.period === "all" ? sp.period : "week";
-  const view: View = sp.view === "league" || sp.view === "teams" ? sp.view : "group";
-  const xp = await getXp(user.id);
-  const link = (v: View, p: Period = period) => `/rating?view=${v}${p !== "week" ? `&period=${p}` : ""}`;
+  const view: View = sp.view === "league" || sp.view === "teams" || sp.view === "course" ? sp.view : "all";
+  const [xp, myCourses] = await Promise.all([getXp(user.id), getMyCourses(user)]);
+  const courseId = view === "course" ? (myCourses.find((c) => c.id === sp.course)?.id ?? myCourses[0]?.id ?? null) : null;
+  const link = (v: View, p: Period = period) =>
+    `/rating?view=${v}${p !== "week" ? `&period=${p}` : ""}${v === "course" && courseId ? `&course=${courseId}` : ""}`;
 
   const nav = (
     <div className="row">
@@ -116,17 +118,18 @@ export default async function RatingPage({ searchParams }: PageProps<"/rating">)
     );
   }
 
-  // ——— Поток ———
-  if (!user.groupId) {
+  // ——— Общий или по курсу ———
+  if (view === "course" && !courseId) {
     return (
       <>
         <TopBar left={<b>Рейтинг</b>} xp={xp} />
-        <div className="top"><div className="title"><h1>Рейтинг</h1></div>{nav}</div>
-        <section className="card"><p className="muted" style={{ margin: 0 }}>Рейтинг потока появится, когда вас добавят в поток.</p></section>
+        <div className="top"><div className="title"><h1>Рейтинг по курсу</h1></div>{nav}</div>
+        <section className="card"><p className="muted" style={{ margin: 0 }}>Запишитесь на курс в каталоге — здесь появится рейтинг его учеников.</p></section>
       </>
     );
   }
-  const [rows, group] = await Promise.all([getLeaderboard(user.groupId, since(period)), getGroupName(user.groupId)]);
+  const rows = await getLeaderboard(courseId, since(period));
+  const course = myCourses.find((c) => c.id === courseId);
   const top = rows.slice(0, 3);
   const rest = rows.slice(3);
 
@@ -134,11 +137,20 @@ export default async function RatingPage({ searchParams }: PageProps<"/rating">)
     <>
       <div className="top">
         <div className="title">
-          <h1>Рейтинг</h1>
-          <p>Поток {group} · {rows.length} {plural(rows.length, "ученик", "ученика", "учеников")}. XP начисляются за уроки, лабы, задания и экзамены.</p>
+          <h1>{course ? `Рейтинг курса «${course.title}»` : "Общий рейтинг"}</h1>
+          <p>{rows.length} {plural(rows.length, "ученик", "ученика", "учеников")}.{" "}
+            {course ? "XP только за уроки и экзамены этого курса." : "XP начисляются за уроки, лабы, задания и экзамены."}</p>
         </div>
         {nav}
       </div>
+      {view === "course" && myCourses.length > 1 && (
+        <nav className={s.seg} aria-label="Курс" style={{ flexWrap: "wrap" }}>
+          {myCourses.map((c) => (
+            <Link key={c.id} href={`/rating?view=course${period !== "week" ? `&period=${period}` : ""}&course=${c.id}`}
+              className={c.id === courseId ? s.on : undefined} aria-current={c.id === courseId ? "true" : undefined}>{c.title}</Link>
+          ))}
+        </nav>
+      )}
 
       <div className={s.podium}>
         {top.map((r) => (

@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, asc, desc, eq, gt, inArray, lt, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { freeSlug } from "@/lib/courses";
-import { bool, dateTime, int, slugify, str, uuidOrNull } from "@/lib/form";
+import { bool, dateTime, int, slugify, str } from "@/lib/form";
 import { TZ } from "@/lib/format";
 import { parseStep, STEP_KINDS, STEP_LABEL, type StepKind } from "@/lib/steps";
 
@@ -44,21 +44,7 @@ function parsePlan(text: string) {
   return plan.length ? plan.slice(0, 100) : [{ title: "Раздел 1", lessons: [] }];
 }
 
-/** Записать курс потокам: ровно отмеченные (id из name="group") */
-async function setCourseGroups(courseId: string, form: FormData) {
-  const ids = form.getAll("group").map(String).map(uuidOrNull).filter((x): x is string => !!x);
-  await db.transaction(async (tx) => {
-    await tx.delete(t.groupCourses).where(ids.length
-      ? and(eq(t.groupCourses.courseId, courseId), notInArray(t.groupCourses.groupId, ids))
-      : eq(t.groupCourses.courseId, courseId));
-    if (ids.length) {
-      const valid = await tx.select({ id: t.groups.id }).from(t.groups).where(inArray(t.groups.id, ids));
-      if (valid.length) await tx.insert(t.groupCourses).values(valid.map((g) => ({ groupId: g.id, courseId }))).onConflictDoNothing();
-    }
-  });
-}
-
-/** Создать курс одной формой: название, потоки и план (разделы и уроки). Курс — черновик до кнопки «Опубликовать». */
+/** Создать курс одной формой: название, цена и план (разделы и уроки). Курс — черновик до кнопки «Опубликовать». */
 export async function createCourse(form: FormData) {
   const me = await requirePerm("courses");
   const title = str(form, "title");
@@ -67,6 +53,7 @@ export async function createCourse(form: FormData) {
   const id = await db.transaction(async (tx) => {
     const [c] = await tx.insert(t.courses).values({
       title, slug: await freeSlug(slugify(title)), description: str(form, "description"), published: false,
+      price: int(form, "price", 0, 10_000_000, 0),
     }).returning({ id: t.courses.id });
     for (const [i, sec] of plan.entries()) {
       const [s] = await tx.insert(t.sections).values({ courseId: c.id, title: sec.title, position: i + 1 }).returning({ id: t.sections.id });
@@ -77,10 +64,8 @@ export async function createCourse(form: FormData) {
     }
     return c.id;
   });
-  await setCourseGroups(id, form);
   const lessons = plan.reduce((n, x) => n + x.lessons.length, 0);
   await log(id, me.id, lessons ? `Создал курс: ${plan.length} разд., ${lessons} ур.` : "Создал курс");
-  revalidatePath("/admin/groups");
   redirect(`/admin/courses/${id}?new=1`);
 }
 
@@ -89,15 +74,6 @@ export async function publishCourse(id: string, published: boolean) {
   const me = await requirePerm("courses");
   await db.update(t.courses).set({ published }).where(eq(t.courses.id, id));
   await log(id, me.id, published ? "Курс: опубликовал" : "Курс: снял с публикации");
-  touch(id);
-}
-
-/** Потоки, которые проходят курс (с карточки «Готовность» курса) */
-export async function updateCourseGroups(id: string, form: FormData) {
-  const me = await requirePerm("courses");
-  await setCourseGroups(id, form);
-  await log(id, me.id, "Изменил потоки курса");
-  revalidatePath("/admin/groups");
   touch(id);
 }
 
@@ -112,6 +88,7 @@ export async function updateCourse(id: string, form: FormData) {
     title,
     slug: await freeSlug(slugify(str(form, "slug") || title), id),
     description: str(form, "description"),
+    ...(form.has("price") ? { price: int(form, "price", 0, 10_000_000, 0) } : {}),
     publishAt,
     sequential: bool(form, "sequential"),
     parentDescription: str(form, "parentDescription").slice(0, 2000),

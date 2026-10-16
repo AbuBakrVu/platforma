@@ -2,31 +2,29 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { db, schema as t } from "@/db";
-import { can, requirePerm } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { uuidOrNull } from "@/lib/form";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
 import { PubStatus } from "@/components/PubStatus";
 import s from "../../admin.module.css";
 import {
-  addProgramCourse, deleteProgram, moveProgramCourse, removeProgramCourse, setProgramGroups, updateProgram,
+  addProgramCourse, deleteProgram, moveProgramCourse, removeProgramCourse, updateProgram,
 } from "../actions";
 
 export const metadata = { title: "Программа · управление" };
 
 export default async function ProgramEditor({ params }: PageProps<"/admin/programs/[id]">) {
-  const me = await requirePerm("courses");
+  await requirePerm("courses");
   const id = uuidOrNull((await params).id);
   if (!id) notFound();
   const [p] = await db.select().from(t.programs).where(eq(t.programs.id, id));
   if (!p) notFound();
-  const [items, courses, groups, links] = await Promise.all([
+  const [items, courses] = await Promise.all([
     db.select({ courseId: t.courses.id, title: t.courses.title, published: t.courses.published, publishAt: t.courses.publishAt })
       .from(t.programCourses).innerJoin(t.courses, eq(t.courses.id, t.programCourses.courseId))
       .where(eq(t.programCourses.programId, id)).orderBy(asc(t.programCourses.position)),
     db.select({ id: t.courses.id, title: t.courses.title }).from(t.courses).orderBy(asc(t.courses.title)),
-    db.select({ id: t.groups.id, name: t.groups.name }).from(t.groups).orderBy(asc(t.groups.name)),
-    db.select().from(t.groupPrograms).where(eq(t.groupPrograms.programId, id)),
   ]);
   const inProgram = new Set(items.map((i) => i.courseId));
   const free = courses.filter((c) => !inProgram.has(c.id));
@@ -47,7 +45,7 @@ export default async function ProgramEditor({ params }: PageProps<"/admin/progra
           <div className="field"><label htmlFor="p-desc">Описание</label>
             <input id="p-desc" name="description" defaultValue={p.description} className="ctl" /></div>
           <label className="check"><input type="checkbox" name="published" defaultChecked={p.published} />
-            Опубликована — потоки, которым она назначена, получают доступ к её курсам</label>
+            Опубликована — ученики видят программу в «Мои курсы», если записаны на её курсы</label>
           <label className="check"><input type="checkbox" name="sequential" defaultChecked={p.sequential} />
             Курсы по порядку — следующий курс открывается, когда пройдены все уроки предыдущего</label>
           <div><Submit>Сохранить</Submit></div>
@@ -80,32 +78,9 @@ export default async function ProgramEditor({ params }: PageProps<"/admin/progra
         )}
       </section>
 
-      <section className="card">
-        <div className="card-h"><h2>Потоки</h2></div>
-        {can(me, "people") ? (
-          <form action={setProgramGroups.bind(null, id)} className="form">
-            {groups.length ? (
-              <div className="row" style={{ gap: 18 }}>
-                {groups.map((g) => (
-                  <label key={g.id} className="check">
-                    <input type="checkbox" name="group" value={g.id} defaultChecked={links.some((l) => l.groupId === g.id)} />{g.name}
-                  </label>
-                ))}
-              </div>
-            ) : <p className="empty">Сначала создайте поток.</p>}
-            <span className="small muted">Курсы программы станут доступны ученикам отмеченных потоков — отдельно назначать их потоку не нужно.</span>
-            {groups.length > 0 && <div><Submit className="btn sm">Сохранить потоки</Submit></div>}
-          </form>
-        ) : (
-          <p className="small muted" style={{ margin: 0 }}>
-            {links.length ? `Назначена потокам: ${groups.filter((g) => links.some((l) => l.groupId === g.id)).map((g) => g.name).join(", ")}` : "Не назначена ни одному потоку."}
-            {" "}Назначает потоки администратор.
-          </p>
-        )}
-      </section>
 
       <form action={deleteProgram.bind(null, id)}>
-        <Confirm className="btn danger" message={`Удалить программу «${p.title}»? Курсы останутся, но потоки потеряют доступ к тем из них, что были открыты только через программу.`}>
+        <Confirm className="btn danger" message={`Удалить программу «${p.title}»? Сами курсы и записи учеников на них останутся.`}>
           <Icon name="trash" size={18} />Удалить программу
         </Confirm>
       </form>

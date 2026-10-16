@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requireInternal } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
@@ -17,8 +17,11 @@ export default async function DuelsPage() {
   const user = await requireInternal();
   const [duels, xp, classmates] = await Promise.all([
     myDuels(user.id), getXp(user.id),
-    user.groupId ? db.select({ id: t.users.id, name: t.users.name }).from(t.users)
-      .where(and(eq(t.users.groupId, user.groupId), eq(t.users.role, "student"), ne(t.users.id, user.id))).orderBy(asc(t.users.name)) : [],
+    // Соперники — ученики, у которых есть общий курс (вопросы берутся из общих курсов)
+    db.select({ id: t.users.id, name: t.users.name }).from(t.users)
+      .where(and(eq(t.users.role, "student"), ne(t.users.id, user.id), sql`exists (
+        select 1 from ${t.userCourses} a join ${t.userCourses} b on b.course_id = a.course_id
+        where a.user_id = ${t.users.id} and b.user_id = ${user.id})`)).orderBy(asc(t.users.name)),
   ]);
   const ids = [...new Set(duels.flatMap((d) => [d.challengerId, d.opponentId]))];
   const people = ids.length ? await db.select({ id: t.users.id, name: t.users.name, avatarId: t.users.avatarId, avatarColor: t.users.avatarColor, frame: t.users.frame })
@@ -41,7 +44,7 @@ export default async function DuelsPage() {
       <div className="title"><h1>Дуэли</h1>
         <p>5 вопросов из ваших общих курсов. Больше верных — победа, при равенстве — кто быстрее. Победа: +30 XP и 10 🪙. {played ? `Ваш счёт: ${won} побед из ${played}.` : ""}</p></div>
       <section className="card">
-        {classmates.length ? <NewDuel classmates={classmates} /> : <p className="empty">Дуэли — с одногруппниками; вас ещё не добавили в поток.</p>}
+        {classmates.length ? <NewDuel classmates={classmates} /> : <p className="empty">Соперников пока нет — дуэль возможна с учеником, который проходит тот же курс.</p>}
       </section>
       <section className="card">
         <div className="card-h"><h2>Мои дуэли</h2></div>
