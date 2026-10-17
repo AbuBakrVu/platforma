@@ -7,6 +7,10 @@ export function TopBar({ left, xp, children }: { left: ReactNode; xp: number; ch
     <header className="top">
       <div className="crumbs">{left}</div>
       <div className="row">
+        <form action="/search" className="tsearch" role="search">
+          <Icon name="search" size={18} />
+          <input name="q" placeholder="Поиск" aria-label="Поиск по курсам, урокам и базе знаний" />
+        </form>
         <span className="pill">
           <Icon name="bolt" size={16} className="xp-ic" />
           {xp.toLocaleString("ru-RU")} XP

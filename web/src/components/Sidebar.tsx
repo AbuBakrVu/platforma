@@ -31,6 +31,7 @@ type Group = { title?: string; items: Item[] };
 const STUDENT: Group[] = [
   { items: [
     { href: "/", label: "Главная", icon: "home" },
+    { href: "/search", label: "Поиск", icon: "search" },
     { href: "/catalog", label: "Каталог курсов", short: "Каталог", icon: "cards" },
     { href: "/courses", label: "Мои курсы", short: "Курсы", icon: "skills" },
     { href: "/schedule", label: "Расписание", icon: "cal", feature: "schedule" },
@@ -54,7 +55,7 @@ const STUDENT: Group[] = [
 
 /** Меню сотрудника: только рабочие разделы, каждый — по праву доступа */
 const STAFF: Group[] = [
-  { items: [{ href: "/", label: "Главная", icon: "home" }] },
+  { items: [{ href: "/", label: "Главная", icon: "home" }, { href: "/search", label: "Поиск", icon: "search" }] },
   { title: "Обучение", items: [
     { href: "/admin/courses", label: "Курсы", icon: "skills", perm: "courses", not: ["/admin/courses/new"] },
     { href: "/admin/courses/new", label: "Создать курс", icon: "plus", perm: "courses" },
@@ -94,8 +95,8 @@ const TABS = {
 
 /** Верхняя полоса на страницах курса: основные разделы иконками, остальное — под «Ещё» */
 const TOP = {
-  student: ["/", "/catalog", "/courses", "/review", "/quests", "/rating", "/messages"],
-  staff: ["/", "/admin/courses", "/admin/review", "/admin/requests", "/admin/users", "/messages"],
+  student: ["/", "/search", "/catalog", "/courses", "/review", "/quests", "/rating", "/messages"],
+  staff: ["/", "/search", "/admin/courses", "/admin/review", "/admin/requests", "/admin/users", "/messages"],
   parent: ["/parent", "/messages", "/news"],
 };
 /** Страница курса и уроки, а также создание и редактор курса — там основное меню уходит наверх, чтобы урок был шире */

@@ -188,3 +188,9 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 @keyframes skel{from{opacity:1}to{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.skel i,.skel-card{animation:none}}
 .skel-card.skel-editor{height:220px;background:#F0F2EF;animation:skel 1.2s ease-in-out infinite alternate}
+
+/* Строка поиска в верхней панели (на телефоне — пункт «Поиск» в меню) */
+.tsearch{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:20px;background:#fff;color:var(--muted);width:220px}
+.tsearch:focus-within{outline:2px solid var(--green-soft);color:var(--green)}
+.tsearch input{border:0;outline:0;background:none;font:inherit;font-size:14px;color:var(--ink);width:100%;min-width:0}
+@media (max-width:860px){.tsearch{display:none}}

@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { closeSync, createReadStream, mkdirSync, openSync, writeSync } from "node:fs";
-import { cp, mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
+import { copyFile, cp, link, mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { asc, eq, inArray } from "drizzle-orm";
 import { Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from "fflate";
@@ -227,5 +227,101 @@ export async function importCourse(zipFile: string, userId: string) {
     return courseId;
   } finally {
     await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Копия курса на этой же платформе: разделы, уроки, шаги (связи с библиотекой сохраняются), материалы, обложка, SCORM-пакеты.
+ * Файлы курса получают новые id, но на диске не дублируются — жёсткая ссылка на тот же файл (если не вышло — копия).
+ * Копия — черновик без учеников; прогресс, заявки и экзамены не копируются.
+ */
+export async function copyCourse(courseId: string, userId: string) {
+  const [src] = await db.select().from(t.courses).where(eq(t.courses.id, courseId));
+  if (!src) return null;
+  const sections = await db.select().from(t.sections).where(eq(t.sections.courseId, courseId)).orderBy(asc(t.sections.position));
+  const lessons = sections.length
+    ? await db.select().from(t.lessons).where(inArray(t.lessons.sectionId, sections.map((x) => x.id))).orderBy(asc(t.lessons.position)) : [];
+  const steps = lessons.length
+    ? await db.select().from(t.lessonSteps).where(inArray(t.lessonSteps.lessonId, lessons.map((l) => l.id))).orderBy(asc(t.lessonSteps.position)) : [];
+  const materials = await db.select().from(t.courseMaterials).where(eq(t.courseMaterials.courseId, courseId)).orderBy(asc(t.courseMaterials.position));
+  const uploads = await db.select().from(t.uploads).where(eq(t.uploads.courseId, courseId));
+  const packages = await db.select().from(t.packages).where(eq(t.packages.courseId, courseId));
+
+  // Новые id файлов и пакетов курса; в содержимом шагов заменяем старые id на новые
+  const map = new Map<string, string>();
+  for (const u of uploads) map.set(u.id, randomUUID());
+  for (const p of packages) map.set(p.id, randomUUID());
+  const remap = <T,>(x: T): T => JSON.parse(JSON.stringify(x).replace(UUID, (id) => map.get(id) ?? id));
+
+  const made: string[] = [];
+  try {
+    for (const u of uploads) {
+      const to = filePath(map.get(u.id)!);
+      if (!(await stat(filePath(u.id)).catch(() => null))) { map.delete(u.id); continue; }
+      await mkdir(path.dirname(to), { recursive: true });
+      await link(filePath(u.id), to).catch(() => copyFile(filePath(u.id), to));
+      made.push(to);
+    }
+    for (const p of packages) {
+      if (!(await stat(packageDir(p.id)).catch(() => null))) { map.delete(p.id); continue; }
+      await cp(packageDir(p.id), packageDir(map.get(p.id)!), { recursive: true });
+      made.push(packageDir(map.get(p.id)!));
+    }
+
+    return await db.transaction(async (tx) => {
+      const [c] = await tx.insert(t.courses).values({
+        title: `${src.title} (копия)`, slug: await freeSlug(`${src.slug}-kopiya`), description: src.description, published: false,
+        sequential: src.sequential, parentDescription: src.parentDescription, price: src.price,
+      }).returning({ id: t.courses.id });
+      const ups = uploads.filter((u) => map.has(u.id));
+      if (ups.length) {
+        await tx.insert(t.uploads).values(ups.map((u) => ({
+          id: map.get(u.id)!, courseId: c.id, name: u.name, mime: u.mime, size: u.size, access: u.access, createdBy: userId,
+          pdfId: u.pdfId ? map.get(u.pdfId) ?? u.pdfId : null,
+        })));
+      }
+      const pkgs = packages.filter((p) => map.has(p.id));
+      if (pkgs.length) {
+        await tx.insert(t.packages).values(pkgs.map((p) => ({
+          id: map.get(p.id)!, courseId: c.id, kind: p.kind, title: p.title, launch: p.launch, activityId: p.activityId, launchMethod: p.launchMethod,
+        })));
+      }
+      if (src.coverId) await tx.update(t.courses).set({ coverId: map.get(src.coverId) ?? src.coverId }).where(eq(t.courses.id, c.id));
+
+      const lessonMap = new Map<string, string>();
+      for (const s of sections) {
+        const [sec] = await tx.insert(t.sections).values({
+          courseId: c.id, position: s.position, title: s.title, opensAt: s.opensAt, parentSkills: s.parentSkills,
+        }).returning({ id: t.sections.id });
+        for (const l of lessons.filter((x) => x.sectionId === s.id)) {
+          const [les] = await tx.insert(t.lessons).values({
+            sectionId: sec.id, position: l.position, title: l.title, kind: l.kind, layout: l.layout, published: l.published,
+            publishAt: l.publishAt, durationMin: l.durationMin, xp: l.xp,
+          }).returning({ id: t.lessons.id });
+          lessonMap.set(l.id, les.id);
+        }
+      }
+      if (steps.length) {
+        await tx.insert(t.lessonSteps).values(steps.map((x) => ({
+          lessonId: lessonMap.get(x.lessonId)!, position: x.position, kind: x.kind, title: x.title,
+          content: x.libraryId ? x.content : remap(x.content), libraryId: x.libraryId,
+        })));
+      }
+      if (materials.length) {
+        await tx.insert(t.courseMaterials).values(materials.map((x) => ({
+          courseId: c.id, uploadId: map.get(x.uploadId) ?? x.uploadId, title: x.title, description: x.description, position: x.position,
+          lessonId: x.lessonId ? lessonMap.get(x.lessonId) ?? null : null,
+        })));
+      }
+      await tx.insert(t.courseLog).values([
+        { courseId: c.id, userId, action: `Создал копию курса «${src.title}»`.slice(0, 300) },
+        { courseId, userId, action: "Сделал копию курса" },
+      ]);
+      return c.id;
+    });
+  } catch (e) {
+    // Не оставляем на диске файлы от неудачной копии
+    for (const p of made) await rm(p, { recursive: true, force: true });
+    throw e;
   }
 }
