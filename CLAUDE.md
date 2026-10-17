@@ -90,6 +90,7 @@
   добавлять в оба файла, иначе визуальный режим их потеряет (или пометить в `visualUnsupported`);
   **`user-md.ts` — безопасный Markdown для текстов пользователей** (комментарии, форум, чат) — использовать его для всего, что пишут ученики.
 - `gamify.ts` (`award()` — единая точка начисления XP/монет), `achievements.ts`, `leagues.ts`, `quests.ts`, `shop.ts`, `duels.ts`.
+- `search.ts` — поиск (`/search`): строки шагов через `jsonb_path_query`, доступ как у курсов; `transfer.ts` — также `copyCourse` (копия курса, файлы жёсткими ссылками).
 - `community.ts`, `chats.ts`, `news.ts`, `kb.ts`, `parents.ts`, `labs.ts`, `packages.ts` (SCORM), `transfer.ts` (экспорт курса), `storage.ts`.
 
 ### Известные грабли

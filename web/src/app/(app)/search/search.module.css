@@ -1,0 +1,6 @@
+.form { display: flex; gap: 10px; max-width: 640px; }
+.hit { display: flex; flex-direction: column; gap: 4px; padding: 12px 8px; border-top: 1px solid var(--line2); border-radius: 10px; color: var(--ink2); }
+.hit:first-child { border-top: 0; }
+.hit:hover { background: var(--green-tint); color: var(--ink2); }
+.hit b { color: var(--ink); font-weight: 600; }
+.snip { font-size: 14px; line-height: 1.5; color: var(--muted); }
