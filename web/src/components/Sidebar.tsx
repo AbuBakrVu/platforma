@@ -31,6 +31,7 @@ type Group = { title?: string; items: Item[] };
 const STUDENT: Group[] = [
   { items: [
     { href: "/", label: "Главная", icon: "home" },
+    { href: "/search", label: "Поиск", icon: "search" },
     { href: "/catalog", label: "Каталог курсов", short: "Каталог", icon: "cards" },
     { href: "/courses", label: "Мои курсы", short: "Курсы", icon: "skills" },
     { href: "/schedule", label: "Расписание", icon: "cal", feature: "schedule" },
@@ -54,7 +55,7 @@ const STUDENT: Group[] = [
 
 /** Меню сотрудника: только рабочие разделы, каждый — по праву доступа */
 const STAFF: Group[] = [
-  { items: [{ href: "/", label: "Главная", icon: "home" }] },
+  { items: [{ href: "/", label: "Главная", icon: "home" }, { href: "/search", label: "Поиск", icon: "search" }] },
   { title: "Обучение", items: [
     { href: "/admin/courses", label: "Курсы", icon: "skills", perm: "courses", not: ["/admin/courses/new"] },
     { href: "/admin/courses/new", label: "Создать курс", icon: "plus", perm: "courses" },
@@ -76,7 +77,6 @@ const STAFF: Group[] = [
     { href: "/news", label: "Объявления", icon: "bell" },
     { href: "/kb", label: "База знаний", icon: "doc" },
   ] },
-  { items: [{ href: "/admin/settings", label: "Настройки", icon: "settings", admin: true }] },
 ];
 
 const PARENT: Group[] = [{ items: [
@@ -94,8 +94,8 @@ const TABS = {
 
 /** Верхняя полоса на страницах курса: основные разделы иконками, остальное — под «Ещё» */
 const TOP = {
-  student: ["/", "/catalog", "/courses", "/review", "/quests", "/rating", "/messages"],
-  staff: ["/", "/admin/courses", "/admin/review", "/admin/requests", "/admin/users", "/messages"],
+  student: ["/", "/search", "/catalog", "/courses", "/review", "/quests", "/rating", "/messages"],
+  staff: ["/", "/search", "/admin/courses", "/admin/review", "/admin/requests", "/admin/users", "/messages"],
   parent: ["/parent", "/messages", "/news"],
 };
 /** Страница курса и уроки, а также создание и редактор курса — там основное меню уходит наверх, чтобы урок был шире */
@@ -124,7 +124,6 @@ export function Sidebar({ name, role, due = 0, avatar, game, perms, staffCounts,
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const staff = isStaffRole(role);
   const kind = role === "parent" ? "parent" : staff ? "staff" : "student";
 
@@ -159,7 +158,6 @@ export function Sidebar({ name, role, due = 0, avatar, game, perms, staffCounts,
   const topMode = isCoursePage(path);
   const top = TOP[kind].map((h) => all.find((l) => l.href === h)).filter((l): l is Item => !!l);
   // Группа раскрыта, если её открыли вручную или в ней текущая страница
-  const isOpen = (g: Group) => toggled[g.title ?? ""] ?? g.items.some(isOn);
 
   return (
     <>
@@ -198,14 +196,26 @@ export function Sidebar({ name, role, due = 0, avatar, game, perms, staffCounts,
       {open && <div className="side-back" onClick={() => setOpen(false)} aria-hidden />}
 
       <nav className={`side ${topMode ? "drawer" : ""} ${open ? "open" : ""}`} aria-label="Меню" onClick={(e) => { if ((e.target as Element).closest("a")) setOpen(false); }}>
-        <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+        <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap", gap: 2 }}>
           <Link href="/profile" className="me" aria-label="Профиль">
-            <Avatar user={{ name, ...avatar }} size={44} />
+            <Avatar user={{ name, ...avatar }} size={36} />
             <div style={{ minWidth: 0 }}>
               <b style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</b>
               <small>{ROLE[role]}</small>
             </div>
           </Link>
+          {/* «Настройки» и «Выйти» — маленькими кнопками рядом с именем, чтобы всё меню помещалось на экран */}
+          {role === "admin" && (
+            <Link href="/admin/settings" className={`iconbtn side-out ${path.startsWith("/admin/settings") ? "on" : ""}`} title="Настройки" aria-label="Настройки"
+              aria-current={path.startsWith("/admin/settings") ? "page" : undefined}>
+              <Icon name="settings" size={18} />
+            </Link>
+          )}
+          <form action={signOut}>
+            <button className="iconbtn side-out" title={impersonating ? "Завершить просмотр" : "Выйти"} aria-label={impersonating ? "Завершить просмотр" : "Выйти"}>
+              <Icon name="logout" size={18} />
+            </button>
+          </form>
           <button type="button" className="iconbtn side-x" aria-label="Закрыть меню" onClick={() => setOpen(false)}><Icon name="x" size={18} /></button>
         </div>
         {kind === "student" && (
@@ -217,27 +227,14 @@ export function Sidebar({ name, role, due = 0, avatar, game, perms, staffCounts,
           </Link>
         )}
         {groups.map((g, i) => {
-          if (!g.title) return <div key={i} className="nav">{g.items.map(link)}</div>;
-          const shown = isOpen(g);
-          // В свёрнутой группе — сумма счётчиков, чтобы новое не терялось
-          const hidden = shown ? 0 : g.items.reduce((n, l) => n + (l.badge ? counts[l.badge] : 0), 0);
+          // Группы всегда открыты: над ними — тихая подпись, без сворачивания
           return (
-            <div key={i} className="nav">
-              <button type="button" className="nav-t" aria-expanded={shown} onClick={() => setToggled((t) => ({ ...t, [g.title!]: !shown }))}>
-                <span>{g.title}</span>
-                {hidden > 0 && <span className="badge" aria-label={`${hidden} новых`}>{hidden}</span>}
-                <Icon name="down" size={16} className={shown ? "nav-chev on" : "nav-chev"} />
-              </button>
-              {shown && g.items.map(link)}
+            <div key={i} className="nav" role={g.title ? "group" : undefined} aria-label={g.title}>
+              {g.title && <div className="nav-cap" aria-hidden>{g.title}</div>}
+              {g.items.map(link)}
             </div>
           );
         })}
-        <form action={signOut} style={{ marginTop: "auto" }}>
-          <button className="btn" style={{ width: "100%" }}>
-            <Icon name="logout" size={18} />
-            {impersonating ? "Завершить просмотр" : "Выйти"}
-          </button>
-        </form>
       </nav>
 
       {/* Телефон: нижняя панель */}

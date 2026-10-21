@@ -6,6 +6,7 @@ import { and, asc, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db, schema as t } from "@/db";
 import { requirePerm } from "@/lib/auth";
 import { freeSlug } from "@/lib/courses";
+import { copyCourse as copyCourseData } from "@/lib/transfer";
 import { bool, dateTime, int, slugify, str } from "@/lib/form";
 import { TZ } from "@/lib/format";
 import { parseStep, STEP_KINDS, STEP_LABEL, type StepKind } from "@/lib/steps";
@@ -107,6 +108,15 @@ export async function deleteCourse(id: string) {
   await db.delete(t.courses).where(eq(t.courses.id, id));
   revalidatePath("/", "layout");
   redirect("/admin/courses");
+}
+
+/** Копия курса целиком — черновиком, без учеников (см. lib/transfer.ts) */
+export async function copyCourse(id: string) {
+  const me = await requirePerm("courses");
+  const newId = await copyCourseData(id, me.id);
+  if (!newId) return;
+  revalidatePath("/admin/courses");
+  redirect(`/admin/courses/${newId}?copied=1`);
 }
 
 export async function addSection(courseId: string, form: FormData) {
