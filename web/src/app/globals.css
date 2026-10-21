@@ -14,12 +14,12 @@ button{font:inherit;cursor:pointer}
 .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 .app{min-height:100vh;display:flex;flex-wrap:wrap;align-items:flex-start;gap:20px;padding:12px}
-.side{flex:1 1 240px;max-width:280px;background:var(--side);border-radius:var(--r);padding:20px 16px;display:flex;flex-direction:column;gap:18px;box-shadow:0 1px 2px rgba(20,30,20,.06)}
+.side{flex:1 1 240px;max-width:280px;background:var(--side);border-radius:var(--r);padding:14px 12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(20,30,20,.06)}
 .me{display:flex;align-items:center;gap:12px;padding:0 6px}
 .ava{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;flex:none}
 .me b{display:block;font-weight:600}.me small{font-size:13px;color:var(--muted)}
-.nav{display:flex;flex-direction:column;gap:4px}
-.nav a{display:flex;align-items:center;gap:14px;height:48px;padding:0 14px;border-radius:var(--r-s);color:var(--ink2)}
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav a{display:flex;align-items:center;gap:12px;height:34px;padding:0 12px;border-radius:var(--r-s);color:var(--ink2)}
 .nav a:hover{background:#EEF1ED;color:var(--ink2)}
 .nav a.on{background:var(--green-soft);color:var(--green);font-weight:600}
 .sep{height:1px;background:var(--line);margin:0 6px}
@@ -50,7 +50,7 @@ button{font:inherit;cursor:pointer}
 .term{background:var(--dark2);border-radius:var(--r-s);padding:16px 18px;font-size:13px;line-height:1.7;color:#D7E4DA;overflow-x:auto}
 .term .p{color:#6F8A77}.term .ok{color:#9FD3AE}.term .cur{display:inline-block;width:8px;height:15px;background:#9FC7AC;vertical-align:middle}
 .side{position:sticky;top:12px}
-@media (max-width:860px){.side{position:static;max-width:none}}
+@media (max-width:860px){.side{position:static;max-width:none}.nav a{height:44px}}
 input,textarea,select{font:inherit}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:13px;font-weight:500;color:var(--ink2)}
@@ -121,13 +121,16 @@ textarea.ctl{height:auto;min-height:120px;padding:12px;line-height:1.55;resize:v
 .imp-bar .btn{height:32px;background:#fff}
 
 /* Меню: заголовки групп, телефонная версия */
-.nav-t{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 14px;border:0;border-radius:var(--r-s);background:none;
-  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#8A918B;text-align:left}
-.nav-t:hover{background:#EEF1ED;color:var(--ink2)}
-.nav-t span:first-child{flex:1}
-.nav-t .badge{margin-left:0}
-.nav-chev{transition:transform .15s;transform:rotate(-90deg)}.nav-chev.on{transform:none}
-.side .nav + .nav{border-top:1px solid var(--line);padding-top:10px}
+.nav-cap{padding:8px 12px 4px;font-size:12px;font-weight:500;color:#8A918B}
+.me{flex:1;min-width:0;padding:0 2px;gap:10px}.me small{white-space:nowrap}
+.side-out{width:32px;height:32px;border-color:transparent;flex:none;color:var(--muted)}.side-out:hover{color:var(--ink)}.side-out.on{background:var(--green-soft);border-color:var(--green-soft);color:var(--green)}
+/* Невысокий экран ноутбука: меню плотнее, чтобы все пункты помещались без прокрутки */
+@media (min-width:861px) and (max-height:800px){
+  .side{gap:4px;padding:10px}.nav a{height:29px;font-size:14px}.nav a .ic{width:18px;height:18px}
+  .nav-cap{padding:6px 12px 1px}.game{padding:5px 10px}
+}
+/* На компьютере меню прилипает к экрану; если окно совсем низкое — листается само, страница не двигается */
+@media (min-width:861px){.side:not(.drawer){max-height:calc(100vh - 24px);overflow-y:auto;scrollbar-width:thin}}
 .side-x,.mbar,.mtabs,.side-back{display:none}
 /* Страница курса на компьютере: меню полосой сверху, левое меню — выезжающее по кнопке «Всё меню» */
 .topnav{display:none}
