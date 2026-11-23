@@ -8,7 +8,7 @@ import { uuidOrNull } from "@/lib/form";
 import { Confirm, Submit } from "@/components/Buttons";
 import { Icon } from "@/components/Icon";
 import { PubStatus } from "@/components/PubStatus";
-import { addSection, deleteCourse, publishCourse, updateCourse } from "../actions";
+import { addSection, copyCourse, deleteCourse, publishCourse, updateCourse } from "../actions";
 import { fmtPrice } from "@/lib/catalog";
 import { CourseTree } from "./CourseTree";
 import { CoverEditor } from "./CoverEditor";
@@ -54,6 +54,7 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
   return (
     <>
       <div className="crumbs"><Link href="/admin/courses">Курсы</Link><span>/</span><b>{course.title}</b></div>
+      {sp.copied && <div className="ok-box" role="status">Это копия курса — черновик, учеников в ней нет. Поменяйте название и цену ниже, правьте уроки и нажмите «Опубликовать», когда будет готово.</div>}
       {sp.new && <div className="ok-box" role="status">Курс создан. Теперь откройте урок и напишите его текст — ниже в списке уроков. Когда будет готово, нажмите «Опубликовать».</div>}
 
       <section className="card">
@@ -62,6 +63,10 @@ export default async function CourseEditor({ params, searchParams }: PageProps<"
           <div className="row">
             <a href={`/api/courses/${id}/export`} className="btn sm" title="Архив со всеми уроками, файлами и тестами — его можно загрузить обратно кнопкой «Импорт курса»">
               <Icon name="dl" size={16} />Скачать курс</a>
+            <form action={copyCourse.bind(null, id)}>
+              <Confirm className="btn sm" message={`Сделать копию курса «${course.title}»? Копия появится черновиком — со всеми уроками, файлами и материалами, но без учеников.`}>
+                <Icon name="copy" size={16} />Копировать курс</Confirm>
+            </form>
             <Link href={`/courses/${course.slug}`} className="btn sm"><Icon name="eye" size={16} />Как видит ученик</Link>
           </div>
         </div>
